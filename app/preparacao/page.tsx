@@ -100,7 +100,7 @@ comprovação de capacidade técnica em processos licitatórios.`
     return Math.ceil(ms / (24 * 60 * 60 * 1000))
   }
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pb-20 md:pb-0">
       <header className="border-b bg-white">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
           <div>

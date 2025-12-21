@@ -382,7 +382,7 @@ export default function HomePage() {
   useEffect(() => {}, [resultados])
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pb-20 md:pb-0">
       <div className="pointer-events-none fixed top-2 left-1/2 z-50 -translate-x-1/2 space-y-2" aria-live="polite">
         {toasts.map((t) => (
           <div
@@ -724,7 +724,7 @@ export default function HomePage() {
                       const cnpj = formatCNPJ(cnpjRaw)
                       return (
                         <div key={idx} className="min-w-full h-full p-4">
-                          <div className="flex h-full flex-col justify-between">
+                          <div className="flex h-full flex-col justify-between pb-20">
                             <div className="space-y-3">
                               <div className="flex items-center gap-2">
                                 <Badge className="bg-indigo-100 text-indigo-800">{modalidade}</Badge>
