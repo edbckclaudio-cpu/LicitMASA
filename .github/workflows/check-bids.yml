@@ -1,0 +1,15 @@
+name: Check PNCP Alerts
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+jobs:
+  hit-api:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call Supabase Edge Function
+        run: |
+          curl -sS -X POST "${SUPABASE_FUNCTION_URL}" -H "Authorization: Bearer ${SUPABASE_FUNCTION_TOKEN}" -H "Content-Type: application/json" || true
+        env:
+          SUPABASE_FUNCTION_URL: ${{ secrets.SUPABASE_FUNCTION_URL }}
+          SUPABASE_FUNCTION_TOKEN: ${{ secrets.SUPABASE_FUNCTION_TOKEN }}

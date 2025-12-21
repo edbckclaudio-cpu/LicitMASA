@@ -1,0 +1,23 @@
+name: Check PNCP Alerts (2-hour)
+
+on:
+  schedule:
+    - cron: "0 */2 * * *"
+  workflow_dispatch:
+
+jobs:
+  run-check-alerts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Invoke Supabase Edge Function
+        env:
+          SUPABASE_FUNCTION_URL: ${{ secrets.SUPABASE_FUNCTION_URL }}
+          SUPABASE_FUNCTION_KEY: ${{ secrets.SUPABASE_FUNCTION_KEY }}
+        run: |
+          if [ -z "$SUPABASE_FUNCTION_URL" ] || [ -z "$SUPABASE_FUNCTION_KEY" ]; then
+            echo "Missing SUPABASE_FUNCTION_URL or SUPABASE_FUNCTION_KEY"; exit 1;
+          fi
+          curl -s -X POST "$SUPABASE_FUNCTION_URL" \
+            -H "Authorization: Bearer $SUPABASE_FUNCTION_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{}'
