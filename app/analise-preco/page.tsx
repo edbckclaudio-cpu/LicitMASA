@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useMemo, useState, useCallback } from 'react'
+import { Suspense, useEffect, useMemo, useState, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -40,7 +40,7 @@ function extractKeywords(obj: string) {
   return top.join(' ')
 }
 
-export default function AnalisePrecoPage() {
+function AnalisePrecoContent() {
   const params = useSearchParams()
   const objetoParam = params.get('obj') || ''
   const [objeto, setObjeto] = useState<string>(objetoParam)
@@ -169,5 +169,12 @@ export default function AnalisePrecoPage() {
         </section>
       </main>
     </div>
+  )
+}
+export default function AnalisePrecoPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50" />}>
+      <AnalisePrecoContent />
+    </Suspense>
   )
 }

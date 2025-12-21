@@ -153,7 +153,6 @@ export default function HomePage() {
         pagina,
         tamanhoPagina,
       })
-      console.log('dadosDaApi', page)
       setResultados(Array.isArray(page.items) ? page.items : (Array.isArray((page as any).data) ? (page as any).data : []))
       setTotalPages(Number(page.totalPages || 1))
       setLoaded(true)
@@ -191,7 +190,6 @@ export default function HomePage() {
         tamanhoPagina,
       })
       const list = Array.isArray(page.items) ? page.items : []
-      console.log("SUCESSO: Licitação carregada com objeto direto.")
       setResultados(list)
       setTotalPages(Number(page.totalPages || 1))
       addToast('Resultados atualizados', 'success')
@@ -856,7 +854,6 @@ export default function HomePage() {
                   String(textoObjeto).length > 160
                     ? String(textoObjeto).substring(0, 160).replace(/^(Contratação de empresa para |Aquisição de |Fornecimento de )/i, '') + '...'
                     : String(textoObjeto)
-                console.log('licitacao_item', item)
                 return (
                   <div key={idx} className="flex flex-col md:flex-row items-start md:items-center justify-between p-4 gap-3">
                     <div className="flex-1">
