@@ -755,7 +755,7 @@ export default function HomePage() {
                                 href={edital}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-700 px-3 py-2 text-sm font-medium text-white shadow hover:bg-indigo-600"
+                                className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-800 px-3 py-2 text-sm font-medium text-white shadow hover:bg-blue-700"
                               >
                                 <FileText className="h-4 w-4" />
                                 Ver Edital
@@ -763,13 +763,25 @@ export default function HomePage() {
                               <div className="grid grid-cols-2 gap-3">
                                 <Link
                                   href={`/analise-preco?obj=${encodeURIComponent(objetoLimpo || '')}`}
-                                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm font-medium text-indigo-900 hover:bg-indigo-50"
+                                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-medium text-blue-900 hover:bg-blue-50"
                                 >
                                   Análise de Preço
                                 </Link>
                                 <Button
+                                  onClick={() => { setRaioxItem(item); setRaioxOpen(true) }}
+                                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-medium text-blue-900 hover:bg-blue-50"
+                                >
+                                  Raio-X
+                                </Button>
+                                <Button
+                                  onClick={() => { setDetailsItem(item); setDetailsOpen(true) }}
+                                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-medium text-blue-900 hover:bg-blue-50"
+                                >
+                                  Detalhes
+                                </Button>
+                                <Button
                                   onClick={() => handleFavorite(item)}
-                                  className="bg-gray-900 text-white hover:bg-gray-800"
+                                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-gray-900 px-3 py-2 text-sm font-medium text-white hover:bg-gray-800"
                                 >
                                   Favoritar
                                 </Button>
