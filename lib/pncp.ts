@@ -176,7 +176,14 @@ export function buildEditalUrlFromItem(item: any): string {
     : fallback
 }
 
-export async function fetchRaioxInfo(item: any): Promise<{ modoDisputa?: string, dataEncerramento?: string }> {
+export async function fetchRaioxInfo(item: any): Promise<{
+  modoDisputa?: string,
+  dataEncerramento?: string,
+  dataAbertura?: string,
+  horaAbertura?: string,
+  plataforma?: string,
+  disputaAbertaFechada?: string,
+}> {
   const url = buildEditalUrlFromItem(item)
   try {
     const res = await fetch(url, {
@@ -189,11 +196,31 @@ export async function fetchRaioxInfo(item: any): Promise<{ modoDisputa?: string,
     const html = await res.text()
     const mdMatch = html.match(/modo\s*de\s*disputa[^<:]*[:>]\s*([^<\n]+)/i) || html.match(/\"modoDisputa\"\s*:\s*\"([^\"]+)\"/i)
     const modoDisputa = mdMatch ? (mdMatch[1] || '').trim() : undefined
-    const deMatch = html.match(/data\s*(de\s*)?(encerramento|fim)[^0-9]*([\d]{4}-[\d]{2}-[\d]{2}T[\d]{2}:[\d]{2}:[\d]{2})/i)
+    const deMatch =
+      html.match(/data\s*(de\s*)?(encerramento|fim)[^0-9]*([\d]{4}-[\d]{2}-[\d]{2}T[\d]{2}:[\d]{2}:[\d]{2})/i)
+      || html.match(/data\s*(de\s*)?(encerramento|fim)[^0-9]*([\d]{2}\/[\d]{2}\/[\d]{4})/i)
       || html.match(/\"dataEncerramento\"\s*:\s*\"([^\"]+)\"/i)
       || html.match(/\"dataFim\"\s*:\s*\"([^\"]+)\"/i)
-    const dataEncerramento = deMatch ? (deMatch[1] ? deMatch[1] : deMatch[3] || deMatch[2]).toString() : undefined
-    return { modoDisputa, dataEncerramento }
+    const dataEncerramento =
+      deMatch ? ((deMatch[3] || deMatch[1] || deMatch[2]) as string) : undefined
+    const abDataMatch =
+      html.match(/data\s*(de\s*)?abertura[^0-9]*([\d]{4}-[\d]{2}-[\d]{2})/i)
+      || html.match(/data\s*(de\s*)?abertura[^0-9]*([\d]{2}\/[\d]{2}\/[\d]{4})/i)
+      || html.match(/\"dataAbertura\"\s*:\s*\"([^\"]+)\"/i)
+    const dataAbertura = abDataMatch ? (abDataMatch[3] || abDataMatch[2] || abDataMatch[1]) as string : undefined
+    const horaMatch =
+      html.match(/hora\s*(de\s*)?abertura[^0-9]*([\d]{2}:[\d]{2})/i)
+      || html.match(/\"horaAbertura\"\s*:\s*\"([^\"]+)\"/i)
+    const horaAbertura = horaMatch ? (horaMatch[2] || horaMatch[1]) as string : undefined
+    const plataforma =
+      /compras\.gov\.br/i.test(html) ? 'Compras.gov.br'
+      : /pncp\.gov\.br/i.test(html) ? 'PNCP'
+      : undefined
+    const disputaAbertaFechada =
+      /disputa\s*(aberta|aberto)/i.test(html) ? 'Aberta'
+      : /disputa\s*(fechada|fechado)/i.test(html) ? 'Fechada'
+      : undefined
+    return { modoDisputa, dataEncerramento, dataAbertura, horaAbertura, plataforma, disputaAbertaFechada }
   } catch {
     return {}
   }

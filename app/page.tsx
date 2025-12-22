@@ -119,7 +119,14 @@ export default function HomePage() {
   const [detailsItem, setDetailsItem] = useState<any | null>(null)
   const [raioxOpen, setRaioxOpen] = useState(false)
   const [raioxItem, setRaioxItem] = useState<any | null>(null)
-  const [raioxExtra, setRaioxExtra] = useState<{ modoDisputa?: string, dataEncerramento?: string } | null>(null)
+  const [raioxExtra, setRaioxExtra] = useState<{
+    modoDisputa?: string,
+    dataEncerramento?: string,
+    dataAbertura?: string,
+    horaAbertura?: string,
+    plataforma?: string,
+    disputaAbertaFechada?: string,
+  } | null>(null)
   const [editalObjetos, setEditalObjetos] = useState<Record<string, string>>({})
   const [editalLoading, setEditalLoading] = useState<Record<string, boolean>>({})
   const [carIndex, setCarIndex] = useState<number>(0)
@@ -1027,6 +1034,26 @@ export default function HomePage() {
                   <div className="text-xs text-gray-500">Modo de Disputa</div>
                   <div className="font-medium">
                     {raioxExtra?.modoDisputa || '—'}
+                  </div>
+                </div>
+                <div className="rounded-md border p-3">
+                  <div className="text-xs text-gray-500">Abertura</div>
+                  <div className="font-medium">
+                    {(raioxExtra?.dataAbertura || '') && (raioxExtra?.horaAbertura || '')
+                      ? `${raioxExtra?.dataAbertura} ${raioxExtra?.horaAbertura}`
+                      : raioxExtra?.dataAbertura || '—'}
+                  </div>
+                </div>
+                <div className="rounded-md border p-3">
+                  <div className="text-xs text-gray-500">Plataforma</div>
+                  <div className="font-medium">
+                    {raioxExtra?.plataforma || '—'}
+                  </div>
+                </div>
+                <div className="rounded-md border p-3">
+                  <div className="text-xs text-gray-500">Tipo de Disputa</div>
+                  <div className="font-medium">
+                    {raioxExtra?.disputaAbertaFechada || '—'}
                   </div>
                 </div>
                 <div className="rounded-md border p-3">
