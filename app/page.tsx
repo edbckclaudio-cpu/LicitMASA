@@ -753,38 +753,38 @@ export default function HomePage() {
                                 <span className="inline-flex items-center gap-1 rounded-md border px-2 py-1">{uaCodigo ? `UA ${String(uaCodigo)}` : '-'}</span>
                               </div>
                             </div>
-                            <div className="mt-4 flex flex-col gap-3">
+                            <div className="mt-4 flex flex-col gap-2">
                               <a
                                 href={edital}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-800 px-3 py-2 text-xs font-semibold text-white shadow hover:bg-blue-700"
+                                className="h-8 w-full inline-flex items-center justify-center gap-1 rounded-md bg-blue-800 px-2 text-[11px] font-semibold text-white shadow hover:bg-blue-700"
                               >
-                                <FileText className="h-4 w-4" />
+                                <FileText className="h-3 w-3" />
                                 Ver Edital
                               </a>
                               <div className="grid grid-cols-2 gap-2">
                                 <Link
                                   href={`/analise-preco?obj=${encodeURIComponent(objetoLimpo || '')}`}
-                                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-blue-200 bg-white px-2 py-2 text-xs font-semibold text-blue-900 hover:bg-blue-50"
+                                  className="h-8 w-full inline-flex items-center justify-center gap-1 rounded-md border border-blue-200 bg-white px-2 text-[11px] font-semibold text-blue-900 hover:bg-blue-50"
                                 >
                                   Análise de Preço
                                 </Link>
                                 <Button
                                   onClick={() => { setRaioxItem(item); setRaioxOpen(true) }}
-                                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-blue-200 bg-white px-2 py-2 text-xs font-semibold text-blue-900 hover:bg-blue-50"
+                                  className="h-8 w-full inline-flex items-center justify-center gap-1 rounded-md border border-blue-200 bg-white px-2 text-[11px] font-semibold text-blue-900 hover:bg-blue-50"
                                 >
                                   Raio-X
                                 </Button>
                                 <Button
                                   onClick={() => { setDetailsItem(item); setDetailsOpen(true) }}
-                                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-blue-200 bg-white px-2 py-2 text-xs font-semibold text-blue-900 hover:bg-blue-50"
+                                  className="h-8 w-full inline-flex items-center justify-center gap-1 rounded-md border border-blue-200 bg-white px-2 text-[11px] font-semibold text-blue-900 hover:bg-blue-50"
                                 >
                                   Detalhes
                                 </Button>
                                 <Button
                                   onClick={() => handleFavorite(item)}
-                                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-gray-900 px-2 py-2 text-xs font-semibold text-white hover:bg-gray-800"
+                                  className="h-8 w-full inline-flex items-center justify-center gap-1 rounded-md border border-blue-200 bg-white px-2 text-[11px] font-semibold text-blue-900 hover:bg-blue-50"
                                 >
                                   Favoritar
                                 </Button>
