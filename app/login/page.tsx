@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { supabase } from '@/lib/supabaseClient'
+import { supabase, authRedirectTo } from '@/lib/supabaseClient'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import Link from 'next/link'
@@ -12,14 +12,14 @@ export default function LoginPage() {
     if (!supabase) return
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined }
+      options: { redirectTo: authRedirectTo }
     })
   }
   async function sendMagicLink() {
     if (!supabase || !email) return
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : undefined }
+      options: { emailRedirectTo: authRedirectTo }
     })
     setMessage(error ? 'Falha ao enviar link mágico' : 'Verifique seu e-mail para acessar')
   }

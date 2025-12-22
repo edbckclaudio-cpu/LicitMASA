@@ -309,18 +309,18 @@ export default function HomePage() {
       addToast('Faça login para salvar suas licitações favoritas', 'error')
       return
     }
-    const modalidade =
-      getField(item, ['modalidade','modalidadeContratacao','modalidadeCompra','descricaoModalidade'], '')
     const orgao =
       asText(getField(getField(item, ['orgaoEntidade'], {}), ['razaoSocial'], '')) ||
       asText(getField(item, ['orgao','orgaoPublico','nomeUnidadeAdministrativa','uasgNome','entidade'], '')) ||
       ''
-    const valor =
+    const valorEstimado =
       getField(item, ['valorEstimado','valorTotalEstimado','valor','valorContratacao'], 0)
     const edital =
       getField(item, ['linkEdital','url','link'], '')
     const pncpId =
       getField(item, ['numeroControlePNCP','id','linkEdital'], String(Date.now()))
+    const dataAberturaRaw =
+      getField(item, ['dataAbertura','dataAberturaSessao','dataPublicacao','data'], null)
     let objetoBruto: string =
       getField(item, ['objetoCompra','objeto','objetoLicitacao','descricao','resumo','texto'], '')
     if (!objetoBruto && Array.isArray((item as any)?.itens)) {
@@ -335,9 +335,9 @@ export default function HomePage() {
       pncp_id: String(pncpId || ''),
       objeto_resumo: objetoResumo,
       orgao_nome: String(orgao || ''),
-      valor: Number(valor || 0),
+      valor_estimado: Number(valorEstimado || 0),
       link_edital: String(edital || ''),
-      modalidade: asText(modalidade) || '',
+      data_abertura: dataAberturaRaw ? String(dataAberturaRaw) : null,
     })
     if (error) {
       addToast('Erro ao favoritar', 'error')

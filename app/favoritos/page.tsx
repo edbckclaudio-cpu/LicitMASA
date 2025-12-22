@@ -12,9 +12,9 @@ type Favorite = {
   pncp_id: string
   objeto_resumo: string
   orgao_nome: string
-  valor: number
+  valor_estimado?: number
   link_edital: string
-  modalidade?: string
+  data_abertura?: string
 }
 
 function currencyBRL(v: number) {
@@ -45,7 +45,7 @@ export default function FavoritosPage() {
       setLoading(true)
       const { data } = await supabase
         .from('user_favorites')
-        .select('id,user_id,pncp_id,objeto_resumo,orgao_nome,valor,link_edital,modalidade')
+        .select('id,user_id,pncp_id,objeto_resumo,orgao_nome,valor_estimado,link_edital,data_abertura')
         .eq('user_id', user.id)
         .order('id', { ascending: false })
       setItems((data || []) as Favorite[])
@@ -86,14 +86,14 @@ export default function FavoritosPage() {
               <Card key={fav.id || fav.pncp_id} className="transition-shadow hover:shadow-sm">
                 <CardHeader>
                   <CardTitle className="text-sm text-blue-900">
-                    {fav.modalidade ? `${fav.modalidade} • ${fav.orgao_nome}` : fav.orgao_nome}
+                    {fav.orgao_nome}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2 text-sm text-gray-800">
                     <div className="rounded-md border bg-slate-50 px-3 py-2">{fav.objeto_resumo || 'Objeto indisponível'}</div>
                     <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center rounded-md border px-2 py-1 text-xs text-gray-700">{currencyBRL(fav.valor)}</span>
+                      <span className="inline-flex items-center rounded-md border px-2 py-1 text-xs text-gray-700">{currencyBRL(Number(fav.valor_estimado || 0))}</span>
                       <a
                         href={fav.link_edital || 'https://pncp.gov.br/'}
                         target="_blank"
