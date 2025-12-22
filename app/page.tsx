@@ -143,6 +143,11 @@ export default function HomePage() {
     document.title = 'LicitMASA'
   }, [])
   useEffect(() => {
+    function onClear() { setToasts([]) }
+    window.addEventListener('clear-toasts', onClear as any)
+    return () => { window.removeEventListener('clear-toasts', onClear as any) }
+  }, [])
+  useEffect(() => {
     let active = true
     async function load() {
       if (raioxOpen && raioxItem) {
@@ -461,12 +466,6 @@ export default function HomePage() {
                 {loading ? <Search className="mr-2 h-4 w-4 animate-spin" /> : null}
                 {loading ? 'Buscando...' : 'Buscar'}
               </Button>
-              <Button
-                onClick={() => setCompact((c) => !c)}
-                className="bg-gray-100 text-gray-800 hover:bg-gray-200"
-              >
-                {compact ? 'Modo completo' : 'Modo compacto'}
-              </Button>
             </div>
           </div>
           <div className="mt-3 hidden grid-cols-1 gap-4 md:grid md:grid-cols-[160px,120px,160px,160px,1fr]">
@@ -662,7 +661,7 @@ export default function HomePage() {
                 className="md:hidden relative overflow-hidden rounded-xl border bg-white"
                 style={{ height: `calc(100vh - 120px - env(safe-area-inset-bottom))` }}
               >
-                <div className="pointer-events-none absolute right-3 top-3 z-10 rounded-full bg-blue-900/90 px-3 py-1 text-xs font-medium text-white">
+                <div className="pointer-events-none absolute right-3 -top-6 z-10 rounded-full bg-blue-900/90 px-3 py-1 text-xs font-medium text-white">
                   {carIndex + 1} de {resultados.length}
                 </div>
                 <div
@@ -756,7 +755,7 @@ export default function HomePage() {
                                   {orgaoShort}
                                 </div>
                               </div>
-                              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-gray-800 lowercase line-clamp-3">
+                              <div className="rounded-lg border border-slate-200 bg-blue-50 p-3 text-xs text-gray-800 lowercase line-clamp-3">
                                 {String(objetoDisplay || 'Descrição não disponível').toLowerCase()}
                               </div>
                               <div className="grid grid-cols-2 gap-2 text-xs">
@@ -902,7 +901,7 @@ export default function HomePage() {
                         <Badge className="bg-blue-100 text-blue-800">{modalidade}</Badge>
                         <div className="text-base font-medium text-gray-900 truncate">{orgao}</div>
                       </div>
-                      <div className="mt-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-gray-800">
+                      <div className="mt-2 rounded-md border border-slate-200 bg-blue-50 px-3 py-2 text-sm text-gray-800">
                         {objetoDisplay || 'Descrição não disponível'}
                       </div>
                       <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-gray-700">

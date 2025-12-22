@@ -65,7 +65,7 @@ export function BottomNavigation({ className }: { className?: string }) {
         <div className="mx-auto flex max-w-5xl items-center justify-around px-2 py-2">
           <Link
             href="/"
-            onClick={bump}
+            onClick={() => { bump(); window.dispatchEvent(new Event('clear-toasts')) }}
             className="flex flex-col items-center gap-1 rounded-md px-3 py-2 text-xs text-blue-900 hover:bg-blue-50"
           >
             <Home className="h-5 w-5 text-blue-700" />
@@ -73,7 +73,7 @@ export function BottomNavigation({ className }: { className?: string }) {
           </Link>
           <Link
             href="/favoritos"
-            onClick={bump}
+            onClick={() => { bump(); window.dispatchEvent(new Event('clear-toasts')) }}
             className="flex flex-col items-center gap-1 rounded-md px-3 py-2 text-xs text-blue-900 hover:bg-blue-50"
           >
             <Bookmark className="h-5 w-5 text-blue-700" />
@@ -81,7 +81,7 @@ export function BottomNavigation({ className }: { className?: string }) {
           </Link>
           <Link
             href="/perfil"
-            onClick={bump}
+            onClick={() => { bump(); window.dispatchEvent(new Event('clear-toasts')) }}
             className="flex flex-col items-center gap-1 rounded-md px-3 py-2 text-xs text-blue-900 hover:bg-blue-50"
           >
             <User className="h-5 w-5 text-blue-700" />
@@ -89,7 +89,7 @@ export function BottomNavigation({ className }: { className?: string }) {
           </Link>
           <Link
             href="/preparacao"
-            onClick={bump}
+            onClick={() => { bump(); window.dispatchEvent(new Event('clear-toasts')) }}
             className="flex flex-col items-center gap-1 rounded-md px-3 py-2 text-xs text-blue-900 hover:bg-blue-50"
           >
             <ClipboardList className="h-5 w-5 text-blue-700" />

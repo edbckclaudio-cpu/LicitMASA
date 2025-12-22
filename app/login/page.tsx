@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase, authRedirectTo } from '@/lib/supabaseClient'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
@@ -8,18 +9,23 @@ import Link from 'next/link'
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [message, setMessage] = useState<string | null>(null)
+  const router = useRouter()
   async function signInGoogle() {
     if (!supabase) return
+    const redirectTo =
+      typeof window !== 'undefined' ? `${window.location.origin}/perfil` : authRedirectTo
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: authRedirectTo }
+      options: { redirectTo }
     })
   }
   async function sendMagicLink() {
     if (!supabase || !email) return
+    const emailRedirectTo =
+      typeof window !== 'undefined' ? `${window.location.origin}/perfil` : authRedirectTo
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: authRedirectTo }
+      options: { emailRedirectTo }
     })
     setMessage(error ? 'Falha ao enviar link mágico' : 'Verifique seu e-mail para acessar')
   }
@@ -30,6 +36,11 @@ export default function LoginPage() {
           <CardTitle className="text-center text-blue-900">LicitMASA</CardTitle>
         </CardHeader>
         <CardContent>
+          <div className="mb-3">
+            <Button onClick={() => router.push('/')} className="w-full bg-gray-100 text-gray-800 hover:bg-gray-200">
+              Voltar para Tela Inicial
+            </Button>
+          </div>
           <div className="space-y-3">
             <Button onClick={signInGoogle} className="w-full bg-white text-gray-900 border hover:bg-gray-50">
               Continuar com Google
