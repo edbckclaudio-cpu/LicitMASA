@@ -38,3 +38,5 @@ CREATE TABLE public.sent_notifications (
     enviado_em TIMESTAMP WITH TIME ZONE DEFAULT now(), 
     UNIQUE(user_id, pncp_id) 
 );
+
+ALTER TABLE public.user_alerts ADD COLUMN IF NOT EXISTS fcm_token TEXT;

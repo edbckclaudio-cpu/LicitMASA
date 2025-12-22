@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { useRouter } from 'next/navigation'
+import { requestAndSaveToken } from '@/lib/firebase'
 
 const UFS = ['AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MG','MS','MT','PA','PB','PE','PI','PR','RJ','RN','RO','RR','RS','SC','SE','SP','TO']
 
@@ -212,7 +213,24 @@ export default function AlertasPage() {
                   </div>
                 </div>
                 <div className="flex items-center justify-end">
-                  <Button onClick={savePrefs} disabled={!canSave} className="bg-blue-800 text-white hover:bg-blue-700">Salvar Configurações</Button>
+                  <div className="flex gap-2">
+                    <Button onClick={async () => {
+                      if (!isPremium) return
+                      const t = await requestAndSaveToken()
+                      if (!t) { setError('Permissão negada ou indisponível'); return }
+                      try {
+                        await fetch('/api/notifications/test', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ token: t })
+                        })
+                        alert('Notificação enviada')
+                      } catch {
+                        setError('Falha ao enviar notificação')
+                      }
+                    }} disabled={!isPremium} className="bg-green-600 text-white hover:bg-green-700">🔔 Testar Notificação Agora</Button>
+                    <Button onClick={savePrefs} disabled={!canSave} className="bg-blue-800 text-white hover:bg-blue-700">Salvar Configurações</Button>
+                  </div>
                 </div>
               </div>
             )}
