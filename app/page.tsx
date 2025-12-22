@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Search, Building2, Calendar, FileText, Banknote, X, Gauge, LineChart, MessageCircle } from 'lucide-react'
+import { Search, Building2, Calendar, FileText, Banknote, X, Gauge, LineChart, MessageCircle, Heart } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Select } from '../components/ui/select'
@@ -306,38 +306,17 @@ export default function HomePage() {
     const { data: userData } = await supabase.auth.getUser()
     const user = userData?.user
     if (!user) {
-      addToast('Entre para favoritar', 'error')
-      return
-    }
-    const { data: prof, error: profErr } = await supabase
-      .from('profiles')
-      .select('id, is_premium, email')
-      .eq('id', user.id)
-      .single()
-    if (profErr && profErr.code === 'PGRST116') {
-      await supabase.from('profiles').insert({
-        id: user.id,
-        email: user.email,
-        is_premium: false,
-      })
-    }
-    const isPremium = Boolean(prof?.is_premium)
-    const { count } = await supabase
-      .from('favorite_biddings')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-    if (!isPremium && (count ?? 0) >= 3) {
-      setUpgradeOpen(true)
+      addToast('Faça login para salvar suas licitações favoritas', 'error')
       return
     }
     const modalidade =
       getField(item, ['modalidade','modalidadeContratacao','modalidadeCompra','descricaoModalidade'], '')
     const orgao =
-      getField(item, ['orgao','orgaoPublico','nomeUnidadeAdministrativa','uasgNome','entidade'], '')
+      asText(getField(getField(item, ['orgaoEntidade'], {}), ['razaoSocial'], '')) ||
+      asText(getField(item, ['orgao','orgaoPublico','nomeUnidadeAdministrativa','uasgNome','entidade'], '')) ||
+      ''
     const valor =
       getField(item, ['valorEstimado','valorTotalEstimado','valor','valorContratacao'], 0)
-    const dataPub =
-      getField(item, ['dataPublicacao','dataInclusao','data'], '')
     const edital =
       getField(item, ['linkEdital','url','link'], '')
     const pncpId =
@@ -350,34 +329,15 @@ export default function HomePage() {
         if (cand) { objetoBruto = cand; break }
       }
     }
-    if (!objetoBruto) {
-      const key = String(pncpId || '')
-      if (key) {
-        const cached = String(editalObjetos[key] || '')
-        if (cached) {
-          objetoBruto = cached
-        } else {
-          const url = buildEditalUrl(item)
-          if (url) {
-            const fetched = await extrairObjetoDoEdital(url, String(pncpId || ''))
-            if (fetched) {
-              objetoBruto = fetched
-              setEditalObjetos((prev) => ({ ...prev, [key]: fetched }))
-            }
-          }
-        }
-      }
-    }
-    const objeto = sanitizeText(objetoBruto) || ''
-    const title = `${String(modalidade || 'Modalidade')} • ${String(objeto || 'Objeto')}`
-    const { error } = await supabase.from('favorite_biddings').insert({
+    const objetoResumo = sanitizeText(objetoBruto) || ''
+    const { error } = await supabase.from('user_favorites').insert({
       user_id: user.id,
-      pncp_id: String(pncpId),
-      title,
-      organ_name: String(orgao || ''),
-      estimated_value: Number(valor || 0),
+      pncp_id: String(pncpId || ''),
+      objeto_resumo: objetoResumo,
+      orgao_nome: String(orgao || ''),
+      valor: Number(valor || 0),
       link_edital: String(edital || ''),
-      data_abertura: dataPub ? new Date(String(dataPub)) : null,
+      modalidade: asText(modalidade) || '',
     })
     if (error) {
       addToast('Erro ao favoritar', 'error')
@@ -430,21 +390,13 @@ export default function HomePage() {
   }
   function shareToWhatsApp(currentItem: any) {
     if (!currentItem) return
-    const objeto = sanitizeText(getField(currentItem, ['objetoCompra','objeto','objetoLicitacao','descricao','resumo','texto'], '') || '')
-    const orgao = asText(getField(getField(currentItem, ['orgaoEntidade'], {}), ['razaoSocial'], '')) || ''
+    const objetoCompra = sanitizeText(getField(currentItem, ['objetoCompra','objeto','objetoLicitacao','descricao','resumo','texto'], '') || '')
+    const razaoSocial = asText(getField(getField(currentItem, ['orgaoEntidade'], {}), ['razaoSocial'], '')) || ''
     const valor = formatCurrencyBRL(getField(currentItem, ['valorTotalEstimado','valorEstimado','valor','valorContratacao'], 0))
-    const dataEnc = String(getField(currentItem, ['dataEncerramentoProposta'], '')) || ''
-    const dataTxt = dataEnc ? formatDateTimeBR(dataEnc) : ''
-    const link = buildEditalUrl(currentItem)
-    const msg =
-      `📢 *Oportunidade de Licitação - LicitMASA*\n\n` +
-      `📦 *Objeto:* ${objeto}\n` +
-      `🏛️ *Órgão:* ${orgao}\n` +
-      `💰 *Valor:* ${valor}\n` +
-      `⏳ *Prazo:* ${dataTxt}\n\n` +
-      `🔗 *Link:* ${link}\n\n` +
-      `Enviado via App LicitMASA - Inteligência em Licitações`
-    const url = `https://wa.me/?text=${encodeURIComponent(msg)}`
+    const data = String(getField(currentItem, ['dataEncerramentoProposta'], '')) || ''
+    const linkPNCP = buildEditalUrl(currentItem)
+    const msg = `📢 *Oportunidade de Licitação - LicitMASA*%0A%0A📦 *Objeto:* ${objetoCompra}%0A🏛️ *Órgão:* ${razaoSocial}%0A💰 *Valor:* ${valor}%%0A⏳ *Prazo Final:* ${formatDateTimeBR(data)}%0A%0A🔗 *Ver detalhes no Portal:* ${linkPNCP}%0A%0A_Enviado via LicitMASA_`
+    const url = `https://wa.me/?text=${msg}`
     if (typeof window !== 'undefined') {
       window.open(url, '_blank')
     }
@@ -849,9 +801,11 @@ export default function HomePage() {
                                 </Button>
                                 <Button
                                   onClick={() => handleFavorite(item)}
-                                  className="h-8 w-full inline-flex items-center justify-center gap-1 rounded-md border border-blue-200 bg-white px-2 text-[11px] font-semibold text-blue-900 hover:bg-blue-50"
+                                  className="h-8 w-full inline-flex items-center justify-center gap-1 rounded-md border border-pink-200 bg-white px-2 text-[11px] font-semibold text-pink-700 hover:bg-pink-50"
+                                  aria-label="Favoritar"
                                 >
-                                  Favoritar
+                                  <Heart className="h-3 w-3 text-pink-600" />
+                                  Salvar
                                 </Button>
                                 <Button
                                   onClick={() => shareToWhatsApp(item)}
@@ -999,9 +953,11 @@ export default function HomePage() {
                         </Button>
                         <Button
                           onClick={() => handleFavorite(item)}
-                          className="bg-gray-900 text-white hover:bg-gray-800"
+                          className="bg-pink-600 text-white hover:bg-pink-700 inline-flex items-center gap-1"
+                          aria-label="Favoritar"
                         >
-                          Favoritar
+                          <Heart className="h-4 w-4" />
+                          Salvar
                         </Button>
                         <Button
                           onClick={() => shareToWhatsApp(item)}
