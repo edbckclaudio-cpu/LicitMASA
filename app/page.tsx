@@ -245,14 +245,8 @@ export default function HomePage() {
   }
 
   async function handleFavorite(item: any) {
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-      addToast('Configure o Supabase no .env', 'error')
-      return
-    }
-    if (!supabase) {
-      addToast('Configure o Supabase no .env', 'error')
-      return
-    }
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) return
+    if (!supabase) return
     const { data: userData } = await supabase.auth.getUser()
     const user = userData?.user
     if (!user) {
