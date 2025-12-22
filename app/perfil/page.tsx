@@ -1,11 +1,11 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useRouter, useSearchParams } from 'next/navigation'
 
-export default function PerfilPage() {
+function PerfilContent() {
   const router = useRouter()
   const sp = useSearchParams()
   const [userEmail, setUserEmail] = useState<string | null>(null)
@@ -128,5 +128,13 @@ export default function PerfilPage() {
         </div>
       </main>
     </div>
+  )
+}
+
+export default function PerfilPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gray-50"><div className="rounded-lg border bg-white p-6 text-center text-sm text-gray-700">Carregando perfil...</div></div>}>
+      <PerfilContent />
+    </Suspense>
   )
 }
