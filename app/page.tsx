@@ -995,9 +995,31 @@ export default function HomePage() {
                 <div className="rounded-md border p-3">
                   <div className="text-xs text-gray-500">Critério</div>
                   <div className="font-medium">
-                    {String(
-                      getField(raioxItem, ['criterioJulgamento','tipoJulgamento','criterio'], '')
-                    ) || '—'}
+                    {(function () {
+                      const raw = String(getField(raioxItem, ['criterioJulgamento','tipoJulgamento','criterio'], ''))
+                      if (raw) return raw
+                      const mod = modalidadeNome(
+                        getField(raioxItem, ['modalidade','modalidadeContratacao','modalidadeCompra','descricaoModalidade'], ''),
+                        getField(raioxItem, ['codigoModalidadeContratacao'], undefined)
+                      )
+                      if (/preg[aã]o/i.test(mod)) return 'Menor preço'
+                      if (/dispensa|inexigibilidade/i.test(mod)) return 'Não aplicável'
+                      if (/concurso/i.test(mod)) return 'Melhor técnica / técnica e preço'
+                      if (/leil[aã]o/i.test(mod)) return 'Maior lance'
+                      return '—'
+                    })()}
+                  </div>
+                </div>
+                <div className="rounded-md border p-3">
+                  <div className="text-xs text-gray-500">Data de Publicação</div>
+                  <div className="font-medium">
+                    {String(getField(raioxItem, ['dataPublicacao','dataInclusao','data'], '') || '').slice(0, 10) || '—'}
+                  </div>
+                </div>
+                <div className="rounded-md border p-3">
+                  <div className="text-xs text-gray-500">Valor</div>
+                  <div className="font-medium">
+                    {formatCurrencyBRL(getField(raioxItem, ['valorEstimado','valorTotalEstimado','valor','valorContratacao'], 0))}
                   </div>
                 </div>
               </div>
