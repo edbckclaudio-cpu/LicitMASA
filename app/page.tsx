@@ -189,6 +189,15 @@ export default function HomePage() {
       setToasts((prev) => prev.filter((t) => t.id !== id))
     }, 3000)
   }
+  function formatDateTimeBR(iso?: string): string {
+    if (!iso) return ''
+    const d = new Date(String(iso))
+    if (Number.isNaN(d.getTime())) return ''
+    const date = d.toLocaleDateString('pt-BR')
+    const hh = String(d.getHours()).padStart(2, '0')
+    const mm = String(d.getMinutes()).padStart(2, '0')
+    return `${date} ${hh}:${mm}`
+  }
 
   async function carregarIniciais() {
     setLoading(true)
@@ -1066,9 +1075,7 @@ export default function HomePage() {
                 <div className="rounded-md border p-3">
                   <div className="text-xs text-gray-500">Abertura</div>
                   <div className="font-medium">
-                    {(raioxExtra?.dataAbertura || '') && (raioxExtra?.horaAbertura || '')
-                      ? `${raioxExtra?.dataAbertura} ${raioxExtra?.horaAbertura}`
-                      : raioxExtra?.dataAbertura || '—'}
+                    {formatDateTimeBR(raioxExtra?.dataAbertura) || '—'}
                   </div>
                 </div>
                 <div className="rounded-md border p-3">
