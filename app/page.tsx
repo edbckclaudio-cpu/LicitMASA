@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Search, Building2, Calendar, FileText, Banknote, X, Gauge, LineChart, MessageCircle, Heart } from 'lucide-react'
+import { Search, Building2, Calendar, FileText, Banknote, X, Gauge, LineChart, MessageCircle, Heart, MapPin, RotateCcw } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Select } from '../components/ui/select'
@@ -132,6 +132,7 @@ export default function HomePage() {
   const [carIndex, setCarIndex] = useState<number>(0)
   const [swipeStart, setSwipeStart] = useState<number | null>(null)
   const [swipeDelta, setSwipeDelta] = useState<number>(0)
+  const [favoritedIds, setFavoritedIds] = useState<Set<string>>(new Set())
 
   const hoje = useMemo(() => formatDateYYYYMMDD(new Date()), [])
   const inicio = useMemo(() => {
@@ -349,6 +350,13 @@ export default function HomePage() {
       return
     }
     addToast('Favorito salvo', 'success')
+    if (pncpId) {
+      setFavoritedIds((prev) => {
+        const next = new Set(prev)
+        next.add(String(pncpId))
+        return next
+      })
+    }
   }
   function mudarPagina(next: number) {
     const p = Math.max(1, next)
@@ -432,7 +440,7 @@ export default function HomePage() {
       <header className="border-b bg-white">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-blue-900">LicitMASA</h1>
+            <h1 className="text-3xl font-bold tracking-tight text-slate-900">LicitMASA</h1>
             <p className="mt-1 text-sm text-gray-600">O radar de oportunidades para sua empresa</p>
           </div>
           <div className="flex items-center gap-3">
@@ -457,6 +465,13 @@ export default function HomePage() {
                 value={termo}
                 onChange={(e) => setTermo(e.target.value)}
               />
+              <Button
+                onClick={() => { addToast('Atualizando...', 'info'); buscar() }}
+                className="bg-gray-100 text-slate-700 hover:bg-gray-200 px-2 py-2"
+                aria-label="Atualizar resultados"
+              >
+                <RotateCcw className="h-4 w-4" />
+              </Button>
             </div>
             <div className="flex items-center gap-2">
               <Button onClick={() => setFiltersOpen(true)} className="bg-gray-100 text-gray-800 hover:bg-gray-200 md:hidden">
@@ -506,31 +521,39 @@ export default function HomePage() {
             </Button>
           </div>
           <div className="mt-3 text-xs text-gray-500">Exibindo publicações de {inicio} a {hoje}</div>
-          <div className="mt-4 flex items-center justify-between">
-            <div className="text-xs text-gray-500">Página {pagina} de {totalPages}</div>
-            <div className="flex items-center gap-2">
-              <Button
-                onClick={() => { mudarPagina(pagina - 1) }}
-                className="bg-gray-100 text-gray-700 hover:bg-gray-200"
-                disabled={pagina <= 1}
-              >
-                Anterior
-              </Button>
-              <Button
-                onClick={() => { mudarPagina(pagina + 1) }}
-                className="bg-gray-100 text-gray-700 hover:bg-gray-200"
-                disabled={pagina >= totalPages}
-              >
-                Próxima
-              </Button>
-              <Select
-                value={String(tamanhoPagina)}
-                onChange={(e) => setTamanhoPagina(Number(e.target.value))}
-              >
-                <option value="10">10</option>
-                <option value="20">20</option>
-                <option value="50">50</option>
-              </Select>
+          <div className="mt-3 flex items-center justify-between rounded-md border bg-white px-3 py-2 shadow-sm">
+            <div className="text-sm text-slate-700">Encontramos {resultados.length} licitações</div>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 text-xs">
+                <span className="text-slate-600">Itens por página</span>
+                <Select
+                  value={String(tamanhoPagina)}
+                  onChange={(e) => setTamanhoPagina(Number(e.target.value))}
+                >
+                  <option value="10">10</option>
+                  <option value="20">20</option>
+                  <option value="50">50</option>
+                </Select>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={() => { mudarPagina(pagina - 1) }}
+                  className="bg-gray-100 text-gray-700 hover:bg-gray-200 px-2 py-1"
+                  disabled={pagina <= 1}
+                  aria-label="Página anterior"
+                >
+                  {'<'}
+                </Button>
+                <span className="text-xs text-slate-700">{pagina} / {totalPages}</span>
+                <Button
+                  onClick={() => { mudarPagina(pagina + 1) }}
+                  className="bg-gray-100 text-gray-700 hover:bg-gray-200 px-2 py-1"
+                  disabled={pagina >= totalPages}
+                  aria-label="Próxima página"
+                >
+                  {'>'}
+                </Button>
+              </div>
             </div>
           </div>
         </section>
@@ -613,23 +636,6 @@ export default function HomePage() {
           ref={pullRef}
           className="relative mt-8"
         >
-          <div
-            className="absolute -top-6 left-1/2 z-10 -translate-x-1/2"
-          >
-            <div className="inline-flex items-center gap-2">
-              <div className="rounded-full bg-blue-900/90 px-3 py-1 text-xs font-medium text-white">
-                {Math.min(carIndex + 1, Math.max(0, resultados.length))} de {resultados.length}
-              </div>
-              <button
-                type="button"
-                onClick={() => { addToast('Atualizando...', 'info'); buscar() }}
-                className="inline-flex items-center gap-2 rounded-full border bg-white px-3 py-1 text-xs text-gray-700 hover:bg-blue-50"
-              >
-                <Search className="h-3 w-3" />
-                Clique para atualizar
-              </button>
-            </div>
-          </div>
         <section className="mt-0">
           {loading && (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -663,7 +669,7 @@ export default function HomePage() {
           {!loading && !error && resultados.length > 0 && (
             <>
               <div
-                className="md:hidden relative overflow-hidden rounded-xl border-2 border-blue-900 bg-white"
+                className="md:hidden relative overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm"
                 style={{ height: `calc(100vh - 120px - env(safe-area-inset-bottom))` }}
               >
                 <div
@@ -749,11 +755,11 @@ export default function HomePage() {
                       const cnpj = formatCNPJ(cnpjRaw)
                       return (
                         <div key={idx} className="min-w-full h-full p-4">
-                          <div className="flex h-full flex-col justify-between pb-20">
+                          <div className="rounded-xl border border-slate-100 bg-white shadow-sm flex h-full flex-col justify-between pb-20 p-4">
                             <div className="space-y-3">
                               <div className="flex items-center gap-2">
-                                <Badge className="bg-indigo-100 text-indigo-800">{modalidade}</Badge>
-                                <div className="rounded-md border border-indigo-200 bg-indigo-50 px-2 py-1 text-sm font-semibold text-indigo-900">
+                                <Badge className={"px-2 " + (Number(modalidadeCode) === 22 ? "bg-blue-100 text-blue-800" : Number(modalidadeCode) === 8 ? "bg-green-100 text-green-800" : Number(modalidadeCode) === 21 ? "bg-yellow-100 text-yellow-800" : "bg-slate-100 text-slate-800")}>{modalidade}</Badge>
+                                <div className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-sm font-semibold text-slate-900">
                                   {orgaoShort}
                                 </div>
                               </div>
@@ -761,17 +767,17 @@ export default function HomePage() {
                                 {String(objetoDisplay || 'Descrição não disponível').toLowerCase()}
                               </div>
                               <div className="grid grid-cols-2 gap-2 text-xs">
-                                <div className="flex items-center gap-2 rounded-md border px-2 py-2 text-gray-700">
-                                  <Banknote className="h-4 w-4 text-indigo-700" />
+                                <div className="flex items-center gap-2 rounded-md border px-2 py-2 text-blue-800 font-semibold">
+                                  <Banknote className="h-4 w-4 text-blue-700" />
                                   {formatCurrencyBRL(getField(item, ['valorEstimado','valorTotalEstimado','valor','valorContratacao'], 0))}
                                 </div>
                                 <div className="flex items-center gap-2 rounded-md border px-2 py-2 text-gray-700">
-                                  <Calendar className="h-4 w-4 text-indigo-700" />
+                                  <Calendar className="h-4 w-4 text-blue-700" />
                                   {String(getField(item, ['dataPublicacao','dataInclusao','data'], '') || '').slice(0, 10)}
                                 </div>
                               </div>
                               <div className="flex flex-wrap items-center gap-2 text-xs text-gray-700">
-                                <span className="inline-flex items-center gap-1 rounded-md border px-2 py-1">{String(ufItem || '-')}</span>
+                                <span className="inline-flex items-center gap-1 rounded-md border px-2 py-1"><MapPin className="h-3 w-3 text-blue-700" />{String(ufItem || '-')}</span>
                                 <span className="inline-flex items-center gap-1 rounded-md border px-2 py-1">{municipio ? municipio : '-'}</span>
                                 <span className="inline-flex items-center gap-1 rounded-md border px-2 py-1">{cnpj ? `CNPJ ${cnpj}` : '-'}</span>
                                 <span className="inline-flex items-center gap-1 rounded-md border px-2 py-1">{uaCodigo ? `UA ${String(uaCodigo)}` : '-'}</span>
@@ -782,38 +788,39 @@ export default function HomePage() {
                                 href={edital}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="h-8 w-full inline-flex items-center justify-center gap-1 rounded-md bg-blue-800 px-2 text-[11px] font-semibold text-white shadow hover:bg-blue-700"
+                                className="h-9 w-[70%] inline-flex items-center justify-center gap-2 rounded-md bg-blue-700 px-3 text-xs font-semibold text-white shadow hover:bg-blue-600"
                               >
-                                <FileText className="h-3 w-3" />
+                                <FileText className="h-4 w-4" />
                                 Ver Edital
                               </a>
-                              <div className="grid grid-cols-2 gap-2">
+                              <div className="flex items-center gap-2">
                                 <Button
                                   onClick={() => { setRaioxItem(item); setRaioxOpen(true) }}
-                                  className="h-8 w-full inline-flex items-center justify-center gap-1 rounded-md border border-blue-200 bg-white px-2 text-[11px] font-semibold text-blue-900 hover:bg-blue-50"
+                                  className="h-9 inline-flex items-center justify-center rounded-md border bg-white px-2 text-xs text-slate-800 hover:bg-gray-100"
+                                  aria-label="Raio-X"
                                 >
-                                  Raio-X
+                                  <Gauge className="h-4 w-4 text-blue-700" />
                                 </Button>
                                 <Button
                                   onClick={() => { setDetailsItem(item); setDetailsOpen(true) }}
-                                  className="h-8 w-full inline-flex items-center justify-center gap-1 rounded-md border border-blue-200 bg-white px-2 text-[11px] font-semibold text-blue-900 hover:bg-blue-50"
+                                  className="h-9 inline-flex items-center justify-center rounded-md border bg-white px-2 text-xs text-slate-800 hover:bg-gray-100"
+                                  aria-label="Detalhes"
                                 >
-                                  Detalhes
+                                  <LineChart className="h-4 w-4 text-blue-700" />
                                 </Button>
                                 <Button
                                   onClick={() => handleFavorite(item)}
-                                  className="h-8 w-full inline-flex items-center justify-center gap-1 rounded-md border border-pink-200 bg-white px-2 text-[11px] font-semibold text-pink-700 hover:bg-pink-50"
+                                  className="h-9 inline-flex items-center justify-center rounded-md border bg-white px-2 text-xs hover:bg-pink-50"
                                   aria-label="Favoritar"
                                 >
-                                  <Heart className="h-3 w-3 text-pink-600" />
-                                  Salvar
+                                  <Heart className={"h-4 w-4 " + (favoritedIds.has(String(pncpId)) ? "text-pink-600" : "text-slate-500")} />
                                 </Button>
                                 <Button
                                   onClick={() => shareToWhatsApp(item)}
-                                  className="h-8 w-full inline-flex items-center justify-center gap-1 rounded-md border border-green-600 bg-white px-2 text-[11px] font-semibold text-green-700 hover:bg-green-50"
+                                  className="h-9 inline-flex items-center justify-center rounded-md border bg-white px-2 text-xs text-green-700 hover:bg-green-50"
+                                  aria-label="Enviar para WhatsApp"
                                 >
-                                  <MessageCircle className="h-3 w-3 text-green-600" />
-                                  Enviar para WhatsApp
+                                  <MessageCircle className="h-4 w-4 text-green-700" />
                                 </Button>
                               </div>
                             </div>
@@ -824,7 +831,7 @@ export default function HomePage() {
                   </div>
                 </div>
               </div>
-              <div className="hidden md:block rounded-xl border-2 border-blue-900 bg-white divide-y">
+              <div className="hidden md:block rounded-xl border border-slate-100 bg-white divide-y shadow-sm">
               {resultados.map((item: any, idx: number) => {
                 const modalidadeRaw =
                   getField(item, ['modalidadeNome','modalidade','modalidadeContratacao','modalidadeCompra','descricaoModalidade'], '')
@@ -933,32 +940,31 @@ export default function HomePage() {
                           href={edital}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex items-center gap-2 rounded-md bg-blue-800 px-3 py-2 text-xs font-medium text-white hover:bg-blue-700"
+                          className="inline-flex items-center gap-2 rounded-md bg-blue-700 px-3 py-2 text-xs font-medium text-white hover:bg-blue-600 w-[70%]"
                         >
                           <FileText className="h-4 w-4" />
                           Ver Edital
                         </a>
-                        
                         <Button
                           onClick={() => { setRaioxItem(item); setRaioxOpen(true) }}
-                          className="bg-gray-100 text-gray-800 hover:bg-gray-200 text-xs px-2 py-1"
+                          className="inline-flex items-center justify-center rounded-md border bg-white px-2 text-xs text-slate-800 hover:bg-gray-100"
+                          aria-label="Raio-X"
                         >
                           <Gauge className="h-4 w-4 text-blue-700" />
-                          Raio-X
                         </Button>
                         <Button
                           onClick={() => { setDetailsItem(item); setDetailsOpen(true) }}
-                          className="bg-gray-100 text-gray-800 hover:bg-gray-200"
+                          className="inline-flex items-center justify-center rounded-md border bg-white px-2 text-xs text-slate-800 hover:bg-gray-100"
+                          aria-label="Detalhes"
                         >
-                          Detalhes
+                          <LineChart className="h-4 w-4 text-blue-700" />
                         </Button>
                         <Button
                           onClick={() => handleFavorite(item)}
-                          className="bg-pink-600 text-white hover:bg-pink-700 inline-flex items-center gap-1"
+                          className="inline-flex items-center justify-center rounded-md border bg-white px-2 text-xs hover:bg-pink-50"
                           aria-label="Favoritar"
                         >
-                          <Heart className="h-4 w-4" />
-                          Salvar
+                          <Heart className={"h-4 w-4 " + (favoritedIds.has(String(pncpId)) ? "text-pink-600" : "text-slate-500")} />
                         </Button>
                         <Button
                           onClick={() => shareToWhatsApp(item)}
