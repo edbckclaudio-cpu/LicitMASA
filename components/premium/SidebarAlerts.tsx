@@ -30,7 +30,7 @@ export function SidebarAlerts() {
         <div className="mt-8 rounded-lg border border-slate-100 bg-slate-50 p-4">
           <h4 className="mb-1 text-sm font-semibold text-slate-700">Dica Premium</h4>
           <p className="text-xs text-slate-500">
-            Nossos robôs consultam o PNCP a cada 2 horas. Se houver uma nova dispensa ou pregão, você será o primeiro a saber.
+            Nossos robôs consultam o PNCP às 07:00 horas e às 16:00 horas. Se houver uma nova dispensa ou pregão, você será o primeiro a saber.
           </p>
         </div>
       </SheetContent>

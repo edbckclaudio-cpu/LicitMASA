@@ -53,6 +53,13 @@ export default function AlertasPage() {
     }
     init()
   }, [])
+  useEffect(() => {
+    async function ensurePushSetup() {
+      if (!isPremium || !pushOn) return
+      await requestAndSaveToken()
+    }
+    ensurePushSetup()
+  }, [isPremium, pushOn])
 
   function addKeywordFromInput() {
     const parts = keywordsInput.split(/[,\s]+/).map((s) => s.trim()).filter(Boolean)
@@ -124,7 +131,7 @@ export default function AlertasPage() {
               <div className="rounded-lg border bg-white p-6 text-center text-sm text-gray-700">Carregando...</div>
             ) : (
               <div className="space-y-6">
-                <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">🔔 Você receberá resumos automáticos às 07:00 e 16:00.</div>
+                <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">🔔 Você receberá resumos automáticos às 07:00 horas e às 16:00 horas.</div>
                 {!isPremium && (
                   <div className="flex items-center justify-between rounded-md border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
                     <span>Disponível apenas para plano Premium. Atualize seu plano para ativar alertas automáticos.</span>
@@ -219,12 +226,15 @@ export default function AlertasPage() {
                       const t = await requestAndSaveToken()
                       if (!t) { setError('Permissão negada ou indisponível'); return }
                       try {
+                        if (typeof window !== 'undefined' && Notification.permission === 'granted') {
+                          try { new Notification('LicitMASA', { body: 'Seu dispositivo está pronto para receber alertas às 07:00 e às 16:00.' }) } catch {}
+                        }
                         await fetch('/api/notifications/test', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({ token: t })
-                        })
-                        alert('Notificação enviada')
+                        }).catch(() => {})
+                        alert('Notificação de teste acionada')
                       } catch {
                         setError('Falha ao enviar notificação')
                       }

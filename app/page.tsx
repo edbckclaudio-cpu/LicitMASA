@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Search, Building2, Calendar, FileText, Banknote, X, Gauge, LineChart, MessageCircle, Heart, MapPin, RotateCcw } from 'lucide-react'
+import { Search, Building2, Calendar, FileText, Banknote, X, SearchCheck, Info, MessageCircle, Bookmark, MapPin, RotateCcw } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Select } from '../components/ui/select'
@@ -11,6 +11,7 @@ import { supabase } from '../lib/supabaseClient'
 import { SidebarAlerts } from '../components/premium/SidebarAlerts'
 import { BottomNavigation } from '@/components/ui/bottom-navigation'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
 type Resultado = any
 
@@ -94,6 +95,7 @@ function resumirObjeto(texto: any): string {
 }
 
 export default function HomePage() {
+  const router = useRouter()
   const [termo, setTermo] = useState('')
   const [uf, setUf] = useState<string | undefined>(undefined)
   const [modalidade, setModalidade] = useState<string | ''>('')
@@ -133,6 +135,9 @@ export default function HomePage() {
   const [swipeStart, setSwipeStart] = useState<number | null>(null)
   const [swipeDelta, setSwipeDelta] = useState<number>(0)
   const [favoritedIds, setFavoritedIds] = useState<Set<string>>(new Set())
+  const [loggedIn, setLoggedIn] = useState<boolean>(false)
+  const [isPremium, setIsPremium] = useState<boolean>(false)
+  const planPrice = process.env.NEXT_PUBLIC_PLAN_PRICE || '49,90'
 
   const hoje = useMemo(() => formatDateYYYYMMDD(new Date()), [])
   const inicio = useMemo(() => {
@@ -142,6 +147,27 @@ export default function HomePage() {
   }, [somenteHoje])
   useEffect(() => {
     document.title = 'LicitMASA'
+  }, [])
+  useEffect(() => {
+    async function loadUserPlan() {
+      if (!supabase) return
+      const { data: userData } = await supabase.auth.getUser()
+      const user = userData?.user
+      if (!user) {
+        setLoggedIn(false)
+        setIsPremium(false)
+        return
+      }
+      setLoggedIn(true)
+      try {
+        const { data: prof } = await supabase.from('profiles').select('is_premium, plan').eq('id', user.id).single()
+        const premium = Boolean(prof?.is_premium) || String(prof?.plan || '').toLowerCase() === 'premium'
+        setIsPremium(premium)
+      } catch {
+        setIsPremium(false)
+      }
+    }
+    loadUserPlan()
   }, [])
   useEffect(() => {
     function onClear() { setToasts([]) }
@@ -307,6 +333,7 @@ export default function HomePage() {
   }
 
   async function handleFavorite(item: any) {
+    if (!isPremium) { addToast('Recurso exclusivo para assinantes Premium', 'error'); return }
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) return
     if (!supabase) return
     const { data: userData } = await supabase.auth.getUser()
@@ -454,7 +481,16 @@ export default function HomePage() {
           </div>
         </div>
       </header>
-
+      {!isPremium && (
+        <div className="mx-auto max-w-5xl px-6 pt-2">
+          <div className="flex items-center justify-between rounded-md border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
+            <span>Plano Premium por R$ {planPrice}/mês: desbloqueie alertas às 07:00/16:00, WhatsApp e Raio‑X.</span>
+            <Link href="/assinar" className="inline-flex items-center rounded-md bg-blue-800 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700">
+              Quero Assinar
+            </Link>
+          </div>
+        </div>
+      )}
       <main className="mx-auto max-w-5xl px-6 py-8">
         <section className="rounded-xl border bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-3 md:grid md:grid-cols-[1fr,auto] md:items-center">
@@ -788,6 +824,7 @@ export default function HomePage() {
                                 href={edital}
                                 target="_blank"
                                 rel="noreferrer"
+                                onClick={(e) => { if (!isPremium) { e.preventDefault(); router.push('/assinar') } }}
                                 className="h-9 w-[70%] inline-flex items-center justify-center gap-2 rounded-md bg-blue-700 px-3 text-xs font-semibold text-white shadow hover:bg-blue-600"
                               >
                                 <FileText className="h-4 w-4" />
@@ -795,28 +832,31 @@ export default function HomePage() {
                               </a>
                               <div className="flex items-center gap-2">
                                 <Button
-                                  onClick={() => { setRaioxItem(item); setRaioxOpen(true) }}
+                                  onClick={() => { if (!isPremium) { setUpgradeOpen(true); return } setRaioxItem(item); setRaioxOpen(true) }}
                                   className="h-9 inline-flex items-center justify-center rounded-md border bg-white px-2 text-xs text-slate-800 hover:bg-gray-100"
-                                  aria-label="Raio-X"
+                                  aria-label="Raio-X da Oportunidade"
+                                  title="Raio-X da Oportunidade"
                                 >
-                                  <Gauge className="h-4 w-4 text-blue-700" />
+                                  <SearchCheck className="h-4 w-4 text-blue-700" />
                                 </Button>
                                 <Button
                                   onClick={() => { setDetailsItem(item); setDetailsOpen(true) }}
                                   className="h-9 inline-flex items-center justify-center rounded-md border bg-white px-2 text-xs text-slate-800 hover:bg-gray-100"
                                   aria-label="Detalhes"
+                                  title="Detalhes"
                                 >
-                                  <LineChart className="h-4 w-4 text-blue-700" />
+                                  <Info className="h-4 w-4 text-blue-700" />
                                 </Button>
                                 <Button
                                   onClick={() => handleFavorite(item)}
                                   className="h-9 inline-flex items-center justify-center rounded-md border bg-white px-2 text-xs hover:bg-pink-50"
-                                  aria-label="Favoritar"
+                                  aria-label="Salvar favorito"
+                                  title="Salvar favorito"
                                 >
-                                  <Heart className={"h-4 w-4 " + (favoritedIds.has(String(pncpId)) ? "text-pink-600" : "text-slate-500")} />
+                                  <Bookmark className={"h-4 w-4 " + (favoritedIds.has(String(pncpId)) ? "text-pink-600" : "text-slate-500")} fill={favoritedIds.has(String(pncpId)) ? "currentColor" : "none"} />
                                 </Button>
                                 <Button
-                                  onClick={() => shareToWhatsApp(item)}
+                                  onClick={() => { if (!isPremium) { setUpgradeOpen(true); return } shareToWhatsApp(item) }}
                                   className="h-9 inline-flex items-center justify-center rounded-md border bg-white px-2 text-xs text-green-700 hover:bg-green-50"
                                   aria-label="Enviar para WhatsApp"
                                 >
@@ -940,34 +980,38 @@ export default function HomePage() {
                           href={edital}
                           target="_blank"
                           rel="noreferrer"
+                          onClick={(e) => { if (!isPremium) { e.preventDefault(); router.push('/assinar') } }}
                           className="inline-flex items-center gap-2 rounded-md bg-blue-700 px-3 py-2 text-xs font-medium text-white hover:bg-blue-600 w-[70%]"
                         >
                           <FileText className="h-4 w-4" />
                           Ver Edital
                         </a>
                         <Button
-                          onClick={() => { setRaioxItem(item); setRaioxOpen(true) }}
+                          onClick={() => { if (!isPremium) { setUpgradeOpen(true); return } setRaioxItem(item); setRaioxOpen(true) }}
                           className="inline-flex items-center justify-center rounded-md border bg-white px-2 text-xs text-slate-800 hover:bg-gray-100"
-                          aria-label="Raio-X"
+                          aria-label="Raio-X da Oportunidade"
+                          title="Raio-X da Oportunidade"
                         >
-                          <Gauge className="h-4 w-4 text-blue-700" />
+                          <SearchCheck className="h-4 w-4 text-blue-700" />
                         </Button>
                         <Button
                           onClick={() => { setDetailsItem(item); setDetailsOpen(true) }}
                           className="inline-flex items-center justify-center rounded-md border bg-white px-2 text-xs text-slate-800 hover:bg-gray-100"
                           aria-label="Detalhes"
+                          title="Detalhes"
                         >
-                          <LineChart className="h-4 w-4 text-blue-700" />
+                          <Info className="h-4 w-4 text-blue-700" />
                         </Button>
                         <Button
                           onClick={() => handleFavorite(item)}
                           className="inline-flex items-center justify-center rounded-md border bg-white px-2 text-xs hover:bg-pink-50"
-                          aria-label="Favoritar"
+                          aria-label="Salvar favorito"
+                          title="Salvar favorito"
                         >
-                          <Heart className={"h-4 w-4 " + (favoritedIds.has(String(pncpId)) ? "text-pink-600" : "text-slate-500")} />
+                          <Bookmark className={"h-4 w-4 " + (favoritedIds.has(String(pncpId)) ? "text-pink-600" : "text-slate-500")} fill={favoritedIds.has(String(pncpId)) ? "currentColor" : "none"} />
                         </Button>
                         <Button
-                          onClick={() => shareToWhatsApp(item)}
+                          onClick={() => { if (!isPremium) { setUpgradeOpen(true); return } shareToWhatsApp(item) }}
                           className="inline-flex items-center gap-2 rounded-md border border-green-600 bg-white px-3 py-2 text-xs font-medium text-green-700 hover:bg-green-50"
                         >
                           <MessageCircle className="h-4 w-4 text-green-600" />
@@ -1052,7 +1096,7 @@ export default function HomePage() {
                       </div>
                       <div className="mt-2">
                         <Button
-                          onClick={() => shareToWhatsApp(raioxItem)}
+                          onClick={() => { if (!isPremium) { setUpgradeOpen(true); return } shareToWhatsApp(raioxItem) }}
                           className="w-full md:w-auto border border-green-600 bg-white text-green-700 hover:bg-green-50 inline-flex items-center gap-2"
                         >
                           <MessageCircle className="h-4 w-4 text-green-600" />
@@ -1271,12 +1315,12 @@ export default function HomePage() {
               (upgradeOpen ? 'translate-y-0' : 'translate-y-full')
             }
           >
-            <div className="mb-2 text-lg font-semibold text-blue-900">Plano Pro</div>
+            <div className="mb-2 text-lg font-semibold text-blue-900">Plano Premium</div>
             <p className="text-sm text-gray-700">
-              Você atingiu o limite de 3 favoritos no plano Gratuito. Ative o Pro para favoritos ilimitados e alertas automáticos.
+              Esta função está disponível no Plano Premium.
             </p>
             <div className="mt-4 flex items-center gap-3">
-              <Button className="bg-blue-800 text-white hover:bg-blue-700">Ver planos</Button>
+              <Button onClick={() => { setUpgradeOpen(false); router.push('/assinar') }} className="bg-blue-800 text-white hover:bg-blue-700">Quero Assinar</Button>
               <Button onClick={() => setUpgradeOpen(false)} className="bg-gray-100 text-gray-800 hover:bg-gray-200">
                 Fechar
               </Button>
