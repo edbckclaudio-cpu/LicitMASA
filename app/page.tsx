@@ -584,7 +584,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        <div className={"fixed inset-0 z-40 md:hidden " + (filtersOpen ? '' : 'pointer-events-none')}>
+        <div className={"fixed inset-0 z-50 md:hidden " + (filtersOpen ? '' : 'pointer-events-none')}>
           <div
             className={
               "absolute inset-0 bg-black/30 transition-opacity duration-300 " +
@@ -835,12 +835,6 @@ export default function HomePage() {
                                 Ver Edital
                               </a>
                               <div className="grid grid-cols-2 gap-2">
-                                <Link
-                                  href={`/analise-preco?obj=${encodeURIComponent(objetoLimpo || '')}&id=${encodeURIComponent(String(pncpId || ''))}`}
-                                  className="h-8 w-full inline-flex items-center justify-center gap-1 rounded-md border border-blue-200 bg-white px-2 text-[11px] font-semibold text-blue-900 hover:bg-blue-50"
-                                >
-                                  Análise de Preço
-                                </Link>
                                 <Button
                                   onClick={() => { setRaioxItem(item); setRaioxOpen(true) }}
                                   className="h-8 w-full inline-flex items-center justify-center gap-1 rounded-md border border-blue-200 bg-white px-2 text-[11px] font-semibold text-blue-900 hover:bg-blue-50"
@@ -989,13 +983,7 @@ export default function HomePage() {
                           <FileText className="h-4 w-4" />
                           Ver Edital
                         </a>
-                        <Link
-                          href={`/analise-preco?obj=${encodeURIComponent(objetoLimpo || '')}&id=${encodeURIComponent(String(pncpId || ''))}`}
-                          className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs text-gray-700 hover:bg-gray-100"
-                        >
-                          <LineChart className="h-4 w-4 text-blue-700" />
-                          Análise de Preço
-                        </Link>
+                        
                         <Button
                           onClick={() => { setRaioxItem(item); setRaioxOpen(true) }}
                           className="bg-gray-100 text-gray-800 hover:bg-gray-200 text-xs px-2 py-1"
