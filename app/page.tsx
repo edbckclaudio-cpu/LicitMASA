@@ -637,7 +637,7 @@ export default function HomePage() {
             <>
               <div
                 className="md:hidden relative overflow-hidden rounded-xl border bg-white"
-                style={{ height: `calc(100vh - 220px)` }}
+                style={{ height: `calc(100vh - 160px)` }}
               >
                 <div className="pointer-events-none absolute right-3 top-3 z-10 rounded-full bg-blue-900/90 px-3 py-1 text-xs font-medium text-white">
                   {carIndex + 1} de {resultados.length}
@@ -733,7 +733,7 @@ export default function HomePage() {
                                   {orgaoShort}
                                 </div>
                               </div>
-                              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-gray-800 lowercase h-24 overflow-y-auto">
+                              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-gray-800 lowercase h-28 overflow-y-auto">
                                 {String(objetoDisplay || 'Descrição não disponível').toLowerCase()}
                               </div>
                               <div className="grid grid-cols-2 gap-2 text-xs">
