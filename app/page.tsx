@@ -6,7 +6,7 @@ import { Input } from '../components/ui/input'
 import { Select } from '../components/ui/select'
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card'
 import { Badge } from '../components/ui/badge'
-import { fetchContratacoesPage, formatDateYYYYMMDD } from '../lib/pncp'
+import { fetchContratacoesPage, formatDateYYYYMMDD, fetchRaioxInfo } from '../lib/pncp'
 import { supabase } from '../lib/supabaseClient'
 import { SidebarAlerts } from '../components/premium/SidebarAlerts'
 import { BottomNavigation } from '@/components/ui/bottom-navigation'
@@ -119,6 +119,7 @@ export default function HomePage() {
   const [detailsItem, setDetailsItem] = useState<any | null>(null)
   const [raioxOpen, setRaioxOpen] = useState(false)
   const [raioxItem, setRaioxItem] = useState<any | null>(null)
+  const [raioxExtra, setRaioxExtra] = useState<{ modoDisputa?: string, dataEncerramento?: string } | null>(null)
   const [editalObjetos, setEditalObjetos] = useState<Record<string, string>>({})
   const [editalLoading, setEditalLoading] = useState<Record<string, boolean>>({})
   const [carIndex, setCarIndex] = useState<number>(0)
@@ -134,6 +135,18 @@ export default function HomePage() {
   useEffect(() => {
     document.title = 'LicitMASA'
   }, [])
+  useEffect(() => {
+    let active = true
+    async function load() {
+      if (raioxOpen && raioxItem) {
+        setRaioxExtra(null)
+        const info = await fetchRaioxInfo(raioxItem)
+        if (active) setRaioxExtra(info)
+      }
+    }
+    load()
+    return () => { active = false }
+  }, [raioxOpen, raioxItem])
 
   function addToast(message: string, type: 'success' | 'error' | 'info' = 'info') {
     const id = Math.random().toString(36).slice(2)
@@ -980,7 +993,7 @@ export default function HomePage() {
                   <div className="text-xs text-gray-500">Contagem Regressiva</div>
                   <div className="font-medium">
                     {(() => {
-                      const fim = getField(raioxItem, ['dataEncerramento','dataFim','dataLimite','dataTermino'], '')
+                      const fim = raioxExtra?.dataEncerramento || getField(raioxItem, ['dataEncerramento','dataFim','dataLimite','dataTermino'], '')
                       const d = fim ? new Date(String(fim)) : null
                       if (!d || Number.isNaN(d.getTime())) return '—'
                       const ms = d.getTime() - Date.now()
@@ -1008,6 +1021,12 @@ export default function HomePage() {
                       if (/leil[aã]o/i.test(mod)) return 'Maior lance'
                       return '—'
                     })()}
+                  </div>
+                </div>
+                <div className="rounded-md border p-3">
+                  <div className="text-xs text-gray-500">Modo de Disputa</div>
+                  <div className="font-medium">
+                    {raioxExtra?.modoDisputa || '—'}
                   </div>
                 </div>
                 <div className="rounded-md border p-3">

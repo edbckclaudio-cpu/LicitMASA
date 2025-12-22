@@ -144,3 +144,57 @@ export async function fetchContratacoesPage<T = any>(params: Params): Promise<Pa
     size: Number(json?.size ?? params.tamanhoPagina ?? items.length ?? 10),
   }
 }
+
+export function buildEditalUrlFromItem(item: any): string {
+  function getFieldLocal(o: any, keys: string[], fallback?: any) {
+    for (const k of keys) {
+      if (o && o[k] !== undefined && o[k] !== null) return o[k]
+    }
+    return fallback
+  }
+  const orgaoEnt = getFieldLocal(item, ['orgaoEntidade'], {})
+  const cnpjDet = String(getFieldLocal(orgaoEnt, ['cnpj'], '')).replace(/\D/g, '')
+  let anoDet = getFieldLocal(item, ['anoCompra'], '')
+  let seqDet = getFieldLocal(item, ['sequencialCompra'], '')
+  if (!anoDet || !seqDet) {
+    const idStr = String(getFieldLocal(item, ['numeroControlePNCP','id'], ''))
+    const slashIdx = idStr.lastIndexOf('/')
+    if (!anoDet && slashIdx !== -1) {
+      const a = idStr.slice(slashIdx + 1)
+      if (/^\d{4}$/.test(a)) anoDet = a
+    }
+    const before = slashIdx !== -1 ? idStr.slice(0, slashIdx) : idStr
+    const dashIdx = before.lastIndexOf('-')
+    if (!seqDet && dashIdx !== -1) {
+      const seq = before.slice(dashIdx + 1).replace(/^0+/, '')
+      if (/^\d+$/.test(seq)) seqDet = seq
+    }
+  }
+  const fallback = String(getFieldLocal(item, ['linkEdital','url','link'], 'https://pncp.gov.br/'))
+  return cnpjDet && anoDet && seqDet
+    ? `https://pncp.gov.br/app/editais/${cnpjDet}/${anoDet}/${seqDet}`
+    : fallback
+}
+
+export async function fetchRaioxInfo(item: any): Promise<{ modoDisputa?: string, dataEncerramento?: string }> {
+  const url = buildEditalUrlFromItem(item)
+  try {
+    const res = await fetch(url, {
+      headers: {
+        accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'user-agent': 'Mozilla/5.0',
+      },
+      cache: 'no-store',
+    })
+    const html = await res.text()
+    const mdMatch = html.match(/modo\s*de\s*disputa[^<:]*[:>]\s*([^<\n]+)/i) || html.match(/\"modoDisputa\"\s*:\s*\"([^\"]+)\"/i)
+    const modoDisputa = mdMatch ? (mdMatch[1] || '').trim() : undefined
+    const deMatch = html.match(/data\s*(de\s*)?(encerramento|fim)[^0-9]*([\d]{4}-[\d]{2}-[\d]{2}T[\d]{2}:[\d]{2}:[\d]{2})/i)
+      || html.match(/\"dataEncerramento\"\s*:\s*\"([^\"]+)\"/i)
+      || html.match(/\"dataFim\"\s*:\s*\"([^\"]+)\"/i)
+    const dataEncerramento = deMatch ? (deMatch[1] ? deMatch[1] : deMatch[3] || deMatch[2]).toString() : undefined
+    return { modoDisputa, dataEncerramento }
+  } catch {
+    return {}
+  }
+}
