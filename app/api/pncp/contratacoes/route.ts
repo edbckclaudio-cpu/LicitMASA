@@ -15,12 +15,13 @@ async function fetchRemote(params: URLSearchParams, code?: number) {
   const res = await fetch(url.toString(), {
     headers: {
       accept: 'application/json',
-      'user-agent': 'Mozilla/5.0',
+      'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) LicitMASA/1.0 Chrome/121.0 Safari/537.36',
       'x-requested-with': 'XMLHttpRequest',
     },
     cache: 'no-store',
   })
-  if (!res.ok) return null
+  try { console.log('[PNCP Proxy] GET', url.toString(), '->', res.status) } catch {}
+  if (!res.ok) return { items: [], totalPages: 1, totalElements: 0, number: Number(params.get('pagina') ?? 1), size: Number(params.get('tamanhoPagina') ?? 10), status: res.status }
   const j = await res.json().catch(() => null as any)
   if (Array.isArray(j?.content)) {
     return {
@@ -29,6 +30,7 @@ async function fetchRemote(params: URLSearchParams, code?: number) {
       totalElements: Number(j.totalElements ?? j.content.length ?? 0),
       number: Number(j.number ?? Number(params.get('pagina') ?? 1)),
       size: Number(j.size ?? Number(params.get('tamanhoPagina') ?? j.content.length ?? 10)),
+      status: res.status,
     }
   }
   const items = (j?.items && Array.isArray(j.items)) ? j.items
@@ -40,6 +42,7 @@ async function fetchRemote(params: URLSearchParams, code?: number) {
     totalElements: Number(j?.totalElements ?? items.length ?? 0),
     number: Number(j?.number ?? Number(params.get('pagina') ?? 1)),
     size: Number(j?.size ?? Number(params.get('tamanhoPagina') ?? items.length ?? 10)),
+    status: res.status,
   }
 }
 
@@ -59,7 +62,7 @@ export async function GET(req: Request) {
     const codes = codeParam ? [Number(codeParam)]
       : [8, 22, 21, 4, 5]
     const pages = await Promise.all(codes.map((c) => fetchRemote(searchParams, c)))
-    const allItems = pages.flatMap((p) => p?.items ?? [])
+    const allItems = pages.flatMap((p) => (p as any)?.items ?? [])
     const totalElements = allItems.length
     const totalPages = Math.max(1, Math.ceil(totalElements / tamanhoPagina))
     const start = (pagina - 1) * tamanhoPagina
@@ -70,6 +73,7 @@ export async function GET(req: Request) {
       totalElements,
       number: pagina,
       size: tamanhoPagina,
+      statusCodes: pages.map((p) => (p as any)?.status ?? 0),
     })
   } catch {
     return NextResponse.json({

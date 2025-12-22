@@ -54,9 +54,10 @@ export async function GET(req: Request) {
         api.searchParams.set('tamanhoPagina', '1')
         api.searchParams.set('pagina', '1')
         const r = await fetch(api.toString(), {
-          headers: { accept: 'application/json' },
+          headers: { accept: 'application/json', 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) LicitMASA/1.0' },
           cache: 'no-store',
         })
+        try { console.log('[PNCP Proxy:objeto] GET', api.toString(), '->', r.status) } catch {}
         if (r.ok) {
           const j = await r.json().catch(() => null)
           const item = Array.isArray(j?.content) ? j.content[0]

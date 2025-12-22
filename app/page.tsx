@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Search, Building2, Calendar, FileText, Banknote, X, Gauge, LineChart } from 'lucide-react'
+import { Search, Building2, Calendar, FileText, Banknote, X, Gauge, LineChart, MessageCircle } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Select } from '../components/ui/select'
@@ -428,6 +428,27 @@ export default function HomePage() {
       return ''
     }
   }
+  function shareToWhatsApp(currentItem: any) {
+    if (!currentItem) return
+    const objeto = sanitizeText(getField(currentItem, ['objetoCompra','objeto','objetoLicitacao','descricao','resumo','texto'], '') || '')
+    const orgao = asText(getField(getField(currentItem, ['orgaoEntidade'], {}), ['razaoSocial'], '')) || ''
+    const valor = formatCurrencyBRL(getField(currentItem, ['valorTotalEstimado','valorEstimado','valor','valorContratacao'], 0))
+    const dataEnc = String(getField(currentItem, ['dataEncerramentoProposta'], '')) || ''
+    const dataTxt = dataEnc ? formatDateTimeBR(dataEnc) : ''
+    const link = buildEditalUrl(currentItem)
+    const msg =
+      `📢 *Oportunidade de Licitação - LicitMASA*\n\n` +
+      `📦 *Objeto:* ${objeto}\n` +
+      `🏛️ *Órgão:* ${orgao}\n` +
+      `💰 *Valor:* ${valor}\n` +
+      `⏳ *Prazo:* ${dataTxt}\n\n` +
+      `🔗 *Link:* ${link}\n\n` +
+      `Enviado via App LicitMASA - Inteligência em Licitações`
+    const url = `https://wa.me/?text=${encodeURIComponent(msg)}`
+    if (typeof window !== 'undefined') {
+      window.open(url, '_blank')
+    }
+  }
 
   useEffect(() => {}, [resultados])
 
@@ -815,7 +836,7 @@ export default function HomePage() {
                               </a>
                               <div className="grid grid-cols-2 gap-2">
                                 <Link
-                                  href={`/analise-preco?obj=${encodeURIComponent(objetoLimpo || '')}`}
+                                  href={`/analise-preco?obj=${encodeURIComponent(objetoLimpo || '')}&id=${encodeURIComponent(String(pncpId || ''))}`}
                                   className="h-8 w-full inline-flex items-center justify-center gap-1 rounded-md border border-blue-200 bg-white px-2 text-[11px] font-semibold text-blue-900 hover:bg-blue-50"
                                 >
                                   Análise de Preço
@@ -837,6 +858,13 @@ export default function HomePage() {
                                   className="h-8 w-full inline-flex items-center justify-center gap-1 rounded-md border border-blue-200 bg-white px-2 text-[11px] font-semibold text-blue-900 hover:bg-blue-50"
                                 >
                                   Favoritar
+                                </Button>
+                                <Button
+                                  onClick={() => shareToWhatsApp(item)}
+                                  className="h-8 w-full inline-flex items-center justify-center gap-1 rounded-md border border-green-600 bg-white px-2 text-[11px] font-semibold text-green-700 hover:bg-green-50"
+                                >
+                                  <MessageCircle className="h-3 w-3 text-green-600" />
+                                  Enviar para WhatsApp
                                 </Button>
                               </div>
                             </div>
@@ -962,7 +990,7 @@ export default function HomePage() {
                           Ver Edital
                         </a>
                         <Link
-                          href={`/analise-preco?obj=${encodeURIComponent(objetoLimpo || '')}`}
+                          href={`/analise-preco?obj=${encodeURIComponent(objetoLimpo || '')}&id=${encodeURIComponent(String(pncpId || ''))}`}
                           className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs text-gray-700 hover:bg-gray-100"
                         >
                           <LineChart className="h-4 w-4 text-blue-700" />
@@ -986,6 +1014,13 @@ export default function HomePage() {
                           className="bg-gray-900 text-white hover:bg-gray-800"
                         >
                           Favoritar
+                        </Button>
+                        <Button
+                          onClick={() => shareToWhatsApp(item)}
+                          className="inline-flex items-center gap-2 rounded-md border border-green-600 bg-white px-3 py-2 text-xs font-medium text-green-700 hover:bg-green-50"
+                        >
+                          <MessageCircle className="h-4 w-4 text-green-600" />
+                          Enviar para WhatsApp
                         </Button>
                         {!compact && (
                           <div className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs text-gray-700">
@@ -1021,87 +1056,123 @@ export default function HomePage() {
               <Button onClick={() => { setRaioxOpen(false); setRaioxItem(null) }} className="bg-gray-100 text-gray-800 hover:bg-gray-200">Fechar</Button>
             </div>
             {raioxItem ? (
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-3 text-sm text-gray-800">
-                <div className="rounded-md border p-3">
-                  <div className="text-xs text-gray-500">Exclusividade (ME/EPP)</div>
-                  <div className="font-medium">
-                    {String(
-                      getField(raioxItem, ['exclusivoMeEpp','exclusivoME','somenteMeEpp','exclusivoME_EPP'], false)
-                    ) === 'true'
-                      ? 'Sim'
-                      : 'Não'}
-                  </div>
-                </div>
-                <div className="rounded-md border p-3">
-                  <div className="text-xs text-gray-500">Contagem Regressiva</div>
-                  <div className="font-medium">
-                    {(() => {
-                      const fim = raioxExtra?.dataEncerramento || getField(raioxItem, ['dataEncerramento','dataFim','dataLimite','dataTermino'], '')
-                      const d = fim ? new Date(String(fim)) : null
-                      if (!d || Number.isNaN(d.getTime())) return '—'
-                      const ms = d.getTime() - Date.now()
-                      if (ms <= 0) return 'Encerrado'
-                      const dd = Math.floor(ms / (24 * 60 * 60 * 1000))
-                      const hh = Math.floor((ms % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000))
-                      const mm = Math.floor((ms % (60 * 60 * 1000)) / (60 * 1000))
-                      return `${dd}d ${hh}h ${mm}m`
-                    })()}
-                  </div>
-                </div>
-                <div className="rounded-md border p-3">
-                  <div className="text-xs text-gray-500">Critério</div>
-                  <div className="font-medium">
-                    {(function () {
-                      const raw = String(getField(raioxItem, ['criterioJulgamento','tipoJulgamento','criterio'], ''))
-                      if (raw) return raw
-                      const mod = modalidadeNome(
-                        getField(raioxItem, ['modalidade','modalidadeContratacao','modalidadeCompra','descricaoModalidade'], ''),
-                        getField(raioxItem, ['codigoModalidadeContratacao'], undefined)
-                      )
-                      if (/preg[aã]o/i.test(mod)) return 'Menor preço'
-                      if (/dispensa|inexigibilidade/i.test(mod)) return 'Não aplicável'
-                      if (/concurso/i.test(mod)) return 'Melhor técnica / técnica e preço'
-                      if (/leil[aã]o/i.test(mod)) return 'Maior lance'
-                      return '—'
-                    })()}
-                  </div>
-                </div>
-                <div className="rounded-md border p-3">
-                  <div className="text-xs text-gray-500">Modo de Disputa</div>
-                  <div className="font-medium">
-                    {raioxExtra?.modoDisputa || '—'}
-                  </div>
-                </div>
-                <div className="rounded-md border p-3">
-                  <div className="text-xs text-gray-500">Abertura</div>
-                  <div className="font-medium">
-                    {formatDateTimeBR(raioxExtra?.dataAbertura) || '—'}
-                  </div>
-                </div>
-                <div className="rounded-md border p-3">
-                  <div className="text-xs text-gray-500">Plataforma</div>
-                  <div className="font-medium">
-                    {raioxExtra?.plataforma || '—'}
-                  </div>
-                </div>
-                <div className="rounded-md border p-3">
-                  <div className="text-xs text-gray-500">Tipo de Disputa</div>
-                  <div className="font-medium">
-                    {raioxExtra?.disputaAbertaFechada || '—'}
-                  </div>
-                </div>
-                <div className="rounded-md border p-3">
-                  <div className="text-xs text-gray-500">Data de Publicação</div>
-                  <div className="font-medium">
-                    {String(getField(raioxItem, ['dataPublicacao','dataInclusao','data'], '') || '').slice(0, 10) || '—'}
-                  </div>
-                </div>
-                <div className="rounded-md border p-3">
-                  <div className="text-xs text-gray-500">Valor</div>
-                  <div className="font-medium">
-                    {formatCurrencyBRL(getField(raioxItem, ['valorEstimado','valorTotalEstimado','valor','valorContratacao'], 0))}
-                  </div>
-                </div>
+              <div className="text-sm text-gray-800 space-y-3">
+                {(() => {
+                  const editUrl = buildEditalUrl(raioxItem)
+                  const exclusivo = Boolean(getField(raioxItem, ['exclusivoMeEpp'], false))
+                  const criterio = asText(getField(raioxItem, ['tipoInstrumentoConvocatorioNome','criterioJulgamentoNome'], '')) || ''
+                  const modoDisp = asText(getField(raioxItem, ['modoDisputaNome'], '')) || asText(raioxExtra?.modoDisputa) || ''
+                  const valorEst = Number(getField(raioxItem, ['valorTotalEstimado','valorEstimado','valor','valorContratacao'], 0)) || 0
+                  const amparoObj = getField(raioxItem, ['amparoLegal'], null) as any
+                  const amparo = asText(getField(amparoObj || {}, ['nome','descricao'], '')) || ''
+                  const status = asText(getField(raioxItem, ['situacaoCompraNome'], '')) || ''
+                  const dataEnc = asText(getField(raioxItem, ['dataEncerramentoProposta'], '')) || asText(raioxExtra?.dataEncerramento) || ''
+                  const dEnc = dataEnc ? new Date(String(dataEnc)) : null
+                  const encerrada = dEnc ? (dEnc.getTime() - Date.now() <= 0) : false
+                  function countdownLabel(iso?: string): string {
+                    if (!iso) return ''
+                    const d = new Date(String(iso))
+                    if (Number.isNaN(d.getTime())) return ''
+                    const ms = d.getTime() - Date.now()
+                    if (ms <= 0) return 'Encerrada'
+                    const dd = Math.floor(ms / (24 * 60 * 60 * 1000))
+                    const hh = Math.floor((ms % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000))
+                    return `Faltam ${dd} dias, ${hh} horas`
+                  }
+                  return (
+                    <>
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                        <div className="rounded-md border bg-indigo-50 p-4">
+                          <div className="text-xs text-gray-600">Valor Estimado</div>
+                          <div className="mt-1 text-xl font-bold text-indigo-900">
+                            {valorEst ? formatCurrencyBRL(valorEst) : (
+                              <a href={editUrl} target="_blank" rel="noreferrer" className="underline">Consultar no Edital</a>
+                            )}
+                          </div>
+                        </div>
+                        <div className={"rounded-md border p-4 " + (encerrada ? "bg-red-50" : "bg-green-50")}>
+                          <div className="text-xs text-gray-600">Contagem Regressiva</div>
+                          <div className={"mt-1 text-lg font-semibold " + (encerrada ? "text-red-800" : "text-green-800")}>
+                            {dataEnc ? countdownLabel(dataEnc) : (
+                              <a href={editUrl} target="_blank" rel="noreferrer" className="underline text-blue-700">Consultar no Edital</a>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mt-2">
+                        <Button
+                          onClick={() => shareToWhatsApp(raioxItem)}
+                          className="w-full md:w-auto border border-green-600 bg-white text-green-700 hover:bg-green-50 inline-flex items-center gap-2"
+                        >
+                          <MessageCircle className="h-4 w-4 text-green-600" />
+                          Enviar para WhatsApp
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                        <div className="rounded-md border p-3">
+                          <div className="text-xs text-gray-500">Quem pode participar</div>
+                          <div className="mt-1">
+                            {exclusivo ? (
+                              <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800">Sim (Exclusivo)</span>
+                            ) : (
+                              <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-800">Não (Ampla Concorrência)</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="rounded-md border p-3">
+                          <div className="text-xs text-gray-500">Status da Compra</div>
+                          <div className="mt-1">
+                            {status ? (
+                              <span className={"inline-flex items-center rounded-full px-2 py-1 text-xs font-medium " + (encerrada ? "bg-red-100 text-red-800" : "bg-blue-100 text-blue-800")}>{status}</span>
+                            ) : (
+                              <a href={editUrl} target="_blank" rel="noreferrer" className="underline text-blue-700">Consultar no Edital</a>
+                            )}
+                          </div>
+                        </div>
+                        <div className="rounded-md border p-3">
+                          <div className="text-xs text-gray-500">Critério de Julgamento</div>
+                          <div className="mt-1 font-medium">
+                            {criterio || (
+                              <a href={editUrl} target="_blank" rel="noreferrer" className="underline text-blue-700">Consultar no Edital</a>
+                            )}
+                          </div>
+                        </div>
+                        <div className="rounded-md border p-3">
+                          <div className="text-xs text-gray-500">Modo de Disputa</div>
+                          <div className="mt-1 font-medium">
+                            {modoDisp || (
+                              <a href={editUrl} target="_blank" rel="noreferrer" className="underline text-blue-700">Consultar no Edital</a>
+                            )}
+                          </div>
+                        </div>
+                        <div className="rounded-md border p-3">
+                          <div className="text-xs text-gray-500">Abertura</div>
+                          <div className="mt-1 font-medium">
+                            {formatDateTimeBR(raioxExtra?.dataAbertura) || (
+                              <a href={editUrl} target="_blank" rel="noreferrer" className="underline text-blue-700">Consultar no Edital</a>
+                            )}
+                          </div>
+                        </div>
+                        <div className="rounded-md border p-3">
+                          <div className="text-xs text-gray-500">Amparo Legal</div>
+                          <div className="mt-1 font-medium">
+                            {amparo || (
+                              <a href={editUrl} target="_blank" rel="noreferrer" className="underline text-blue-700">Consultar no Edital</a>
+                            )}
+                          </div>
+                        </div>
+                        <div className="rounded-md border p-3">
+                          <div className="text-xs text-gray-500">Plataforma</div>
+                          <div className="mt-1 font-medium">
+                            {raioxExtra?.plataforma || (
+                              <a href={editUrl} target="_blank" rel="noreferrer" className="underline text-blue-700">Consultar no Edital</a>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )
+                })()}
               </div>
             ) : null}
           </div>

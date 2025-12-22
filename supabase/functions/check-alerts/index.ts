@@ -17,7 +17,13 @@ async function fetchPNCP(params: { termo?: string; uf?: string; dataInicial: str
   if (params.termo) url.searchParams.set("termo", params.termo)
   url.searchParams.set("pagina", "1")
   url.searchParams.set("tamanhoPagina", "50")
-  const res = await fetch(url.toString(), { headers: { accept: "application/json" } })
+  const res = await fetch(url.toString(), {
+    headers: {
+      accept: "application/json",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) LicitMASA/1.0",
+      "x-requested-with": "XMLHttpRequest",
+    }
+  })
   if (!res.ok) return []
   const json = await res.json()
   if (Array.isArray(json)) return json
