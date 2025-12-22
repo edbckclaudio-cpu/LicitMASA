@@ -583,19 +583,19 @@ export default function HomePage() {
 
         <div
           ref={pullRef}
-          onTouchStart={onTouchStart}
-          onTouchMove={onTouchMove}
-          onTouchEnd={onTouchEnd}
           className="relative mt-8"
         >
           <div
-            className={
-              "pointer-events-none absolute -top-6 left-1/2 z-10 -translate-x-1/2 rounded-full border bg-white px-3 py-1 text-xs text-gray-700 transition-transform duration-300 " +
-              (isPulling ? 'translate-y-2' : '')
-            }
+            className="absolute -top-6 left-1/2 z-10 -translate-x-1/2"
           >
-            <Search className="mr-1 inline h-3 w-3 animate-bounce" />
-            Puxe para atualizar
+            <button
+              type="button"
+              onClick={() => { addToast('Atualizando...', 'info'); buscar() }}
+              className="inline-flex items-center gap-2 rounded-full border bg-white px-3 py-1 text-xs text-gray-700 hover:bg-blue-50"
+            >
+              <Search className="h-3 w-3" />
+              Clique para atualizar
+            </button>
           </div>
         <section className="mt-0">
           {loading && (
