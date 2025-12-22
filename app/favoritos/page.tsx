@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabaseClient'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { FileText, Heart } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
 type Favorite = {
   id?: string
@@ -25,6 +26,7 @@ function currencyBRL(v: number) {
 }
 
 export default function FavoritosPage() {
+  const router = useRouter()
   const [userId, setUserId] = useState<string | null>(null)
   const [items, setItems] = useState<Favorite[]>([])
   const [loading, setLoading] = useState(false)
@@ -36,6 +38,7 @@ export default function FavoritosPage() {
       const user = userData?.user
       if (!user) {
         setUserId(null)
+        router.push('/login')
         return
       }
       setUserId(user.id)
