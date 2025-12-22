@@ -1,0 +1,40 @@
+-- Tabela para armazenar as preferências de busca automática 
+CREATE TABLE public.user_alerts ( 
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY, 
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL, 
+    
+    -- Filtros de busca 
+    keywords TEXT[] DEFAULT '{}', -- Ex: ['limpeza', 'papel', 'copos'] 
+    ufs TEXT[] DEFAULT '{}',      -- Ex: ['SP', 'RJ', 'MG'] 
+    valor_minimo NUMERIC DEFAULT 0, 
+    
+    -- Configurações de Notificação 
+    whatsapp_notificacao BOOLEAN DEFAULT false, 
+    whatsapp_numero TEXT, 
+    push_notificacao BOOLEAN DEFAULT true, 
+    
+    -- Controle de Automação 
+    ativo BOOLEAN DEFAULT true, 
+    ultima_busca_em TIMESTAMP WITH TIME ZONE DEFAULT now(), 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL, 
+ 
+    -- Um alerta por usuário (ou pode remover para permitir múltiplos perfis de busca) 
+    UNIQUE(user_id) 
+); 
+ 
+-- Ativar Segurança (RLS) 
+ALTER TABLE public.user_alerts ENABLE ROW LEVEL SECURITY; 
+ 
+-- Políticas: Apenas o dono do alerta pode ver e editar 
+CREATE POLICY "Usuários gerem seus próprios alertas" 
+ON public.user_alerts FOR ALL 
+USING (auth.uid() = user_id); 
+ 
+-- Tabela auxiliar para logs de notificações enviadas (evita duplicidade) 
+CREATE TABLE public.sent_notifications ( 
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY, 
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE, 
+    pncp_id TEXT NOT NULL, 
+    enviado_em TIMESTAMP WITH TIME ZONE DEFAULT now(), 
+    UNIQUE(user_id, pncp_id) 
+);

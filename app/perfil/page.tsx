@@ -70,6 +70,10 @@ function PerfilContent() {
                 <div className="text-sm font-medium text-gray-900">Política de Privacidade</div>
                 <span className="text-xs text-blue-700">Abrir</span>
               </button>
+              <button className="flex w-full items-center justify-between py-3 text-left hover:bg-gray-50 px-2 rounded-md" onClick={() => router.push('/perfil/alertas')}>
+                <div className="text-sm font-medium text-gray-900">Meus Alertas</div>
+                <span className="text-xs text-blue-700">Configurar</span>
+              </button>
               <a href="https://wa.me/5511999999999" target="_blank" rel="noreferrer" className="flex w-full items-center justify-between py-3 text-left hover:bg-gray-50 px-2 rounded-md">
                 <div className="text-sm font-medium text-gray-900">Suporte e Contato</div>
                 <span className="text-xs text-blue-700">WhatsApp</span>
