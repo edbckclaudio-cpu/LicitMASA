@@ -28,8 +28,6 @@ export async function fetchContratacoes(params: Params) {
   if (params.termo) q.set('termo', params.termo)
   if (params.codigoModalidadeContratacao !== undefined) {
     q.set('codigoModalidadeContratacao', String(params.codigoModalidadeContratacao))
-  } else {
-    q.set('codigoModalidadeContratacao', '8')
   }
   if (params.codigoMunicipioIbge !== undefined) {
     q.set('codigoMunicipioIbge', String(params.codigoMunicipioIbge))
@@ -84,8 +82,6 @@ export async function fetchContratacoesPage<T = any>(params: Params): Promise<Pa
   if (params.termo) q.set('termo', params.termo)
   if (params.codigoModalidadeContratacao !== undefined) {
     q.set('codigoModalidadeContratacao', String(params.codigoModalidadeContratacao))
-  } else {
-    q.set('codigoModalidadeContratacao', '8')
   }
   if (params.codigoMunicipioIbge !== undefined) {
     q.set('codigoMunicipioIbge', String(params.codigoMunicipioIbge))
