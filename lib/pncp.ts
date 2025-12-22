@@ -194,20 +194,39 @@ export async function fetchRaioxInfo(item: any): Promise<{
       cache: 'no-store',
     })
     const html = await res.text()
+    function brDateToISO(d: string, t?: string): string {
+      const trimmed = (d || '').trim()
+      if (/^\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}(:\d{2})?)?/.test(trimmed)) {
+        // Already ISO-like
+        if (trimmed.includes('T')) return trimmed
+        return t ? `${trimmed}T${t}:00-03:00` : `${trimmed}T00:00:00-03:00`
+      }
+      const m = trimmed.match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
+      if (!m) return trimmed
+      const [_, dd, mm, yyyy] = m
+      const hhmm = (t || '00:00').trim()
+      return `${yyyy}-${mm}-${dd}T${hhmm}:00-03:00`
+    }
     const mdMatch = html.match(/modo\s*de\s*disputa[^<:]*[:>]\s*([^<\n]+)/i) || html.match(/\"modoDisputa\"\s*:\s*\"([^\"]+)\"/i)
     const modoDisputa = mdMatch ? (mdMatch[1] || '').trim() : undefined
+    const fimRecebMatch = html.match(/data\s*fim\s*de\s*recebimento\s*de\s*propostas[^0-9]*([\d]{2}\/[\d]{2}\/[\d]{4})\s*([\d]{2}:[\d]{2})?/i)
     const deMatch =
       html.match(/data\s*(de\s*)?(encerramento|fim)[^0-9]*([\d]{4}-[\d]{2}-[\d]{2}T[\d]{2}:[\d]{2}:[\d]{2})/i)
       || html.match(/data\s*(de\s*)?(encerramento|fim)[^0-9]*([\d]{2}\/[\d]{2}\/[\d]{4})/i)
       || html.match(/\"dataEncerramento\"\s*:\s*\"([^\"]+)\"/i)
       || html.match(/\"dataFim\"\s*:\s*\"([^\"]+)\"/i)
-    const dataEncerramento =
-      deMatch ? ((deMatch[3] || deMatch[1] || deMatch[2]) as string) : undefined
+    let dataEncerramento: string | undefined = undefined
+    if (fimRecebMatch) {
+      dataEncerramento = brDateToISO(fimRecebMatch[1], fimRecebMatch[2])
+    } else if (deMatch) {
+      const s = (deMatch[3] || deMatch[1] || deMatch[2]) as string
+      dataEncerramento = brDateToISO(s)
+    }
     const abDataMatch =
       html.match(/data\s*(de\s*)?abertura[^0-9]*([\d]{4}-[\d]{2}-[\d]{2})/i)
       || html.match(/data\s*(de\s*)?abertura[^0-9]*([\d]{2}\/[\d]{2}\/[\d]{4})/i)
       || html.match(/\"dataAbertura\"\s*:\s*\"([^\"]+)\"/i)
-    const dataAbertura = abDataMatch ? (abDataMatch[3] || abDataMatch[2] || abDataMatch[1]) as string : undefined
+    const dataAbertura = abDataMatch ? brDateToISO((abDataMatch[3] || abDataMatch[2] || abDataMatch[1]) as string) : undefined
     const horaMatch =
       html.match(/hora\s*(de\s*)?abertura[^0-9]*([\d]{2}:[\d]{2})/i)
       || html.match(/\"horaAbertura\"\s*:\s*\"([^\"]+)\"/i)
