@@ -19,16 +19,14 @@ type Params = {
 }
 
 export async function fetchContratacoes(params: Params) {
-  const base = 'https://pncp.gov.br/api/consulta/v1/contratacoes/publicacao'
+  const base = '/api/pncp/contratacoes'
   const url = new URL(base)
   const q = url.searchParams
   if (params.dataInicial) q.set('dataInicial', params.dataInicial)
   if (params.dataFinal) q.set('dataFinal', params.dataFinal)
   if (params.uf) q.set('uf', params.uf)
   if (params.termo) q.set('termo', params.termo)
-  if (params.codigoModalidadeContratacao !== undefined) {
-    q.set('codigoModalidadeContratacao', String(params.codigoModalidadeContratacao))
-  }
+  if (params.codigoModalidadeContratacao !== undefined) q.set('codigoModalidadeContratacao', String(params.codigoModalidadeContratacao))
   if (params.codigoMunicipioIbge !== undefined) {
     q.set('codigoMunicipioIbge', String(params.codigoMunicipioIbge))
   }
@@ -41,12 +39,10 @@ export async function fetchContratacoes(params: Params) {
   q.set('pagina', String(params.pagina ?? 1))
   q.set('tamanhoPagina', String(params.tamanhoPagina ?? 10))
   q.set('v', String(Date.now()))
-  try { console.error("DEBUG: ESTOU A CHAMAR A URL: ", url.toString()) } catch {}
+  try { console.error("DEBUG: ESTOU A CHAMAR A URL (proxy): ", url.toString()) } catch {}
   const res = await fetch(url.toString(), {
     headers: {
       accept: 'application/json',
-      'user-agent': 'Mozilla/5.0',
-      'x-requested-with': 'XMLHttpRequest',
     },
     cache: 'no-store',
   })
@@ -73,16 +69,14 @@ export type Page<T> = {
 }
 
 export async function fetchContratacoesPage<T = any>(params: Params): Promise<Page<T>> {
-  const base = 'https://pncp.gov.br/api/consulta/v1/contratacoes/publicacao'
+  const base = '/api/pncp/contratacoes'
   const url = new URL(base)
   const q = url.searchParams
   if (params.dataInicial) q.set('dataInicial', params.dataInicial)
   if (params.dataFinal) q.set('dataFinal', params.dataFinal)
   if (params.uf) q.set('uf', params.uf)
   if (params.termo) q.set('termo', params.termo)
-  if (params.codigoModalidadeContratacao !== undefined) {
-    q.set('codigoModalidadeContratacao', String(params.codigoModalidadeContratacao))
-  }
+  if (params.codigoModalidadeContratacao !== undefined) q.set('codigoModalidadeContratacao', String(params.codigoModalidadeContratacao))
   if (params.codigoMunicipioIbge !== undefined) {
     q.set('codigoMunicipioIbge', String(params.codigoMunicipioIbge))
   }
@@ -95,12 +89,10 @@ export async function fetchContratacoesPage<T = any>(params: Params): Promise<Pa
   q.set('pagina', String(params.pagina ?? 1))
   q.set('tamanhoPagina', String(params.tamanhoPagina ?? 10))
   q.set('v', String(Date.now()))
-  try { console.error("DEBUG: ESTOU A CHAMAR A URL: ", url.toString()) } catch {}
+  try { console.error("DEBUG: ESTOU A CHAMAR A URL (proxy): ", url.toString()) } catch {}
   const res = await fetch(url.toString(), {
     headers: {
       accept: 'application/json',
-      'user-agent': 'Mozilla/5.0',
-      'x-requested-with': 'XMLHttpRequest',
     },
     cache: 'no-store',
   })
