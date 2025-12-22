@@ -616,14 +616,19 @@ export default function HomePage() {
           <div
             className="absolute -top-6 left-1/2 z-10 -translate-x-1/2"
           >
-            <button
-              type="button"
-              onClick={() => { addToast('Atualizando...', 'info'); buscar() }}
-              className="inline-flex items-center gap-2 rounded-full border bg-white px-3 py-1 text-xs text-gray-700 hover:bg-blue-50"
-            >
-              <Search className="h-3 w-3" />
-              Clique para atualizar
-            </button>
+            <div className="inline-flex items-center gap-2">
+              <div className="rounded-full bg-blue-900/90 px-3 py-1 text-xs font-medium text-white">
+                {Math.min(carIndex + 1, Math.max(0, resultados.length))} de {resultados.length}
+              </div>
+              <button
+                type="button"
+                onClick={() => { addToast('Atualizando...', 'info'); buscar() }}
+                className="inline-flex items-center gap-2 rounded-full border bg-white px-3 py-1 text-xs text-gray-700 hover:bg-blue-50"
+              >
+                <Search className="h-3 w-3" />
+                Clique para atualizar
+              </button>
+            </div>
           </div>
         <section className="mt-0">
           {loading && (
@@ -658,12 +663,9 @@ export default function HomePage() {
           {!loading && !error && resultados.length > 0 && (
             <>
               <div
-                className="md:hidden relative overflow-hidden rounded-xl border bg-white"
+                className="md:hidden relative overflow-hidden rounded-xl border-2 border-blue-900 bg-white"
                 style={{ height: `calc(100vh - 120px - env(safe-area-inset-bottom))` }}
               >
-                <div className="pointer-events-none absolute right-3 -top-6 z-10 rounded-full bg-blue-900/90 px-3 py-1 text-xs font-medium text-white">
-                  {carIndex + 1} de {resultados.length}
-                </div>
                 <div
                   className="h-full w-full"
                   onTouchStart={onSlideTouchStart}
@@ -822,7 +824,7 @@ export default function HomePage() {
                   </div>
                 </div>
               </div>
-              <div className="hidden md:block rounded-xl border bg-white divide-y">
+              <div className="hidden md:block rounded-xl border-2 border-blue-900 bg-white divide-y">
               {resultados.map((item: any, idx: number) => {
                 const modalidadeRaw =
                   getField(item, ['modalidadeNome','modalidade','modalidadeContratacao','modalidadeCompra','descricaoModalidade'], '')
