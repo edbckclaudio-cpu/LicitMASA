@@ -6,7 +6,7 @@ import { Input } from '../components/ui/input'
 import { Select } from '../components/ui/select'
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card'
 import { Badge } from '../components/ui/badge'
-import { fetchContratacoesPage, formatDateYYYYMMDD, fetchRaioxInfo } from '../lib/pncp'
+import { fetchContratacoesPage, formatDateYYYYMMDD } from '../lib/pncp'
 import { supabase } from '../lib/supabaseClient'
 import { SidebarAlerts } from '../components/premium/SidebarAlerts'
 import { BottomNavigation } from '@/components/ui/bottom-navigation'
@@ -147,8 +147,35 @@ export default function HomePage() {
     async function load() {
       if (raioxOpen && raioxItem) {
         setRaioxExtra(null)
-        const info = await fetchRaioxInfo(raioxItem)
-        if (active) setRaioxExtra(info)
+        const url = (function () {
+          const orgaoEnt = getField(raioxItem, ['orgaoEntidade'], {})
+          const cnpjDet = String(getField(orgaoEnt, ['cnpj'], '')).replace(/\D/g, '')
+          let anoDet = getField(raioxItem, ['anoCompra'], '')
+          let seqDet = getField(raioxItem, ['sequencialCompra'], '')
+          if (!anoDet || !seqDet) {
+            const idStr = String(getField(raioxItem, ['numeroControlePNCP','id'], ''))
+            const slashIdx = idStr.lastIndexOf('/')
+            if (!anoDet && slashIdx !== -1) {
+              const a = idStr.slice(slashIdx + 1)
+              if (/^\d{4}$/.test(a)) anoDet = a
+            }
+            const before = slashIdx !== -1 ? idStr.slice(0, slashIdx) : idStr
+            const dashIdx = before.lastIndexOf('-')
+            if (!seqDet && dashIdx !== -1) {
+              const seq = before.slice(dashIdx + 1).replace(/^0+/, '')
+              if (/^\d+$/.test(seq)) seqDet = seq
+            }
+          }
+          const fallback = String(getField(raioxItem, ['linkEdital','url','link'], 'https://pncp.gov.br/'))
+          return cnpjDet && anoDet && seqDet
+            ? `https://pncp.gov.br/app/editais/${cnpjDet}/${anoDet}/${seqDet}`
+            : fallback
+        })()
+        try {
+          const r = await fetch(`/api/pncp/raiox?url=${encodeURIComponent(url)}`, { cache: 'no-store' })
+          const j = await r.json().catch(() => null)
+          if (active && j) setRaioxExtra(j)
+        } catch {}
       }
     }
     load()
