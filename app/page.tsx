@@ -689,6 +689,7 @@ export default function HomePage() {
                         getField(item, ['codigoUnidadeAdministrativa','uaCodigo','uasgCodigo'], '')
                       const modalidade = modalidadeNome(modalidadeRaw, modalidadeCode)
                       const orgao = asText(getField(orgaoObj || {}, ['razaoSocial'], orgaoRaw)) || 'Órgão não informado'
+                      const orgaoShort = orgao.length > 100 ? (orgao.slice(0, 100) + '...') : orgao
                       const textoObjeto = getField(item, ['objetoCompra'], '') || ''
                       const objetoLimpo = limparPrefixos(textoObjeto || '')
                       const objetoDisplay =
@@ -728,17 +729,19 @@ export default function HomePage() {
                             <div className="space-y-3">
                               <div className="flex items-center gap-2">
                                 <Badge className="bg-indigo-100 text-indigo-800">{modalidade}</Badge>
-                                <div className="text-lg font-semibold text-gray-900">{orgao}</div>
+                                <div className="rounded-md border border-indigo-200 bg-indigo-50 px-2 py-1 text-sm font-semibold text-indigo-900">
+                                  {orgaoShort}
+                                </div>
                               </div>
-                              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-gray-800">
-                                {objetoDisplay || 'Descrição não disponível'}
+                              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-gray-800 lowercase h-24 overflow-y-auto">
+                                {String(objetoDisplay || 'Descrição não disponível').toLowerCase()}
                               </div>
-                              <div className="grid grid-cols-2 gap-3 text-sm">
-                                <div className="flex items-center gap-2 rounded-md border px-3 py-2 text-gray-700">
+                              <div className="grid grid-cols-2 gap-2 text-xs">
+                                <div className="flex items-center gap-2 rounded-md border px-2 py-2 text-gray-700">
                                   <Banknote className="h-4 w-4 text-indigo-700" />
                                   {formatCurrencyBRL(getField(item, ['valorEstimado','valorTotalEstimado','valor','valorContratacao'], 0))}
                                 </div>
-                                <div className="flex items-center gap-2 rounded-md border px-3 py-2 text-gray-700">
+                                <div className="flex items-center gap-2 rounded-md border px-2 py-2 text-gray-700">
                                   <Calendar className="h-4 w-4 text-indigo-700" />
                                   {String(getField(item, ['dataPublicacao','dataInclusao','data'], '') || '').slice(0, 10)}
                                 </div>
@@ -755,33 +758,33 @@ export default function HomePage() {
                                 href={edital}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-800 px-3 py-2 text-sm font-medium text-white shadow hover:bg-blue-700"
+                                className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-800 px-3 py-2 text-xs font-semibold text-white shadow hover:bg-blue-700"
                               >
                                 <FileText className="h-4 w-4" />
                                 Ver Edital
                               </a>
-                              <div className="grid grid-cols-2 gap-3">
+                              <div className="grid grid-cols-2 gap-2">
                                 <Link
                                   href={`/analise-preco?obj=${encodeURIComponent(objetoLimpo || '')}`}
-                                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-medium text-blue-900 hover:bg-blue-50"
+                                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-blue-200 bg-white px-2 py-2 text-xs font-semibold text-blue-900 hover:bg-blue-50"
                                 >
                                   Análise de Preço
                                 </Link>
                                 <Button
                                   onClick={() => { setRaioxItem(item); setRaioxOpen(true) }}
-                                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-medium text-blue-900 hover:bg-blue-50"
+                                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-blue-200 bg-white px-2 py-2 text-xs font-semibold text-blue-900 hover:bg-blue-50"
                                 >
                                   Raio-X
                                 </Button>
                                 <Button
                                   onClick={() => { setDetailsItem(item); setDetailsOpen(true) }}
-                                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-medium text-blue-900 hover:bg-blue-50"
+                                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-blue-200 bg-white px-2 py-2 text-xs font-semibold text-blue-900 hover:bg-blue-50"
                                 >
                                   Detalhes
                                 </Button>
                                 <Button
                                   onClick={() => handleFavorite(item)}
-                                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-gray-900 px-3 py-2 text-sm font-medium text-white hover:bg-gray-800"
+                                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-gray-900 px-2 py-2 text-xs font-semibold text-white hover:bg-gray-800"
                                 >
                                   Favoritar
                                 </Button>
