@@ -19,14 +19,18 @@ type Params = {
 }
 
 export async function fetchContratacoes(params: Params) {
-  const base = '/api/pncp/contratacoes'
+  const base = 'https://pncp.gov.br/api/consulta/v1/contratacoes/publicacao'
   const url = new URL(base)
   const q = url.searchParams
   if (params.dataInicial) q.set('dataInicial', params.dataInicial)
   if (params.dataFinal) q.set('dataFinal', params.dataFinal)
   if (params.uf) q.set('uf', params.uf)
   if (params.termo) q.set('termo', params.termo)
-  if (params.codigoModalidadeContratacao !== undefined) q.set('codigoModalidadeContratacao', String(params.codigoModalidadeContratacao))
+  if (params.codigoModalidadeContratacao !== undefined) {
+    q.set('codigoModalidadeContratacao', String(params.codigoModalidadeContratacao))
+  } else {
+    q.set('codigoModalidadeContratacao', '8')
+  }
   if (params.codigoMunicipioIbge !== undefined) {
     q.set('codigoMunicipioIbge', String(params.codigoMunicipioIbge))
   }
@@ -39,10 +43,12 @@ export async function fetchContratacoes(params: Params) {
   q.set('pagina', String(params.pagina ?? 1))
   q.set('tamanhoPagina', String(params.tamanhoPagina ?? 10))
   q.set('v', String(Date.now()))
-  try { console.error("DEBUG: ESTOU A CHAMAR A URL (proxy): ", url.toString()) } catch {}
+  try { console.error("DEBUG: ESTOU A CHAMAR A URL: ", url.toString()) } catch {}
   const res = await fetch(url.toString(), {
     headers: {
       accept: 'application/json',
+      'user-agent': 'Mozilla/5.0',
+      'x-requested-with': 'XMLHttpRequest',
     },
     cache: 'no-store',
   })
@@ -69,14 +75,37 @@ export type Page<T> = {
 }
 
 export async function fetchContratacoesPage<T = any>(params: Params): Promise<Page<T>> {
-  const base = '/api/pncp/contratacoes'
+  // Aggregation when modalidade not provided
+  if (params.codigoModalidadeContratacao === undefined) {
+    const codes = [8, 22, 21, 4, 5]
+    const results = await Promise.all(codes.map(async (code) => {
+      return await fetchContratacoesPage<T>({ ...params, codigoModalidadeContratacao: code })
+    }))
+    const allItems = results.flatMap((p) => p.items ?? [])
+    const tamanhoPagina = Number(params.tamanhoPagina ?? 10)
+    const pagina = Number(params.pagina ?? 1)
+    const totalElements = allItems.length
+    const totalPages = Math.max(1, Math.ceil(totalElements / tamanhoPagina))
+    const start = (pagina - 1) * tamanhoPagina
+    const paginated = allItems.slice(start, start + tamanhoPagina)
+    return {
+      items: paginated as any,
+      totalPages,
+      totalElements,
+      number: pagina,
+      size: tamanhoPagina,
+    }
+  }
+  const base = 'https://pncp.gov.br/api/consulta/v1/contratacoes/publicacao'
   const url = new URL(base)
   const q = url.searchParams
   if (params.dataInicial) q.set('dataInicial', params.dataInicial)
   if (params.dataFinal) q.set('dataFinal', params.dataFinal)
   if (params.uf) q.set('uf', params.uf)
   if (params.termo) q.set('termo', params.termo)
-  if (params.codigoModalidadeContratacao !== undefined) q.set('codigoModalidadeContratacao', String(params.codigoModalidadeContratacao))
+  if (params.codigoModalidadeContratacao !== undefined) {
+    q.set('codigoModalidadeContratacao', String(params.codigoModalidadeContratacao))
+  }
   if (params.codigoMunicipioIbge !== undefined) {
     q.set('codigoMunicipioIbge', String(params.codigoMunicipioIbge))
   }
@@ -89,10 +118,12 @@ export async function fetchContratacoesPage<T = any>(params: Params): Promise<Pa
   q.set('pagina', String(params.pagina ?? 1))
   q.set('tamanhoPagina', String(params.tamanhoPagina ?? 10))
   q.set('v', String(Date.now()))
-  try { console.error("DEBUG: ESTOU A CHAMAR A URL (proxy): ", url.toString()) } catch {}
+  try { console.error("DEBUG: ESTOU A CHAMAR A URL: ", url.toString()) } catch {}
   const res = await fetch(url.toString(), {
     headers: {
       accept: 'application/json',
+      'user-agent': 'Mozilla/5.0',
+      'x-requested-with': 'XMLHttpRequest',
     },
     cache: 'no-store',
   })
