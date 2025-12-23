@@ -54,6 +54,28 @@ export default function FavoritosPage() {
     load()
   }, [])
 
+  function exportCSV() {
+    const headers = ['Órgão','Objeto','Valor','PNCP ID','Link','Data Abertura']
+    const rows = items.map((fav) => [
+      fav.orgao_nome || '',
+      (fav.objeto_resumo || '').replace(/\s+/g, ' ').trim(),
+      String(Number(fav.valor_estimado || 0)),
+      fav.pncp_id || '',
+      fav.link_edital || '',
+      fav.data_abertura ? new Date(fav.data_abertura).toISOString() : ''
+    ])
+    const csv = [headers, ...rows].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'licitacoes_favoritas.csv'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="border-b bg-white">
@@ -62,6 +84,9 @@ export default function FavoritosPage() {
             <Heart className="h-5 w-5 text-pink-600" />
             <h1 className="text-xl font-semibold text-blue-900">Minhas Licitações</h1>
           </div>
+          {userId && items.length > 0 && (
+            <Button onClick={exportCSV} className="bg-blue-800 text-white hover:bg-blue-700 text-xs">Exportar CSV</Button>
+          )}
         </div>
       </header>
       <main className="mx-auto max-w-5xl px-6 py-8">

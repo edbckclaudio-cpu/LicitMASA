@@ -139,6 +139,7 @@ export default function HomePage() {
   const [isPremium, setIsPremium] = useState<boolean>(false)
   const planPrice = process.env.NEXT_PUBLIC_PLAN_PRICE || '49,90'
   const [showPremiumBanner, setShowPremiumBanner] = useState<boolean>(false)
+  const [ordenar, setOrdenar] = useState<'data' | 'valor_desc' | 'valor_asc'>('data')
 
   const hoje = useMemo(() => formatDateYYYYMMDD(new Date()), [])
   const inicio = useMemo(() => {
@@ -252,7 +253,8 @@ export default function HomePage() {
         pagina,
         tamanhoPagina,
       })
-      setResultados(Array.isArray(page.items) ? page.items : (Array.isArray((page as any).data) ? (page as any).data : []))
+      const base = Array.isArray(page.items) ? page.items : (Array.isArray((page as any).data) ? (page as any).data : [])
+      setResultados(sortResultados(base))
       setTotalPages(Number(page.totalPages || 1))
       setLoaded(true)
       addToast('Licitações de hoje carregadas', 'info')
@@ -289,7 +291,7 @@ export default function HomePage() {
         tamanhoPagina,
       })
       const list = Array.isArray(page.items) ? page.items : []
-      setResultados(list)
+      setResultados(sortResultados(list))
       setTotalPages(Number(page.totalPages || 1))
       addToast('Resultados atualizados', 'success')
     } catch (e: any) {
@@ -299,6 +301,36 @@ export default function HomePage() {
       setLoading(false)
     }
   }
+
+  function sortResultados(arr: any[]): any[] {
+    const copy = [...arr]
+    if (ordenar === 'data') {
+      copy.sort((a, b) => {
+        const da = new Date(String(getField(a, ['dataPublicacao','dataInclusao','data'], '')))
+        const db = new Date(String(getField(b, ['dataPublicacao','dataInclusao','data'], '')))
+        return (db.getTime() || 0) - (da.getTime() || 0)
+      })
+    } else if (ordenar === 'valor_desc' || ordenar === 'valor_asc') {
+      copy.sort((a, b) => {
+        const va = Number(getField(a, ['valorEstimado','valorTotalEstimado','valor','valorContratacao'], 0) || 0)
+        const vb = Number(getField(b, ['valorEstimado','valorTotalEstimado','valor','valorContratacao'], 0) || 0)
+        return ordenar === 'valor_desc' ? (vb - va) : (va - vb)
+      })
+    }
+    return copy
+  }
+  const resumo = useMemo(() => {
+    const total = resultados.length
+    const ufCount: Record<string, number> = {}
+    for (const it of resultados) {
+      const ufItem = getField(getField(it, ['unidadeOrgao'], {}), ['ufSigla'], '') || ''
+      const k = String(ufItem || '').trim()
+      if (!k) continue
+      ufCount[k] = (ufCount[k] || 0) + 1
+    }
+    const topUFs = Object.entries(ufCount).sort((a, b) => b[1] - a[1]).slice(0, 3)
+    return { total, topUFs }
+  }, [resultados])
 
   function onTouchStart(e: React.TouchEvent<HTMLDivElement>) {
     const el = pullRef.current
@@ -512,6 +544,11 @@ export default function HomePage() {
                 value={termo}
                 onChange={(e) => setTermo(e.target.value)}
               />
+              <Select value={ordenar} onChange={(e) => setOrdenar(e.target.value as any)} className="w-40">
+                <option value="data">Mais recentes</option>
+                <option value="valor_desc">Maior valor</option>
+                <option value="valor_asc">Menor valor</option>
+              </Select>
               <Button
                 onClick={() => { addToast('Atualizando...', 'info'); buscar() }}
                 className="bg-gray-100 text-slate-700 hover:bg-gray-200 px-2 py-2"
@@ -569,7 +606,10 @@ export default function HomePage() {
           </div>
           <div className="mt-3 text-xs text-gray-500">Exibindo publicações de {inicio} a {hoje}</div>
           <div className="mt-3 flex items-center justify-between rounded-md border bg-white px-3 py-2 shadow-sm">
-            <div className="text-sm text-slate-700">Encontramos {resultados.length} licitações</div>
+            <div className="text-sm text-slate-700">
+              {`Encontramos ${resumo.total} licitações`}
+              {resumo.topUFs.length > 0 ? ` • Principais UFs: ${resumo.topUFs.map(([u, c]) => `${u} (${c})`).join(', ')}` : ''}
+            </div>
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2 text-xs">
                 <span className="text-slate-600">Itens por página</span>
