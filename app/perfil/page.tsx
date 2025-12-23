@@ -38,7 +38,19 @@ function PerfilContent() {
 
   async function deleteAccount() {
     setConfirmDelete(false)
-    alert('Para excluir sua conta, entre em contato pelo WhatsApp de suporte: +55 11 99999-9999. Seus dados podem ser exportados ou removidos conforme LGPD.')
+    if (!supabase) return
+    const { data: userData } = await supabase.auth.getUser()
+    const user = userData?.user
+    if (!user) return
+    try {
+      await supabase.from('user_favorites').delete().eq('user_id', user.id)
+      await supabase.from('search_alerts').delete().eq('user_id', user.id)
+      await supabase.from('user_alerts').delete().eq('user_id', user.id)
+      await supabase.from('user_certificates').delete().eq('user_id', user.id)
+      await supabase.from('profiles').delete().eq('id', user.id)
+    } catch {}
+    try { await supabase.auth.signOut() } catch {}
+    router.push('/login')
   }
 
   return (
@@ -96,8 +108,8 @@ function PerfilContent() {
           <div className={"absolute inset-0 bg-black/40 transition-opacity duration-300 " + (showTerms ? 'opacity-100' : 'opacity-0')} onClick={() => setShowTerms(false)} />
           <div className={"absolute bottom-0 left-0 right-0 max-h-[70vh] overflow-y-auto rounded-t-2xl border bg-white p-6 shadow-lg transition-transform duration-300 ease-out " + (showTerms ? 'translate-y-0' : 'translate-y-full')}>
             <div className="text-lg font-semibold text-blue-900 mb-2">Termos de Uso</div>
-            <div className="text-sm text-gray-800">
-              O LicitMASA é uma ferramenta de produtividade que consome dados públicos do portal PNCP. Não temos vínculo com o Governo Federal. O usuário é responsável pela verificação das informações diretamente nos editais oficiais. O uso do app implica na aceitação da coleta mínima de dados para funcionamento do sistema de favoritos.
+            <div className="rounded-md border bg-slate-50 overflow-hidden">
+              <iframe src="/termos.html" className="w-full h-[50vh] bg-white" />
             </div>
             <div className="mt-4 flex items-center justify-end">
               <Button onClick={() => setShowTerms(false)} className="bg-gray-100 text-gray-800 hover:bg-gray-200">Fechar</Button>
@@ -108,8 +120,8 @@ function PerfilContent() {
           <div className={"absolute inset-0 bg-black/40 transition-opacity duration-300 " + (showPrivacy ? 'opacity-100' : 'opacity-0')} onClick={() => setShowPrivacy(false)} />
           <div className={"absolute bottom-0 left-0 right-0 max-h-[70vh] overflow-y-auto rounded-t-2xl border bg-white p-6 shadow-lg transition-transform duration-300 ease-out " + (showPrivacy ? 'translate-y-0' : 'translate-y-full')}>
             <div className="text-lg font-semibold text-blue-900 mb-2">Política de Privacidade</div>
-            <div className="text-sm text-gray-800">
-              O LicitMASA coleta seu e-mail para autenticação e armazena suas licitações favoritas para sua conveniência. Seus dados são protegidos via Supabase/PostgreSQL e nunca são compartilhados com terceiros. Você tem o direito de exportar ou excluir seus dados a qualquer momento nas configurações do app.
+            <div className="rounded-md border bg-slate-50 overflow-hidden">
+              <iframe src="/privacidade.html" className="w-full h-[50vh] bg-white" />
             </div>
             <div className="mt-4 flex items-center justify-end">
               <Button onClick={() => setShowPrivacy(false)} className="bg-gray-100 text-gray-800 hover:bg-gray-200">Fechar</Button>

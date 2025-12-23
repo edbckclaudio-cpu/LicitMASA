@@ -7,6 +7,7 @@ import { Select } from '../components/ui/select'
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card'
 import { Badge } from '../components/ui/badge'
 import { fetchContratacoesPage, formatDateYYYYMMDD } from '../lib/pncp'
+import { requestAndSaveToken } from '../lib/firebase'
 import { supabase } from '../lib/supabaseClient'
 import { SidebarAlerts } from '../components/premium/SidebarAlerts'
 import { BottomNavigation } from '@/components/ui/bottom-navigation'
@@ -172,6 +173,7 @@ export default function HomePage() {
           setTimeout(() => setShowPremiumBanner(false), 5000)
         } else {
           setShowPremiumBanner(false)
+          try { await requestAndSaveToken() } catch {}
         }
       } catch {
         setIsPremium(false)
