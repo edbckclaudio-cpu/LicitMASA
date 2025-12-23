@@ -8,6 +8,7 @@ import Link from 'next/link'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [message, setMessage] = useState<string | null>(null)
   const router = useRouter()
   async function signInGoogle() {
@@ -28,6 +29,12 @@ export default function LoginPage() {
       options: { emailRedirectTo }
     })
     setMessage(error ? 'Falha ao enviar link mágico' : 'Verifique seu e-mail para acessar')
+  }
+  async function signInPassword() {
+    if (!supabase || !email || !password) return
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) { setMessage('Falha ao entrar com senha'); return }
+    router.push('/perfil')
   }
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-blue-100 flex items-center justify-center px-4">
@@ -55,6 +62,16 @@ export default function LoginPage() {
               />
               <Button onClick={sendMagicLink} className="w-full bg-blue-800 text-white hover:bg-blue-700">
                 Entrar com link mágico
+              </Button>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Sua senha"
+                className="w-full rounded-md border px-3 py-2 text-sm"
+              />
+              <Button onClick={signInPassword} className="w-full bg-blue-900 text-white hover:bg-blue-800">
+                Entrar com e-mail e senha
               </Button>
             </div>
             {message ? (
