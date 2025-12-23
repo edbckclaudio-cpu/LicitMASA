@@ -138,6 +138,7 @@ export default function HomePage() {
   const [loggedIn, setLoggedIn] = useState<boolean>(false)
   const [isPremium, setIsPremium] = useState<boolean>(false)
   const planPrice = process.env.NEXT_PUBLIC_PLAN_PRICE || '49,90'
+  const [showPremiumBanner, setShowPremiumBanner] = useState<boolean>(false)
 
   const hoje = useMemo(() => formatDateYYYYMMDD(new Date()), [])
   const inicio = useMemo(() => {
@@ -156,6 +157,8 @@ export default function HomePage() {
       if (!user) {
         setLoggedIn(false)
         setIsPremium(false)
+        setShowPremiumBanner(true)
+        setTimeout(() => setShowPremiumBanner(false), 5000)
         return
       }
       setLoggedIn(true)
@@ -163,8 +166,16 @@ export default function HomePage() {
         const { data: prof } = await supabase.from('profiles').select('is_premium, plan').eq('id', user.id).single()
         const premium = Boolean(prof?.is_premium) || String(prof?.plan || '').toLowerCase() === 'premium'
         setIsPremium(premium)
+        if (!premium) {
+          setShowPremiumBanner(true)
+          setTimeout(() => setShowPremiumBanner(false), 5000)
+        } else {
+          setShowPremiumBanner(false)
+        }
       } catch {
         setIsPremium(false)
+        setShowPremiumBanner(true)
+        setTimeout(() => setShowPremiumBanner(false), 5000)
       }
     }
     loadUserPlan()
@@ -481,7 +492,7 @@ export default function HomePage() {
           </div>
         </div>
       </header>
-      {!isPremium && (
+      {!isPremium && showPremiumBanner && (
         <div className="mx-auto max-w-5xl px-6 pt-2">
           <div className="flex items-center justify-between rounded-md border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
             <span>Plano Premium por R$ {planPrice}/mês: desbloqueie alertas às 07:00/16:00, WhatsApp e Raio‑X.</span>

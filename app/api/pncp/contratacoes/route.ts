@@ -61,16 +61,43 @@ export async function GET(req: Request) {
     const codeParam = searchParams.get('codigoModalidadeContratacao')
     const codes = codeParam ? [Number(codeParam)]
       : [8, 22, 21, 4, 5]
-    const pages = await Promise.all(codes.map((c) => fetchRemote(searchParams, c)))
+  const pages = await Promise.all(codes.map((c) => fetchRemote(searchParams, c)))
     const allItems = pages.flatMap((p) => (p as any)?.items ?? [])
+    const termo = String(searchParams.get('termo') || '').trim().toLowerCase()
+    const filteredItems = termo
+      ? allItems.filter((it: any) => {
+          function asText(v: any): string {
+            if (v === undefined || v === null) return ''
+            if (typeof v === 'string') return v
+            if (typeof v === 'number') return String(v)
+            return ''
+          }
+          const objeto =
+            asText(it.objetoCompra) ||
+            asText(it.objeto) ||
+            asText(it.objetoLicitacao) ||
+            asText(it.descricao) ||
+            asText(it.resumo) ||
+            asText(it.texto)
+          const orgao =
+            asText((it.orgaoEntidade && it.orgaoEntidade.razaoSocial) || '') ||
+            asText(it.orgao) ||
+            asText(it.orgaoPublico) ||
+            asText(it.nomeUnidadeAdministrativa) ||
+            asText(it.uasgNome) ||
+            asText(it.entidade)
+          const hay = (objeto + ' ' + orgao).toLowerCase()
+          return hay.includes(termo)
+        })
+      : allItems
     const totalElements = allItems.length
-    const totalPages = Math.max(1, Math.ceil(totalElements / tamanhoPagina))
+    const totalPages = Math.max(1, Math.ceil((filteredItems.length || totalElements) / tamanhoPagina))
     const start = (pagina - 1) * tamanhoPagina
-    const paginated = allItems.slice(start, start + tamanhoPagina)
+    const paginated = filteredItems.slice(start, start + tamanhoPagina)
     return NextResponse.json({
       items: paginated,
       totalPages,
-      totalElements,
+      totalElements: filteredItems.length || totalElements,
       number: pagina,
       size: tamanhoPagina,
       statusCodes: pages.map((p) => (p as any)?.status ?? 0),
