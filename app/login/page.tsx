@@ -33,7 +33,7 @@ export default function LoginPage() {
   async function signInPassword() {
     if (!supabase || !email || !password) return
     const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) { setMessage('Falha ao entrar com senha'); return }
+    if (error) { setMessage(error.message || 'Falha ao entrar com senha'); return }
     router.push('/perfil')
   }
   return (
