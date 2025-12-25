@@ -23,7 +23,13 @@ export async function POST(req: Request) {
       password,
       email_confirm: true,
     })
-    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 400 })
+    if (error) {
+      const invited = await supa.auth.admin.inviteUserByEmail(email).catch(() => ({ data: null as any }))
+      const userIdInv = invited?.data?.user?.id
+      if (!userIdInv) return NextResponse.json({ ok: false, error: error.message }, { status: 400 })
+      await supa.from('profiles').upsert({ id: userIdInv, is_premium: true, plan: 'premium' }, { onConflict: 'id' })
+      return NextResponse.json({ ok: true, userId: userIdInv, invited: true })
+    }
     const userId = data.user?.id
     if (!userId) return NextResponse.json({ ok: false, error: 'NO_USER_ID' }, { status: 400 })
     await supa.from('profiles').upsert({ id: userId, is_premium: true, plan: 'premium' }, { onConflict: 'id' })
