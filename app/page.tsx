@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Search, Building2, Calendar, FileText, Banknote, X, SearchCheck, Info, MessageCircle, Bookmark, MapPin, RotateCcw } from 'lucide-react'
+import { Search, Building2, Calendar, FileText, Banknote, X, SearchCheck, Info, MessageCircle, Bookmark, MapPin, RotateCcw, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Select } from '../components/ui/select'
@@ -757,6 +757,13 @@ export default function HomePage() {
                 className="md:hidden relative overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm"
                 style={{ height: `calc(100vh - 120px - env(safe-area-inset-bottom))` }}
               >
+                {resultados.length > 1 ? (
+                  <div className="pointer-events-none absolute top-2 right-2 z-10 inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white/80 px-2 py-1 text-[10px] text-slate-700">
+                    <ChevronLeft className="h-3 w-3 text-blue-700" />
+                    Deslize para ver mais
+                    <ChevronRight className="h-3 w-3 text-blue-700" />
+                  </div>
+                ) : null}
                 <div
                   className="h-full w-full"
                   onTouchStart={onSlideTouchStart}
