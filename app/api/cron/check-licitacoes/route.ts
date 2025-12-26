@@ -17,21 +17,33 @@ export async function GET() {
     }
     const { data: alerts, error } = await supa
       .from('user_alerts')
-      .select('id,user_id,keywords,ufs,min_value,active,profiles!inner(plan,is_premium)')
-      .eq('active', true)
+      .select('id,user_id,keywords,ufs,valor_minimo,ativo')
+      .eq('ativo', true)
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 })
+    const userIds = (alerts || []).map((a: any) => String(a.user_id || '')).filter(Boolean)
+    const { data: profs } = await supa
+      .from('profiles')
+      .select('id,email,is_premium,plan')
+      .in('id', userIds.length ? userIds : ['00000000-0000-0000-0000-000000000000'])
+    const allow = String(process.env.NEXT_PUBLIC_PREMIUM_EMAILS || '').toLowerCase().split(',').map((s) => s.trim()).filter(Boolean)
+    const premiumByUser: Record<string, boolean> = {}
+    for (const p of profs || []) {
+      const email = String((p as any).email || '').toLowerCase()
+      const premium = Boolean((p as any).is_premium) || String((p as any).plan || '').toLowerCase() === 'premium' || allow.includes(email)
+      premiumByUser[String((p as any).id)] = premium
+    }
     const now = new Date()
     const dataFinal = formatDateYYYYMMDD(now)
     const dataInicial = formatDateYYYYMMDD(new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000))
     let processed = 0
     const out: Array<{ alert_id: string, user_id: string, found: number }> = []
     for (const alert of alerts || []) {
-      const premium = Boolean((alert as any)?.profiles?.is_premium) || String((alert as any)?.profiles?.plan || '').toLowerCase() === 'premium'
+      const premium = premiumByUser[String((alert as any).user_id)] === true
       if (!premium) continue
       processed++
       const kws: string[] = Array.isArray((alert as any).keywords) ? (alert as any).keywords : []
       const ufs: string[] = Array.isArray((alert as any).ufs) ? (alert as any).ufs : []
-      const minValue = Number((alert as any).min_value || 0)
+      const minValue = Number((alert as any).valor_minimo || 0)
       let totalFound = 0
       const combos = (kws.length ? kws : [undefined]).flatMap((k) => (ufs.length ? ufs : [undefined]).map((u) => ({ k, u })))
       for (const combo of combos) {
