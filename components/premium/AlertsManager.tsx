@@ -40,7 +40,9 @@ export function AlertsManager() {
       .select("is_premium")
       .eq("id", user.id)
       .single();
-    setIsPremium(Boolean(prof?.is_premium));
+    const allow = String(process.env.NEXT_PUBLIC_PREMIUM_EMAILS || "").toLowerCase().split(",").map((s) => s.trim()).filter(Boolean)
+    const email = String(user.email || "").toLowerCase()
+    setIsPremium(Boolean(prof?.is_premium) || allow.includes(email));
     const { data } = await supabase
       .from("search_alerts")
       .select("id, keyword, uf")

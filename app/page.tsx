@@ -164,21 +164,17 @@ export default function HomePage() {
         return
       }
       setLoggedIn(true)
-      try {
-        const { data: prof } = await supabase.from('profiles').select('is_premium, plan').eq('id', user.id).single()
-        const premium = Boolean(prof?.is_premium) || String(prof?.plan || '').toLowerCase() === 'premium'
-        setIsPremium(premium)
-        if (!premium) {
-          setShowPremiumBanner(true)
-          setTimeout(() => setShowPremiumBanner(false), 5000)
-        } else {
-          setShowPremiumBanner(false)
-          try { await requestAndSaveToken() } catch {}
-        }
-      } catch {
-        setIsPremium(false)
+      const { data: prof, error } = await supabase.from('profiles').select('is_premium, plan').eq('id', user.id).single()
+      const allow = String(process.env.NEXT_PUBLIC_PREMIUM_EMAILS || '').toLowerCase().split(',').map((s) => s.trim()).filter(Boolean)
+      const email = String(user.email || '').toLowerCase()
+      const premium = Boolean(prof?.is_premium) || String(prof?.plan || '').toLowerCase() === 'premium' || allow.includes(email)
+      setIsPremium(premium)
+      if (!premium) {
         setShowPremiumBanner(true)
         setTimeout(() => setShowPremiumBanner(false), 5000)
+      } else {
+        setShowPremiumBanner(false)
+        try { await requestAndSaveToken() } catch {}
       }
     }
     loadUserPlan()

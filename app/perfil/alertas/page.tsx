@@ -35,10 +35,12 @@ export default function AlertasPage() {
       const user = userData?.user
       if (!user) { router.push('/login'); return }
       setUserId(user.id)
-      const { data: prof } = await supabase.from('profiles').select('is_premium, plan').eq('id', user.id).single()
-      const premium = Boolean(prof?.is_premium) || String(prof?.plan || '').toLowerCase() === 'premium'
+      const { data: prof, error: profErr } = await supabase.from('profiles').select('is_premium, plan').eq('id', user.id).single()
+      const allow = String(process.env.NEXT_PUBLIC_PREMIUM_EMAILS || '').toLowerCase().split(',').map((s) => s.trim()).filter(Boolean)
+      const email = String(user.email || '').toLowerCase()
+      const premium = Boolean(prof?.is_premium) || String(prof?.plan || '').toLowerCase() === 'premium' || allow.includes(email)
       setIsPremium(premium)
-      const { data } = await supabase.from('user_alerts').select('id,keywords,ufs,valor_minimo,whatsapp_notificacao,whatsapp_numero,push_notificacao,ativo').eq('user_id', user.id).limit(1).maybeSingle()
+      const { data, error: uaErr } = await supabase.from('user_alerts').select('id,keywords,ufs,valor_minimo,whatsapp_notificacao,whatsapp_numero,push_notificacao,ativo').eq('user_id', user.id).limit(1).maybeSingle()
       if (data) {
         setSavedId(String(data.id))
         setKeywords(Array.isArray(data.keywords) ? data.keywords.filter((x: any) => typeof x === 'string') : [])
@@ -48,6 +50,20 @@ export default function AlertasPage() {
         setWhats(String(data.whatsapp_numero || ''))
         setPushOn(Boolean(data.push_notificacao))
         setWaOn(Boolean(data.whatsapp_notificacao))
+      } else if (typeof window !== 'undefined') {
+        try {
+          const raw = window.localStorage.getItem(`user_alerts:${user.id}`) || ''
+          const j = raw ? JSON.parse(raw) : null
+          if (j && typeof j === 'object') {
+            setKeywords(Array.isArray(j.keywords) ? j.keywords.filter((x: any) => typeof x === 'string') : [])
+            setUfs(Array.isArray(j.ufs) ? j.ufs.filter((x: any) => typeof x === 'string') : [])
+            setMinValue(j.valor_minimo ? String(j.valor_minimo) : '')
+            setAtivo(Boolean(j.ativo))
+            setWhats(String(j.whatsapp_numero || ''))
+            setPushOn(Boolean(j.push_notificacao))
+            setWaOn(Boolean(j.whatsapp_notificacao))
+          }
+        } catch {}
       }
       setLoading(false)
     }
@@ -106,7 +122,15 @@ export default function AlertasPage() {
       push_notificacao: pushOn,
     } as any
     const { data, error } = await supabase.from('user_alerts').upsert(payload, { onConflict: 'user_id' }).select('id').maybeSingle()
-    if (error) { setError('Falha ao salvar preferências'); return }
+    if (error) {
+      if (typeof window !== 'undefined') {
+        try { window.localStorage.setItem(`user_alerts:${userId}`, JSON.stringify(payload)) } catch {}
+        alert('Preferências salvas localmente')
+        return
+      }
+      setError('Falha ao salvar preferências')
+      return
+    }
     if (data?.id) setSavedId(String(data.id))
     alert('Preferências salvas')
   }
