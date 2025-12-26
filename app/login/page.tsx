@@ -12,7 +12,7 @@ export default function LoginPage() {
   const [message, setMessage] = useState<string | null>(null)
   const router = useRouter()
   async function signInGoogle() {
-    if (!supabase) return
+    if (!supabase) { setMessage('Configure o Supabase no .env'); return }
     const redirectTo =
       typeof window !== 'undefined' ? `${window.location.origin}/perfil` : authRedirectTo
     await supabase.auth.signInWithOAuth({
@@ -21,7 +21,8 @@ export default function LoginPage() {
     })
   }
   async function sendMagicLink() {
-    if (!supabase || !email) return
+    if (!supabase) { setMessage('Configure o Supabase no .env'); return }
+    if (!email) return
     const emailRedirectTo =
       typeof window !== 'undefined' ? `${window.location.origin}/perfil` : authRedirectTo
     const { error } = await supabase.auth.signInWithOtp({
@@ -31,7 +32,8 @@ export default function LoginPage() {
     setMessage(error ? 'Falha ao enviar link mágico' : 'Verifique seu e-mail para acessar')
   }
   async function signInPassword() {
-    if (!supabase || !email || !password) return
+    if (!supabase) { setMessage('Configure o Supabase no .env'); return }
+    if (!email || !password) return
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) { setMessage(error.message || 'Falha ao entrar com senha'); return }
     router.push('/perfil')
