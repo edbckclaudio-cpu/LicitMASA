@@ -57,7 +57,10 @@ function PerfilContent() {
     <div className="min-h-screen bg-gray-50">
       <header className="border-b bg-white">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-          <h1 className="text-xl font-semibold text-blue-900">Perfil</h1>
+          <div className="flex items-center gap-2">
+            <Button onClick={() => router.push('/')} className="bg-gray-100 text-gray-800 hover:bg-gray-200">Voltar para Tela Inicial</Button>
+            <h1 className="text-xl font-semibold text-blue-900">Perfil</h1>
+          </div>
           <Button onClick={logout} className="bg-gray-100 text-gray-800 hover:bg-gray-200">Sair</Button>
         </div>
       </header>

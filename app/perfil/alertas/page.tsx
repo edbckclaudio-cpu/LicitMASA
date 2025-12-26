@@ -133,9 +133,11 @@ export default function AlertasPage() {
               <div className="space-y-6">
                 <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">🔔 Você receberá resumos automáticos às 07:00 horas e às 16:00 horas.</div>
                 {!isPremium && (
-                  <div className="flex items-center justify-between rounded-md border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 rounded-md border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
                     <span>Disponível apenas para plano Premium. Atualize seu plano para ativar alertas automáticos.</span>
-                    <Button onClick={() => router.push('/perfil')} className="bg-blue-800 text-white hover:bg-blue-700">Assinar Premium para Ativar Alertas</Button>
+                    <Button onClick={() => router.push('/perfil')} className="w-full md:w-auto bg-blue-900 text-white hover:bg-blue-800 py-3 text-sm font-medium">
+                      Assinar Premium para Ativar Alertas
+                    </Button>
                   </div>
                 )}
                 {error && (
