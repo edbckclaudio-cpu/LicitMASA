@@ -642,6 +642,8 @@ export default function HomePage() {
             </div>
           </div>
         </section>
+        {/* faixa de fundo Celadon entre busca e resultados */}
+        <div aria-hidden className="my-4 h-6 rounded-lg bg-[#A7E8BD] md:h-8" />
 
         <div className={"fixed inset-0 z-50 md:hidden " + (filtersOpen ? '' : 'pointer-events-none')}>
           <div
