@@ -533,7 +533,7 @@ export default function HomePage() {
         </div>
       )}
       <main className="mx-auto max-w-5xl px-6 py-8">
-        <section className="rounded-xl border bg-white p-6 shadow-sm">
+        <section className="rounded-xl border bg-white p-6 shadow-md">
           <div className="flex flex-col gap-3 md:grid md:grid-cols-[1fr,auto] md:items-center">
             <div className="flex items-center gap-2">
               <Search className="h-5 w-5 text-blue-700" />
@@ -754,7 +754,7 @@ export default function HomePage() {
           {!loading && !error && resultados.length > 0 && (
             <>
               <div
-                className="md:hidden relative overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm"
+                className="md:hidden relative overflow-hidden rounded-xl border border-slate-100 bg-transparent shadow-sm"
                 style={{ height: `calc(100vh - 120px - env(safe-area-inset-bottom))` }}
               >
                 {resultados.length > 1 ? (
@@ -847,7 +847,7 @@ export default function HomePage() {
                       const cnpj = formatCNPJ(cnpjRaw)
                       return (
                         <div key={idx} className="min-w-full h-full p-4">
-                          <div className="rounded-xl border border-slate-100 bg-white shadow-sm flex h-full flex-col justify-between pb-20 p-4">
+                          <div className="rounded-xl border border-slate-100 bg-white shadow flex h-full flex-col justify-between pb-20 p-4">
                             <div className="space-y-3">
                               <div className="flex items-center gap-2">
                                 <Badge className={"px-2 " + (Number(modalidadeCode) === 22 ? "bg-blue-100 text-blue-800" : Number(modalidadeCode) === 8 ? "bg-green-100 text-green-800" : Number(modalidadeCode) === 21 ? "bg-yellow-100 text-yellow-800" : "bg-slate-100 text-slate-800")}>{modalidade}</Badge>
