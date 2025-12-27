@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { supabase } from '@/lib/supabaseClient'
 
 export default function ServiceWorkerRegister() {
   const [canInstall, setCanInstall] = useState(false)
@@ -8,8 +9,68 @@ export default function ServiceWorkerRegister() {
   useEffect(() => {
     if (typeof window === 'undefined') return
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch(() => {})
+      const isProd = process.env.NODE_ENV === 'production'
+      if (isProd) {
+        navigator.serviceWorker.register('/sw.js').catch(() => {})
+      } else {
+        navigator.serviceWorker.getRegistrations()
+          .then((regs) => Promise.all(regs.map((r) => r.unregister())))
+          .catch(() => {})
+        if (window.caches) {
+          caches.keys().then((keys) => {
+            keys.forEach((k) => caches.delete(k))
+          }).catch(() => {})
+        }
+      }
     }
+  }, [])
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const isProd = process.env.NODE_ENV === 'production'
+    const appId = process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || ''
+    if (!appId) return
+    if (!isProd) return
+    if (!(window as any).OneSignal) {
+      const s = document.createElement('script')
+      s.src = 'https://cdn.onesignal.com/sdks/OneSignalSDK.js'
+      s.async = true
+      s.onload = () => {
+        const OneSignal = (window as any).OneSignal || []
+        ;(window as any).OneSignal = OneSignal
+        OneSignal.push(function() {
+          OneSignal.init({
+            appId,
+            allowLocalhostAsSecureOrigin: true,
+            serviceWorkerPath: '/OneSignalSDKWorker.js',
+            serviceWorkerUpdaterPath: '/OneSignalSDKUpdaterWorker.js',
+            notifyButton: { enable: false },
+          })
+          try { OneSignal.Notifications.requestPermission() } catch {}
+        })
+        supabase?.auth.getUser().then((ud) => {
+          const user = ud?.data?.user
+          if (user?.id) {
+            OneSignal.push(function() {
+              OneSignal.setExternalUserId(user.id)
+            })
+          }
+        })
+        supabase?.auth.onAuthStateChange((_ev, session) => {
+          const uid = session?.user?.id
+          OneSignal.push(function() {
+            if (uid) {
+              OneSignal.setExternalUserId(uid)
+            } else {
+              OneSignal.removeExternalUserId()
+            }
+          })
+        })
+      }
+      document.head.appendChild(s)
+    }
+  }, [])
+
+  useEffect(() => {
     const handler = (e: any) => {
       e.preventDefault()
       setPromptEvent(e)
