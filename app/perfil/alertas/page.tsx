@@ -71,11 +71,11 @@ export default function AlertasPage() {
   }, [])
   useEffect(() => {
     async function ensurePushSetup() {
-      if (!isPremium || !pushOn) return
+      if (!userId || !pushOn) return
       await requestAndSaveToken()
     }
     ensurePushSetup()
-  }, [isPremium, pushOn])
+  }, [userId, pushOn])
 
   function addKeywordFromInput() {
     const parts = keywordsInput.split(/[,\s]+/).map((s) => s.trim()).filter(Boolean)
@@ -110,7 +110,6 @@ export default function AlertasPage() {
   async function savePrefs() {
     setError(null)
     if (!supabase || !userId) return
-    if (!isPremium) { setError('Disponível apenas para plano Premium'); return }
     const payload = {
       user_id: userId,
       keywords,
@@ -135,14 +134,14 @@ export default function AlertasPage() {
     alert('Preferências salvas')
   }
 
-  const canSave = useMemo(() => (keywords.length > 0 || ufs.length > 0) && isPremium && !!userId, [keywords, ufs, isPremium, userId])
+  const canInteract = !!userId
 
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="border-b bg-white">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
           <h1 className="text-xl font-semibold text-blue-900">Meus Alertas</h1>
-          <Button onClick={() => router.push('/perfil')} className="bg-gray-100 text-gray-800 hover:bg-gray-200">Voltar</Button>
+          <Button onClick={() => router.push('/')} className="bg-gray-100 text-gray-800 hover:bg-gray-200">Voltar</Button>
         </div>
       </header>
       <main className="mx-auto max-w-5xl px-6 py-8">
@@ -156,14 +155,6 @@ export default function AlertasPage() {
             ) : (
               <div className="space-y-6">
                 <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">🔔 Você receberá resumos automáticos às 07:00 horas e às 16:00 horas.</div>
-                {!isPremium && (
-                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 rounded-md border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
-                    <span>Disponível apenas para plano Premium. Atualize seu plano para ativar alertas automáticos.</span>
-                    <Button onClick={() => router.push('/perfil')} className="w-full md:w-auto bg-blue-900 text-white hover:bg-blue-800 py-3 text-sm font-medium">
-                      Assinar Premium para Ativar Alertas
-                    </Button>
-                  </div>
-                )}
                 {error && (
                   <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</div>
                 )}
@@ -175,13 +166,13 @@ export default function AlertasPage() {
                       value={keywordsInput}
                       onChange={(e) => setKeywordsInput(e.target.value)}
                       onKeyDown={(e) => { if (e.key === 'Enter') addKeywordFromInput() }}
-                      disabled={!isPremium}
+                      disabled={!canInteract}
                     />
-                    <Button onClick={addKeywordFromInput} className="bg-blue-800 text-white hover:bg-blue-700" disabled={!isPremium}>Adicionar</Button>
+                    <Button onClick={addKeywordFromInput} className="bg-blue-800 text-white hover:bg-blue-700" disabled={!canInteract}>Adicionar</Button>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {keywords.map((k) => (
-                      <button key={k} onClick={() => isPremium && removeKeyword(k)} className={"inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs text-blue-900 " + (isPremium ? "bg-blue-50 hover:bg-blue-100" : "bg-gray-100")}>
+                      <button key={k} onClick={() => canInteract && removeKeyword(k)} className={"inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs text-blue-900 " + (canInteract ? "bg-blue-50 hover:bg-blue-100" : "bg-gray-100")}>
                         <Badge className="bg-blue-100 text-blue-800">{k}</Badge>
                         remover
                       </button>
@@ -196,8 +187,8 @@ export default function AlertasPage() {
                       return (
                         <button
                           key={uf}
-                          onClick={() => isPremium && toggleUf(uf)}
-                          className={"inline-flex items-center justify-center rounded-md border px-2 py-1 text-xs " + (on ? "bg-blue-800 text-white border-blue-700" : "bg-white text-gray-800") + (isPremium ? "" : " opacity-60")}
+                          onClick={() => canInteract && toggleUf(uf)}
+                          className={"inline-flex items-center justify-center rounded-md border px-2 py-1 text-xs " + (on ? "bg-blue-800 text-white border-blue-700" : "bg-white text-gray-800") + (canInteract ? "" : " opacity-60")}
                         >
                           {uf}
                         </button>
@@ -212,7 +203,7 @@ export default function AlertasPage() {
                       placeholder="Ex: 10000"
                       value={minValue}
                       onChange={(e) => setMinValue(e.target.value.replace(/[^\d.,]/g, ''))}
-                      disabled={!isPremium}
+                      disabled={!canInteract}
                     />
                   </div>
                   <div className="grid gap-1.5">
@@ -221,12 +212,12 @@ export default function AlertasPage() {
                       placeholder="Ex: +55 11 99999-9999"
                       value={whats}
                       onChange={(e) => setWhats(formatPhoneBR(e.target.value))}
-                      disabled={!isPremium}
+                      disabled={!canInteract}
                     />
                   </div>
                   <div className="grid gap-1.5">
                     <label className="text-xs font-medium text-slate-500 uppercase">Ativar alerta diário</label>
-                    <Button onClick={() => isPremium && setAtivo((v) => !v)} className={"border " + (ativo ? "bg-green-600 text-white hover:bg-green-700" : "bg-gray-100 text-gray-800 hover:bg-gray-200")} disabled={!isPremium}>
+                    <Button onClick={() => canInteract && setAtivo((v) => !v)} className={"border " + (ativo ? "bg-green-600 text-white hover:bg-green-700" : "bg-gray-100 text-gray-800 hover:bg-gray-200")} disabled={!canInteract}>
                       {ativo ? "Ativado" : "Desativado"}
                     </Button>
                   </div>
@@ -234,13 +225,13 @@ export default function AlertasPage() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div className="grid gap-1.5">
                     <label className="text-xs font-medium text-slate-500 uppercase">Receber Push</label>
-                    <Button onClick={() => isPremium && setPushOn((v) => !v)} className={"border " + (pushOn ? "bg-blue-800 text-white hover:bg-blue-700" : "bg-gray-100 text-gray-800 hover:bg-gray-200")} disabled={!isPremium}>
+                    <Button onClick={() => canInteract && setPushOn((v) => !v)} className={"border " + (pushOn ? "bg-blue-800 text-white hover:bg-blue-700" : "bg-gray-100 text-gray-800 hover:bg-gray-200")} disabled={!canInteract}>
                       {pushOn ? "Ativado" : "Desativado"}
                     </Button>
                   </div>
                   <div className="grid gap-1.5">
                     <label className="text-xs font-medium text-slate-500 uppercase">Receber via WhatsApp</label>
-                    <Button onClick={() => isPremium && setWaOn((v) => !v)} className={"border " + (waOn ? "bg-blue-800 text-white hover:bg-blue-700" : "bg-gray-100 text-gray-800 hover:bg-gray-200")} disabled={!isPremium}>
+                    <Button onClick={() => canInteract && setWaOn((v) => !v)} className={"border " + (waOn ? "bg-blue-800 text-white hover:bg-blue-700" : "bg-gray-100 text-gray-800 hover:bg-gray-200")} disabled={!canInteract}>
                       {waOn ? "Ativado" : "Desativado"}
                     </Button>
                   </div>
@@ -248,7 +239,7 @@ export default function AlertasPage() {
                 <div className="flex items-center justify-end">
                   <div className="flex gap-2">
                     <Button onClick={async () => {
-                      if (!isPremium) return
+                      if (!canInteract) return
                       const t = await requestAndSaveToken()
                       if (!t) { setError('Permissão negada ou indisponível'); return }
                       try {
@@ -264,8 +255,8 @@ export default function AlertasPage() {
                       } catch {
                         setError('Falha ao enviar notificação')
                       }
-                    }} disabled={!isPremium} className="bg-green-600 text-white hover:bg-green-700">🔔 Testar Notificação Agora</Button>
-                    <Button onClick={savePrefs} disabled={!canSave} className="bg-blue-800 text-white hover:bg-blue-700">Salvar Configurações</Button>
+                    }} disabled={!canInteract} className="bg-green-600 text-white hover:bg-green-700">🔔 Testar Notificação Agora</Button>
+                    <Button onClick={savePrefs} disabled={!((keywords.length > 0 || ufs.length > 0) && canInteract)} className="bg-blue-800 text-white hover:bg-blue-700">Salvar Configurações</Button>
                   </div>
                 </div>
               </div>

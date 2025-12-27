@@ -25,10 +25,19 @@ CREATE TABLE public.user_alerts (
 -- Ativar Segurança (RLS) 
 ALTER TABLE public.user_alerts ENABLE ROW LEVEL SECURITY; 
  
--- Políticas: Apenas o dono do alerta pode ver e editar 
-CREATE POLICY "Usuários gerem seus próprios alertas" 
-ON public.user_alerts FOR ALL 
-USING (auth.uid() = user_id); 
+ -- Políticas RLS: dono pode ver; inserir/atualizar exigem validação do user_id
+ CREATE POLICY "User can select own alerts"
+ ON public.user_alerts FOR SELECT
+ USING (auth.uid() = user_id);
+ 
+ CREATE POLICY "User can insert own alerts"
+ ON public.user_alerts FOR INSERT
+ WITH CHECK (auth.uid() = user_id);
+ 
+ CREATE POLICY "User can update own alerts"
+ ON public.user_alerts FOR UPDATE
+ USING (auth.uid() = user_id)
+ WITH CHECK (auth.uid() = user_id);
  
 -- Tabela auxiliar para logs de notificações enviadas (evita duplicidade) 
 CREATE TABLE public.sent_notifications ( 

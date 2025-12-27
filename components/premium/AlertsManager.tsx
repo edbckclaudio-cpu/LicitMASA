@@ -19,6 +19,7 @@ export function AlertsManager() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [isPremium, setIsPremium] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [source, setSource] = useState<"table" | "prefs">("table");
 
   async function loadAlerts() {
     setError(null);
@@ -35,21 +36,30 @@ export function AlertsManager() {
     }
     setLoggedIn(true);
     setUserId(user.id);
-    const { data: prof } = await supabase
-      .from("profiles")
-      .select("is_premium")
-      .eq("id", user.id)
-      .single();
-    const allow = String(process.env.NEXT_PUBLIC_PREMIUM_EMAILS || "").toLowerCase().split(",").map((s) => s.trim()).filter(Boolean)
-    const email = String(user.email || "").toLowerCase()
+    const { data: prof } = await supabase.from("profiles").select("is_premium").eq("id", user.id).single();
+    const allow = String(process.env.NEXT_PUBLIC_PREMIUM_EMAILS || "").toLowerCase().split(",").map((s) => s.trim()).filter(Boolean);
+    const email = String(user.email || "").toLowerCase();
     setIsPremium(Boolean(prof?.is_premium) || allow.includes(email));
-    const { data } = await supabase
+    const sel = await supabase
       .from("search_alerts")
       .select("id, keyword, uf")
       .eq("user_id", user.id)
       .eq("active", true)
       .order("created_at", { ascending: false });
-    setAlerts((data || []).map((a: any) => ({ id: String(a.id), keyword: String(a.keyword || ""), uf: a.uf || undefined })));
+    if (sel.error) {
+      const prefs = await supabase
+        .from("user_alerts")
+        .select("keywords")
+        .eq("user_id", user.id)
+        .limit(1)
+        .maybeSingle();
+      const kws = Array.isArray(prefs.data?.keywords) ? prefs.data!.keywords.filter((x: any) => typeof x === "string") : [];
+      setAlerts(kws.map((k: string) => ({ id: k, keyword: k })));
+      setSource("prefs");
+      return;
+    }
+    setAlerts((sel.data || []).map((a: any) => ({ id: String(a.id), keyword: String(a.keyword || ""), uf: a.uf || undefined })));
+    setSource("table");
   }
 
   useEffect(() => {
@@ -71,12 +81,12 @@ export function AlertsManager() {
       setError("Entre para criar alertas");
       return;
     }
-    if (!isPremium && alerts.length >= 3) {
+    if (!isPremium && alerts.length >= 3 && source === "table") {
       setError("Limite de 3 alertas no plano gratuito");
       return;
     }
     setIsLoading(true);
-    const { data, error } = await supabase
+    const ins = await supabase
       .from("search_alerts")
       .insert({
         user_id: user.id,
@@ -85,12 +95,26 @@ export function AlertsManager() {
       })
       .select("id, keyword, uf")
       .single();
-    if (error) {
-      setError("Falha ao criar alerta");
+    if (ins.error || !ins.data) {
+      const nextKeywords = Array.from(new Set([...(alerts.map((a) => a.keyword)), newKeyword.trim().toLowerCase()]));
+      const prefs = await supabase
+        .from("user_alerts")
+        .upsert({ user_id: user.id, keywords: nextKeywords }, { onConflict: "user_id" })
+        .select("keywords")
+        .maybeSingle();
+      if (prefs.error || !prefs.data) {
+        setError("Falha ao criar alerta");
+        setIsLoading(false);
+        return;
+      }
+      setAlerts(nextKeywords.map((k: string) => ({ id: k, keyword: k })));
+      setSource("prefs");
+      setNewKeyword("");
       setIsLoading(false);
       return;
     }
-    setAlerts([{ id: String(data.id), keyword: String(data.keyword || ""), uf: data.uf || undefined }, ...alerts]);
+    setAlerts([{ id: String(ins.data.id), keyword: String(ins.data.keyword || ""), uf: ins.data.uf || undefined }, ...alerts]);
+    setSource("table");
     setNewKeyword("");
     setIsLoading(false);
   };
@@ -101,12 +125,14 @@ export function AlertsManager() {
       return;
     }
     try {
-      await supabase
-        .from("search_alerts")
-        .delete()
-        .eq("id", id)
-        .eq("user_id", userId);
-      setAlerts(alerts.filter((a) => a.id !== id));
+      if (source === "table") {
+        await supabase.from("search_alerts").delete().eq("id", id).eq("user_id", userId);
+        setAlerts(alerts.filter((a) => a.id !== id));
+      } else {
+        const next = alerts.filter((a) => a.id !== id).map((a) => a.keyword);
+        await supabase.from("user_alerts").upsert({ user_id: userId, keywords: next }, { onConflict: "user_id" });
+        setAlerts(next.map((k: string) => ({ id: k, keyword: k })));
+      }
     } catch {
       setAlerts(alerts.filter((a) => a.id !== id));
     }
@@ -135,6 +161,15 @@ export function AlertsManager() {
             <AlertCircle className="h-4 w-4 text-red-600" />
             <AlertTitle className="text-red-800">Erro</AlertTitle>
             <AlertDescription className="text-red-700">{error}</AlertDescription>
+          </Alert>
+        )}
+        {source === "prefs" && (
+          <Alert className="bg-yellow-50 border-yellow-200">
+            <AlertCircle className="h-4 w-4 text-yellow-600" />
+            <AlertTitle className="text-yellow-800">Modo preferências</AlertTitle>
+            <AlertDescription className="text-yellow-700">
+              Usando lista de palavras em Configurações. Para alertas por item, provisione a tabela search_alerts no Supabase.
+            </AlertDescription>
           </Alert>
         )}
         <div className="flex gap-2 items-end">

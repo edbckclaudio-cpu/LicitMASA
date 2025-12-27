@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Search, Building2, Calendar, FileText, Banknote, X, SearchCheck, Info, MessageCircle, Bookmark, MapPin, RotateCcw, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Search, Building2, Calendar, FileText, Banknote, X, SearchCheck, Info, MessageCircle, MapPin, RotateCcw, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Select } from '../components/ui/select'
@@ -135,7 +135,6 @@ export default function HomePage() {
   const [carIndex, setCarIndex] = useState<number>(0)
   const [swipeStart, setSwipeStart] = useState<number | null>(null)
   const [swipeDelta, setSwipeDelta] = useState<number>(0)
-  const [favoritedIds, setFavoritedIds] = useState<Set<string>>(new Set())
   const [loggedIn, setLoggedIn] = useState<boolean>(false)
   const [isPremium, setIsPremium] = useState<boolean>(false)
   const planPrice = process.env.NEXT_PUBLIC_PLAN_PRICE || '49,90'
@@ -373,68 +372,6 @@ export default function HomePage() {
     setSwipeDelta(0)
   }
 
-  async function handleFavorite(item: any) {
-    if (!isPremium) { addToast('Recurso exclusivo para assinantes Premium', 'error'); return }
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) return
-    if (!supabase) return
-    const { data: userData } = await supabase.auth.getUser()
-    const user = userData?.user
-    if (!user) {
-      addToast('Faça login para salvar suas licitações favoritas', 'error')
-      return
-    }
-    const orgao =
-      asText(getField(getField(item, ['orgaoEntidade'], {}), ['razaoSocial'], '')) ||
-      asText(getField(item, ['orgao','orgaoPublico','nomeUnidadeAdministrativa','uasgNome','entidade'], '')) ||
-      ''
-    const valorEstimado =
-      getField(item, ['valorEstimado','valorTotalEstimado','valor','valorContratacao'], 0)
-    const edital =
-      getField(item, ['linkEdital','url','link'], '')
-    const pncpId =
-      getField(item, ['numeroControlePNCP','id','linkEdital'], String(Date.now()))
-    const dataAberturaRaw =
-      getField(item, ['dataAbertura','dataAberturaSessao','dataPublicacao','data'], null)
-    let objetoBruto: string =
-      getField(item, ['objetoCompra','objeto','objetoLicitacao','descricao','resumo','texto'], '')
-    if (!objetoBruto && Array.isArray((item as any)?.itens)) {
-      for (const it of (item as any).itens) {
-        const cand = getField(it, ['objetoCompra','objeto','objetoLicitacao','descricao','resumo','texto'], '')
-        if (cand) { objetoBruto = cand; break }
-      }
-    }
-    const objetoResumo = sanitizeText(objetoBruto) || ''
-    const payload = {
-      user_id: user.id,
-      pncp_id: String(pncpId || ''),
-      objeto_resumo: objetoResumo,
-      orgao_nome: String(orgao || ''),
-      valor_estimado: Number(valorEstimado || 0),
-      link_edital: String(edital || ''),
-      data_abertura: dataAberturaRaw ? String(dataAberturaRaw) : null,
-    }
-    const { error } = await supabase
-      .from('user_favorites')
-      .upsert(payload, { onConflict: 'user_id,pncp_id' })
-    if (error) {
-      const code = (error as any)?.code || ''
-      const msg = (error as any)?.message || ''
-      if (code === '23505') {
-        addToast('Já estava nos seus favoritos', 'success')
-      } else {
-        addToast(`Erro ao favoritar${msg ? `: ${msg}` : ''}`, 'error')
-      }
-      return
-    }
-    addToast('Favorito salvo', 'success')
-    if (pncpId) {
-      setFavoritedIds((prev) => {
-        const next = new Set(prev)
-        next.add(String(pncpId))
-        return next
-      })
-    }
-  }
   function mudarPagina(next: number) {
     const p = Math.max(1, next)
     setPagina(p)
@@ -912,14 +849,7 @@ export default function HomePage() {
                                 >
                                   <Info className="h-4 w-4 text-blue-700" />
                                 </Button>
-                                <Button
-                                  onClick={() => handleFavorite(item)}
-                                  className="h-9 inline-flex items-center justify-center rounded-md border bg-white px-2 text-xs hover:bg-pink-50"
-                                  aria-label="Salvar favorito"
-                                  title="Salvar favorito"
-                                >
-                                  <Bookmark className={"h-4 w-4 " + (favoritedIds.has(String(pncpId)) ? "text-pink-600" : "text-slate-500")} fill={favoritedIds.has(String(pncpId)) ? "currentColor" : "none"} />
-                                </Button>
+                                
                                 <Button
                                   onClick={() => { if (!isPremium) { setUpgradeOpen(true); return } shareToWhatsApp(item) }}
                                   className="h-9 inline-flex items-center justify-center rounded-md border bg-white px-2 text-xs text-green-700 hover:bg-green-50"
@@ -1067,14 +997,7 @@ export default function HomePage() {
                         >
                           <Info className="h-4 w-4 text-blue-700" />
                         </Button>
-                        <Button
-                          onClick={() => handleFavorite(item)}
-                          className="inline-flex items-center justify-center rounded-md border bg-white px-2 text-xs hover:bg-pink-50"
-                          aria-label="Salvar favorito"
-                          title="Salvar favorito"
-                        >
-                          <Bookmark className={"h-4 w-4 " + (favoritedIds.has(String(pncpId)) ? "text-pink-600" : "text-slate-500")} fill={favoritedIds.has(String(pncpId)) ? "currentColor" : "none"} />
-                        </Button>
+                        
                         <Button
                           onClick={() => { if (!isPremium) { setUpgradeOpen(true); return } shareToWhatsApp(item) }}
                           className="inline-flex items-center gap-2 rounded-md border border-green-600 bg-white px-3 py-2 text-xs font-medium text-green-700 hover:bg-green-50"

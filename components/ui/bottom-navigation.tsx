@@ -1,7 +1,7 @@
 'use client'
 import * as React from 'react'
 import Link from 'next/link'
-import { Home, Bookmark, ClipboardList, User } from 'lucide-react'
+import { Home, ClipboardList, User } from 'lucide-react'
 import { cn } from './utils'
 
 export function BottomNavigation({ className }: { className?: string }) {
@@ -70,14 +70,6 @@ export function BottomNavigation({ className }: { className?: string }) {
           >
             <Home className="h-5 w-5 text-blue-700" />
             Início
-          </Link>
-          <Link
-            href="/favoritos"
-            onClick={() => { bump(); window.dispatchEvent(new Event('clear-toasts')) }}
-            className="flex flex-col items-center gap-1 rounded-md px-3 py-2 text-xs text-blue-900 hover:bg-blue-50"
-          >
-            <Bookmark className="h-5 w-5 text-blue-700" />
-            Favoritos
           </Link>
           <Link
             href="/perfil"
