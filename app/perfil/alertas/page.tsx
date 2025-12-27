@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { requestAndSaveToken } from '@/lib/firebase'
 
 const UFS = ['AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MG','MS','MT','PA','PB','PE','PI','PR','RJ','RN','RO','RR','RS','SC','SE','SP','TO']
@@ -141,7 +142,7 @@ export default function AlertasPage() {
       <header className="border-b bg-white">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
           <h1 className="text-xl font-semibold text-blue-900">Meus Alertas</h1>
-          <Button onClick={() => router.push('/')} className="bg-gray-100 text-gray-800 hover:bg-gray-200">Voltar</Button>
+          <Link href="/" className="inline-flex items-center rounded-md bg-gray-100 px-3 py-2 text-xs font-medium text-gray-800 hover:bg-gray-200">Voltar</Link>
         </div>
       </header>
       <main className="mx-auto max-w-5xl px-6 py-8">

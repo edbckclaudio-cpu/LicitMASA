@@ -97,7 +97,7 @@ function daysUntil(dateStr: string) {
   return Math.ceil(ms / (24 * 60 * 60 * 1000))
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   const url = Deno.env.get("SUPABASE_URL") || ""
   const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""
   const supabase = createClient(url, key)

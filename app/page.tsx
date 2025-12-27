@@ -112,6 +112,9 @@ export default function HomePage() {
   const [loaded, setLoaded] = useState<boolean>(false)
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [toasts, setToasts] = useState<Array<{ id: string, type: 'success' | 'error' | 'info', message: string }>>([])
+  const [modToastOpen, setModToastOpen] = useState<boolean>(false)
+  const [modToastMin, setModToastMin] = useState<boolean>(false)
+  const modTimers = useRef<{ min?: number, close?: number }>({})
   const [compact, setCompact] = useState<boolean>(true)
   const pullRef = useRef<HTMLDivElement | null>(null)
   const [pullY, setPullY] = useState<number>(0)
@@ -229,6 +232,28 @@ export default function HomePage() {
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id))
     }, 3000)
+  }
+  function openModalidadeToast() {
+    setModToastOpen(true)
+    setModToastMin(false)
+    if (modTimers.current.min) { window.clearTimeout(modTimers.current.min) }
+    if (modTimers.current.close) { window.clearTimeout(modTimers.current.close) }
+    modTimers.current.min = window.setTimeout(() => setModToastMin(true), 5000)
+    modTimers.current.close = window.setTimeout(() => setModToastOpen(false), 12000)
+  }
+  function closeModalidadeToast() {
+    setModToastOpen(false)
+    setModToastMin(false)
+    if (modTimers.current.min) { window.clearTimeout(modTimers.current.min) }
+    if (modTimers.current.close) { window.clearTimeout(modTimers.current.close) }
+  }
+  function expandModalidadeToast() {
+    setModToastMin(false)
+    if (modTimers.current.min) { window.clearTimeout(modTimers.current.min) }
+    modTimers.current.min = window.setTimeout(() => setModToastMin(true), 5000)
+    if (modTimers.current.close) { window.clearTimeout(modTimers.current.close) }
+    const remain = 7000
+    modTimers.current.close = window.setTimeout(() => setModToastOpen(false), remain)
   }
   function formatDateTimeBR(iso?: string): string {
     if (!iso) return ''
@@ -433,6 +458,39 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20 md:pb-0">
+      {modToastOpen && (
+        <div className="fixed top-2 left-1/2 z-50 -translate-x-1/2 w-[95%] max-w-xl">
+          {!modToastMin ? (
+            <div className="pointer-events-auto rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900 shadow">
+              <div className="mb-2 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Info className="h-4 w-4 text-blue-700" />
+                  <span className="font-medium">Modalidades de contratação</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button onClick={() => setModToastMin(true)} className="bg-gray-100 text-gray-800 hover:bg-gray-200 px-2 py-1 text-xs">Minimizar</Button>
+                  <Button onClick={closeModalidadeToast} className="bg-gray-100 text-gray-800 hover:bg-gray-200 px-2 py-1 text-xs">Fechar</Button>
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <div><strong>Pregão:</strong> disputa pública com lances para bens e serviços comuns.</div>
+                <div><strong>Dispensa:</strong> contratação sem licitação nas hipóteses legais.</div>
+                <div><strong>Inexigibilidade:</strong> inviabilidade de competição, fornecedor único ou notório.</div>
+                <div><strong>Concurso:</strong> seleção por melhor trabalho técnico, artístico ou científico.</div>
+                <div><strong>Leilão:</strong> venda de bens ao maior lance, geralmente inservíveis ou apreendidos.</div>
+              </div>
+            </div>
+          ) : (
+            <div className="pointer-events-auto flex items-center justify-between rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900 shadow">
+              <span>Modalidades — explicações minimizadas</span>
+              <div className="flex items-center gap-2">
+                <Button onClick={expandModalidadeToast} className="bg-gray-100 text-gray-800 hover:bg-gray-200 px-2 py-1 text-xs">Reabrir</Button>
+                <Button onClick={closeModalidadeToast} className="bg-gray-100 text-gray-800 hover:bg-gray-200 px-2 py-1 text-xs">Fechar</Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
       <div className="pointer-events-none fixed top-2 left-1/2 z-50 -translate-x-1/2 space-y-2" aria-live="polite">
         {toasts.map((t) => (
           <div
@@ -624,6 +682,10 @@ export default function HomePage() {
                   <option value="4">Concurso (4)</option>
                   <option value="5">Leilão (5)</option>
                 </Select>
+                <Button onClick={openModalidadeToast} className="inline-flex items-center gap-2 bg-gray-100 text-gray-800 hover:bg-gray-200 text-xs">
+                  <Info className="h-4 w-4" />
+                  Entenda modalidades
+                </Button>
                 <Input
                   placeholder="Município IBGE (ex: 5300108)"
                   value={municipioIbge}
