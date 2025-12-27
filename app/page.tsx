@@ -115,6 +115,7 @@ export default function HomePage() {
   const [modToastOpen, setModToastOpen] = useState<boolean>(false)
   const [modToastMin, setModToastMin] = useState<boolean>(false)
   const modTimers = useRef<{ min?: number, close?: number }>({})
+  const [modToastManual, setModToastManual] = useState<boolean>(false)
   const [compact, setCompact] = useState<boolean>(true)
   const pullRef = useRef<HTMLDivElement | null>(null)
   const [pullY, setPullY] = useState<number>(0)
@@ -236,6 +237,7 @@ export default function HomePage() {
   function openModalidadeToast() {
     setModToastOpen(true)
     setModToastMin(false)
+    setModToastManual(false)
     if (modTimers.current.min) { window.clearTimeout(modTimers.current.min) }
     if (modTimers.current.close) { window.clearTimeout(modTimers.current.close) }
     modTimers.current.min = window.setTimeout(() => setModToastMin(true), 5000)
@@ -244,16 +246,16 @@ export default function HomePage() {
   function closeModalidadeToast() {
     setModToastOpen(false)
     setModToastMin(false)
+    setModToastManual(false)
     if (modTimers.current.min) { window.clearTimeout(modTimers.current.min) }
     if (modTimers.current.close) { window.clearTimeout(modTimers.current.close) }
   }
   function expandModalidadeToast() {
     setModToastMin(false)
+    setModToastOpen(true)
+    setModToastManual(true)
     if (modTimers.current.min) { window.clearTimeout(modTimers.current.min) }
-    modTimers.current.min = window.setTimeout(() => setModToastMin(true), 5000)
     if (modTimers.current.close) { window.clearTimeout(modTimers.current.close) }
-    const remain = 7000
-    modTimers.current.close = window.setTimeout(() => setModToastOpen(false), remain)
   }
   function formatDateTimeBR(iso?: string): string {
     if (!iso) return ''
@@ -472,12 +474,42 @@ export default function HomePage() {
                   <Button onClick={closeModalidadeToast} className="bg-gray-100 text-gray-800 hover:bg-gray-200 px-2 py-1 text-xs">Fechar</Button>
                 </div>
               </div>
-              <div className="grid gap-2">
-                <div><strong>Pregão:</strong> disputa pública com lances para bens e serviços comuns.</div>
-                <div><strong>Dispensa:</strong> contratação sem licitação nas hipóteses legais.</div>
-                <div><strong>Inexigibilidade:</strong> inviabilidade de competição, fornecedor único ou notório.</div>
-                <div><strong>Concurso:</strong> seleção por melhor trabalho técnico, artístico ou científico.</div>
-                <div><strong>Leilão:</strong> venda de bens ao maior lance, geralmente inservíveis ou apreendidos.</div>
+              <div className="grid gap-2 max-h-60 overflow-y-auto">
+                <div className="rounded-md border border-green-200 bg-green-50 p-2">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center rounded bg-green-600 px-2 py-0.5 text-xs font-semibold text-white">Alta chance</span>
+                    <span className="font-semibold">Dispensa</span>
+                  </div>
+                  <div className="mt-1 text-xs text-green-900">
+                    Compras de menor valor e hipóteses legais específicas. Menor concorrência e prazos curtos.
+                    Foque em:
+                    • Monitorar diariamente novas dispensas no seu nicho
+                    • Preparar documentação padrão para envio rápido
+                    • Atender requisitos formais e prazos com precisão
+                  </div>
+                </div>
+                <div className="rounded-md border border-blue-200 bg-blue-50 p-2">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center rounded bg-blue-700 px-2 py-0.5 text-xs font-semibold text-white">Boa chance</span>
+                    <span className="font-semibold">Pregão</span>
+                  </div>
+                  <div className="mt-1 text-xs text-blue-900">
+                    Disputa com lances para bens/serviços comuns. Grande volume de oportunidades.
+                    Foque em:
+                    • Estudo prévio do edital e objeto
+                    • Estratégia de lances e limites
+                    • Comprovação técnica mínima exigida
+                  </div>
+                </div>
+                <div>
+                  <div><strong>Inexigibilidade:</strong> inviabilidade de competição, fornecedor único ou notório. Oportunidade depende da especificidade e notório saber.</div>
+                </div>
+                <div>
+                  <div><strong>Concurso:</strong> seleção por melhor trabalho técnico, artístico ou científico. Aplicável a projetos específicos.</div>
+                </div>
+                <div>
+                  <div><strong>Leilão:</strong> venda de bens ao maior lance, geralmente inservíveis ou apreendidos. Foco em aquisição/venda, não prestação de serviço.</div>
+                </div>
               </div>
             </div>
           ) : (
