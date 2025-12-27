@@ -404,7 +404,7 @@ export default function HomePage() {
       }
     }
     const objetoResumo = sanitizeText(objetoBruto) || ''
-    const { error } = await supabase.from('user_favorites').insert({
+    const payload = {
       user_id: user.id,
       pncp_id: String(pncpId || ''),
       objeto_resumo: objetoResumo,
@@ -412,9 +412,18 @@ export default function HomePage() {
       valor_estimado: Number(valorEstimado || 0),
       link_edital: String(edital || ''),
       data_abertura: dataAberturaRaw ? String(dataAberturaRaw) : null,
-    })
+    }
+    const { error } = await supabase
+      .from('user_favorites')
+      .upsert(payload, { onConflict: 'user_id,pncp_id' })
     if (error) {
-      addToast('Erro ao favoritar', 'error')
+      const code = (error as any)?.code || ''
+      const msg = (error as any)?.message || ''
+      if (code === '23505') {
+        addToast('Já estava nos seus favoritos', 'success')
+      } else {
+        addToast(`Erro ao favoritar${msg ? `: ${msg}` : ''}`, 'error')
+      }
       return
     }
     addToast('Favorito salvo', 'success')
