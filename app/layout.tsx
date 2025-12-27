@@ -44,7 +44,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="pt-BR">
-      <body className="min-h-screen bg-slate-50 antialiased">
+      <body className="min-h-screen bg-[#A7E8BD] antialiased">
         <ServiceWorkerRegister />
         {children}
       </body>
