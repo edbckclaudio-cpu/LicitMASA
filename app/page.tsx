@@ -533,7 +533,7 @@ export default function HomePage() {
         </div>
       )}
       <main className="mx-auto max-w-5xl px-6 py-8">
-        <section className="rounded-xl border bg-white p-6 shadow-md">
+        <section className="rounded-xl border-2 border-slate-300 bg-white p-6 shadow-2xl">
           <div className="flex flex-col gap-3 md:grid md:grid-cols-[1fr,auto] md:items-center">
             <div className="flex items-center gap-2">
               <Search className="h-5 w-5 text-blue-700" />
@@ -603,7 +603,7 @@ export default function HomePage() {
             </Button>
           </div>
           <div className="mt-3 text-xs text-gray-500">Exibindo publicações de {inicio} a {hoje}</div>
-          <div className="mt-3 flex items-center justify-between rounded-md border bg-white px-3 py-2 shadow-sm">
+          <div className="mt-3 flex items-center justify-between rounded-md border-2 border-slate-300 bg-white px-3 py-2 shadow-md">
             <div className="text-sm text-slate-700">
               {`Encontramos ${resumo.total} licitações`}
               {resumo.topUFs.length > 0 ? ` • Principais UFs: ${resumo.topUFs.map(([u, c]) => `${u} (${c})`).join(', ')}` : ''}
@@ -754,7 +754,7 @@ export default function HomePage() {
           {!loading && !error && resultados.length > 0 && (
             <>
               <div
-                className="md:hidden relative overflow-hidden rounded-xl border border-slate-100 bg-transparent shadow-sm"
+                className="md:hidden relative overflow-hidden rounded-xl border-0 bg-transparent shadow-none"
                 style={{ height: `calc(100vh - 120px - env(safe-area-inset-bottom))` }}
               >
                 {resultados.length > 1 ? (
@@ -847,7 +847,7 @@ export default function HomePage() {
                       const cnpj = formatCNPJ(cnpjRaw)
                       return (
                         <div key={idx} className="min-w-full h-full p-4">
-                          <div className="rounded-xl border border-slate-100 bg-white shadow flex h-full flex-col justify-between pb-20 p-4">
+                          <div className="rounded-xl border-2 border-slate-300 bg-white shadow-2xl flex h-full flex-col justify-between pb-20 p-4">
                             <div className="space-y-3">
                               <div className="flex items-center gap-2">
                                 <Badge className={"px-2 " + (Number(modalidadeCode) === 22 ? "bg-blue-100 text-blue-800" : Number(modalidadeCode) === 8 ? "bg-green-100 text-green-800" : Number(modalidadeCode) === 21 ? "bg-yellow-100 text-yellow-800" : "bg-slate-100 text-slate-800")}>{modalidade}</Badge>
@@ -927,7 +927,7 @@ export default function HomePage() {
                   </div>
                 </div>
               </div>
-              <div className="hidden md:block rounded-xl border border-slate-100 bg-white divide-y shadow-sm">
+              <div className="hidden md:block rounded-xl border-2 border-slate-300 bg-white divide-y shadow-2xl">
               {resultados.map((item: any, idx: number) => {
                 const modalidadeRaw =
                   getField(item, ['modalidadeNome','modalidade','modalidadeContratacao','modalidadeCompra','descricaoModalidade'], '')
