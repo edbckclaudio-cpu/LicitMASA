@@ -19,3 +19,4 @@ dist/
 build/
 out/
 data/*.json
+tsconfig.tsbuildinfo
