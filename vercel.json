@@ -1,14 +1,13 @@
 {
+  "version": 2,
   "crons": [
     {
       "path": "/api/cron/run-check-alerts",
-      "schedule": "0 7 * * *",
-      "timezone": "America/Sao_Paulo"
+      "schedule": "0 7 * * *"
     },
     {
       "path": "/api/cron/run-check-alerts",
-      "schedule": "0 16 * * *",
-      "timezone": "America/Sao_Paulo"
+      "schedule": "0 16 * * *"
     }
   ]
 }
