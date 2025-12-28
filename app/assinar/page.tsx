@@ -3,10 +3,21 @@ import { Bell, FileText, MessageCircle, SearchCheck, Bookmark, ShieldCheck, Star
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
+import { supabase } from '@/lib/supabaseClient'
 
 export default function AssinarPage() {
   const payUrl = process.env.NEXT_PUBLIC_PAYMENT_URL || '/perfil'
   const price = process.env.NEXT_PUBLIC_PLAN_PRICE || '49,90'
+  const [ctaHref, setCtaHref] = useState<string>('/login')
+  useEffect(() => {
+    async function resolve() {
+      const ud = await supabase?.auth.getUser()
+      const user = ud?.data?.user
+      setCtaHref(user?.id ? payUrl : '/login')
+    }
+    resolve()
+  }, [payUrl])
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="border-b bg-white">
@@ -69,7 +80,7 @@ export default function AssinarPage() {
               <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
                 Acesso imediato após confirmação do pagamento.
               </div>
-              <Link href={payUrl} className="mt-4 inline-flex w-full items-center justify-center rounded-md bg-blue-800 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700">
+              <Link href={ctaHref} className="mt-4 inline-flex w-full items-center justify-center rounded-md bg-blue-800 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700">
                 Assinar Agora
               </Link>
               <div className="mt-3 text-center text-xs text-slate-500">
