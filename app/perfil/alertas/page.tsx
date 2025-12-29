@@ -26,6 +26,8 @@ export default function AlertasPage() {
   const [pushOn, setPushOn] = useState(true)
   const [waOn, setWaOn] = useState(false)
   const [savedId, setSavedId] = useState<string | null>(null)
+  const [testLoading, setTestLoading] = useState(false)
+  const [uiMsg, setUiMsg] = useState<string | null>(null)
 
   useEffect(() => {
     async function init() {
@@ -77,6 +79,37 @@ export default function AlertasPage() {
     }
     ensurePushSetup()
   }, [userId, pushOn])
+
+  async function sendTestNotification() {
+    try {
+      setUiMsg(null)
+      setTestLoading(true)
+      const token = await requestAndSaveToken()
+      if (!token) {
+        setError('Ative as notificações no navegador')
+        setTestLoading(false)
+        return
+      }
+      const res = await fetch('/api/notifications/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token,
+          title: 'Alerta das 07:00',
+          body: 'Simulação: novas licitações encontradas nos últimos dias.',
+        }),
+      })
+      if (res.ok) {
+        setUiMsg('Notificação enviada')
+      } else {
+        setUiMsg('Falha ao enviar notificação')
+      }
+    } catch {
+      setUiMsg('Falha ao enviar notificação')
+    } finally {
+      setTestLoading(false)
+    }
+  }
 
   function addKeywordFromInput() {
     const parts = keywordsInput.split(/[,\s]+/).map((s) => s.trim()).filter(Boolean)
@@ -142,7 +175,14 @@ export default function AlertasPage() {
       <header className="border-b bg-white">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
           <h1 className="text-xl font-semibold text-blue-900">Meus Alertas</h1>
-          <Button onClick={() => router.push('/')} className="inline-flex items-center rounded-md bg-gray-100 px-3 py-2 text-xs font-medium text-gray-800 hover:bg-gray-200">Voltar</Button>
+          <div className="flex items-center gap-2">
+            <Button onClick={sendTestNotification} disabled={testLoading} className="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-xs font-medium text-white hover:bg-blue-700">
+              {testLoading ? '...' : 'Enviar Teste'}
+            </Button>
+            <Button onClick={() => router.push('/')} className="inline-flex items-center rounded-md bg-gray-100 px-3 py-2 text-xs font-medium text-gray-800 hover:bg-gray-200">
+              Voltar
+            </Button>
+          </div>
         </div>
       </header>
       <main className="mx-auto max-w-5xl px-6 py-8">
@@ -155,6 +195,7 @@ export default function AlertasPage() {
               <div className="rounded-lg border bg-white p-6 text-center text-sm text-gray-700">Carregando...</div>
             ) : (
               <div className="space-y-6">
+                {uiMsg && <div className="rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-800">{uiMsg}</div>}
                 <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">🔔 Você receberá resumos automáticos às 07:00 horas e às 16:00 horas.</div>
                 {error && (
                   <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</div>
