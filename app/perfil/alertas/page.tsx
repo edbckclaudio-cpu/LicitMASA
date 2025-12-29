@@ -104,6 +104,32 @@ export default function AlertasPage() {
       setTestLoading(false)
     }
   }
+  async function activateOneSignal() {
+    try {
+      setUiMsg(null)
+      setError(null)
+      if (typeof window === 'undefined') { setError('OneSignal indisponível'); return }
+      const OneSignal = (window as any).OneSignal
+      if (!OneSignal) { setError('OneSignal não carregado'); return }
+      let perm: string | undefined
+      try { perm = OneSignal?.Notifications?.permission } catch {}
+      if (perm === 'granted') {
+        setUiMsg('Você já está recebendo alertas!')
+        return
+      }
+      try {
+        await OneSignal?.Notifications?.requestPermission()
+      } catch {}
+      try { perm = OneSignal?.Notifications?.permission } catch {}
+      if (perm === 'granted') {
+        setUiMsg('Alertas ativados! ✅')
+      } else {
+        setError('Permissão negada ou não concedida')
+      }
+    } catch {
+      setError('Falha ao ativar notificações')
+    }
+  }
 
   function addKeywordFromInput() {
     const parts = keywordsInput.split(/[,\s]+/).map((s) => s.trim()).filter(Boolean)
@@ -177,6 +203,14 @@ export default function AlertasPage() {
                 {error && (
                   <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</div>
                 )}
+                <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>Ative as notificações no navegador</div>
+                    <Button onClick={activateOneSignal} className="bg-red-600 text-white hover:bg-red-700">
+                      Ativar Alertas de Licitação
+                    </Button>
+                  </div>
+                </div>
                 <div className="grid gap-3">
                   <label className="text-xs font-medium text-slate-500 uppercase">Palavras-chave</label>
                   <div className="flex items-end gap-2">
