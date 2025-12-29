@@ -73,7 +73,7 @@ export default function AlertasPage() {
   useEffect(() => {
     async function ensurePushSetup() {
       if (!userId || !pushOn) return
-      await requestAndSaveToken()
+      try { await requestAndSaveToken() } catch {}
     }
     ensurePushSetup()
   }, [userId, pushOn])
@@ -96,20 +96,25 @@ export default function AlertasPage() {
   async function sendTestNotification() {
     try {
       setUiMsg(null)
+      setError(null)
       setTestLoading(true)
-      const token = await requestAndSaveToken()
-      if (!token) {
+      if (typeof Notification !== 'undefined' && Notification.permission !== 'granted') {
         setError('Ative as notificações no navegador')
         setTestLoading(false)
         return
       }
-      const res = await fetch('/api/notifications/test', {
+      if (!userId) {
+        setError('Entre para testar notificações')
+        setTestLoading(false)
+        return
+      }
+      const res = await fetch('/api/notifications/onesignal-test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          token,
-          title: 'Alerta das 07:00',
-          body: 'Simulação: novas licitações encontradas nos últimos dias.',
+          userId,
+          title: 'Teste de Alerta',
+          body: 'Notificação de teste via OneSignal',
         }),
       })
       if (res.ok) {
