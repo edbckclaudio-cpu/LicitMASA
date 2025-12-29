@@ -2,7 +2,7 @@ import './globals.css'
 import type { ReactNode } from 'react'
 import type { Metadata } from 'next'
 import ServiceWorkerRegister from '@/components/ServiceWorkerRegister'
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://licitmasa.com.br'
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.licitmasa.com.br'
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: 'LicitMASA — Licitações e Alertas',

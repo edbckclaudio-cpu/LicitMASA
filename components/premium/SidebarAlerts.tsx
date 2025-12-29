@@ -1,9 +1,8 @@
 'use client'
 import { Bell } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from '@/components/ui/sheet'
 import { AlertsManager } from './AlertsManager'
-import Link from 'next/link'
 
 export function SidebarAlerts() {
   return (
@@ -25,9 +24,11 @@ export function SidebarAlerts() {
               <Bell className="h-5 w-5 text-blue-600" />
               Configurações de Alerta
             </SheetTitle>
-            <Link href="/" className="inline-flex items-center rounded-md bg-gray-100 px-3 py-2 text-xs font-medium text-gray-800 hover:bg-gray-200">
-              Voltar
-            </Link>
+            <SheetClose asChild>
+              <Button className="inline-flex items-center rounded-md bg-gray-100 px-3 py-2 text-xs font-medium text-gray-800 hover:bg-gray-200">
+                Voltar
+              </Button>
+            </SheetClose>
           </div>
         </SheetHeader>
         <div className="py-4">

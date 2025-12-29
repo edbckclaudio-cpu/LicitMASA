@@ -68,3 +68,26 @@ export function SheetHeader({ className, ...props }: React.HTMLAttributes<HTMLDi
 export function SheetTitle({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return <div {...props} className={cn('text-base font-semibold', className)} />
 }
+
+export function SheetClose({ asChild, children, className, ...props }: React.HTMLAttributes<HTMLButtonElement> & { asChild?: boolean }) {
+  const ctx = useContext(SheetCtx)!
+  if (asChild) {
+    const child = React.Children.only(children as React.ReactElement)
+    return React.cloneElement(child as React.ReactElement, {
+      ...props,
+      onClick: (e: any) => {
+        ctx.setOpen(false)
+        if (typeof (child as any).props.onClick === 'function') (child as any).props.onClick(e)
+      },
+    })
+  }
+  return (
+    <button
+      {...props}
+      onClick={() => ctx.setOpen(false)}
+      className={cn('rounded-md border px-3 py-2 text-sm', className)}
+    >
+      {children}
+    </button>
+  )
+}
