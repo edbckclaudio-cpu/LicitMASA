@@ -47,16 +47,19 @@ export default function ServiceWorkerRegister() {
         ;(window as any).OneSignal = OneSignal
         OneSignal.push(function() {
           try {
+            try { window.alert('Iniciando OneSignal...') } catch {}
             OneSignal.init({
-              appId,
+              appId: '43f9ce9c-8d86-4076-a8b6-30dac8429149',
               allowLocalhostAsSecureOrigin: true,
               serviceWorkerPath: '/OneSignalSDKWorker.js',
               serviceWorkerUpdaterPath: '/OneSignalSDKUpdaterWorker.js',
               notifyButton: { enable: false },
             })
+            try { window.alert('OneSignal Iniciado com Sucesso!') } catch {}
           } catch (e: any) {
             try { console.log('OneSignal.init error', e) } catch {}
             try { console.error('Erro ao inicializar OneSignal', e) } catch {}
+            try { window.alert('Erro OneSignal: ' + String(e?.message || e)) } catch {}
           }
           try { OneSignal.Notifications.requestPermission() } catch {}
         })
