@@ -271,7 +271,8 @@ export default function AlertasPage() {
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex flex-col gap-1">
                         <div>Ative as notificações no navegador</div>
-                        <div className="text-xs text-red-700">Status: {String(permOS || permWeb || 'indisponível')}</div>
+                        <div className="text-xs text-red-700">Status Web: {String(permWeb || 'indisponível')}</div>
+                        <div className="text-xs text-red-700">Status OneSignal: {String(permOS || 'indisponível')}</div>
                       </div>
                       <div className="flex items-center gap-2">
                         <Button onClick={() => { activateOneSignal(); updatePermStatus() }} className="bg-red-600 text-white hover:bg-red-700">
@@ -289,7 +290,8 @@ export default function AlertasPage() {
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex flex-col gap-1">
                         <div>Notificações permitidas</div>
-                        <div className="text-xs text-green-700">Status: {String(permOS || permWeb)}</div>
+                        <div className="text-xs text-green-700">Status Web: {String(permWeb || 'indisponível')}</div>
+                        <div className="text-xs text-green-700">Status OneSignal: {String(permOS || 'indisponível')}</div>
                       </div>
                       <div className="flex items-center gap-2">
                         <Button onClick={() => { activateOneSignal(); updatePermStatus() }} className="bg-green-600 text-white hover:bg-green-700">
