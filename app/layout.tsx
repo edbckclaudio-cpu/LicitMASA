@@ -46,7 +46,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="pt-BR">
       <body className="min-h-screen bg-[#A7E8BD] antialiased">
-        <Script src="https://cdn.onesignal.com/sdks/OneSignalSDK.js" strategy="beforeInteractive" />
         <Script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" strategy="beforeInteractive" />
         <Script id="onesignal-verifier" strategy="afterInteractive">{`window.verificarOneSignal = () => { try { alert('OneSignal no Window: ' + !!window.OneSignal) } catch (e) { alert('OneSignal no Window: false') } }`}</Script>
         <ServiceWorkerRegister />
