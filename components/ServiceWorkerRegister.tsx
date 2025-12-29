@@ -26,6 +26,7 @@ export default function ServiceWorkerRegister() {
   }, [])
   useEffect(() => {
     if (typeof window === 'undefined') return
+    try { alert('ID: ' + (process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || '')) } catch {}
     const isProd = process.env.NODE_ENV === 'production'
     const appIdEnv = process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || ''
     const appIdWanted = '43f9ce9c-8d86-4076-a8b6-30dac8429149'
@@ -54,6 +55,7 @@ export default function ServiceWorkerRegister() {
               notifyButton: { enable: false },
             })
           } catch (e: any) {
+            try { console.log('OneSignal.init error', e) } catch {}
             try { console.error('Erro ao inicializar OneSignal', e) } catch {}
           }
           try { OneSignal.Notifications.requestPermission() } catch {}
