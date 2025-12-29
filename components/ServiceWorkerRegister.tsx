@@ -27,24 +27,35 @@ export default function ServiceWorkerRegister() {
   useEffect(() => {
     if (typeof window === 'undefined') return
     const isProd = process.env.NODE_ENV === 'production'
-    const appId = process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || ''
-    if (!appId) return
+    const appIdEnv = process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || ''
+    const appIdWanted = '43f9ce9c-8d86-4076-a8b6-30dac8429149'
+    const appId = appIdEnv || appIdWanted
+    try {
+      if (appId !== appIdWanted) {
+        console.error('OneSignal appId diferente do esperado', { appIdEnv, appIdUsed: appId, appIdWanted })
+      }
+    } catch {}
     if (!isProd) return
     if (!(window as any).OneSignal) {
       const s = document.createElement('script')
       s.src = 'https://cdn.onesignal.com/sdks/OneSignalSDK.js'
       s.async = true
+      s.onerror = (e) => { try { console.error('Falha ao carregar OneSignalSDK.js', e) } catch {} }
       s.onload = () => {
         const OneSignal = (window as any).OneSignal || []
         ;(window as any).OneSignal = OneSignal
         OneSignal.push(function() {
-          OneSignal.init({
-            appId,
-            allowLocalhostAsSecureOrigin: true,
-            serviceWorkerPath: '/OneSignalSDKWorker.js',
-            serviceWorkerUpdaterPath: '/OneSignalSDKUpdaterWorker.js',
-            notifyButton: { enable: false },
-          })
+          try {
+            OneSignal.init({
+              appId,
+              allowLocalhostAsSecureOrigin: true,
+              serviceWorkerPath: '/OneSignalSDKWorker.js',
+              serviceWorkerUpdaterPath: '/OneSignalSDKUpdaterWorker.js',
+              notifyButton: { enable: false },
+            })
+          } catch (e: any) {
+            try { console.error('Erro ao inicializar OneSignal', e) } catch {}
+          }
           try { OneSignal.Notifications.requestPermission() } catch {}
         })
         supabase?.auth.getUser().then((ud) => {
