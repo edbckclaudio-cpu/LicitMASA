@@ -26,6 +26,9 @@ export default function AlertasPage() {
   const [savedId, setSavedId] = useState<string | null>(null)
   const [testLoading, setTestLoading] = useState(false)
   const [uiMsg, setUiMsg] = useState<string | null>(null)
+  const [permWeb, setPermWeb] = useState<string | null>(null)
+  const [permOS, setPermOS] = useState<string | null>(null)
+  const [showHelp, setShowHelp] = useState(false)
 
   useEffect(() => {
     async function init() {
@@ -73,6 +76,21 @@ export default function AlertasPage() {
     }
     ensurePushSetup()
   }, [userId, pushOn])
+  useEffect(() => {
+    try {
+      const p = typeof Notification !== 'undefined' ? Notification.permission : undefined
+      setPermWeb(p || null)
+    } catch {
+      setPermWeb(null)
+    }
+    try {
+      const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
+      const p = OneSignal?.Notifications?.permission
+      setPermOS(p || null)
+    } catch {
+      setPermOS(null)
+    }
+  }, [])
 
   async function sendTestNotification() {
     try {
@@ -128,6 +146,40 @@ export default function AlertasPage() {
       }
     } catch {
       setError('Falha ao ativar notificações')
+    }
+  }
+  function updatePermStatus() {
+    try {
+      const p = typeof Notification !== 'undefined' ? Notification.permission : undefined
+      setPermWeb(p || null)
+    } catch {
+      setPermWeb(null)
+    }
+    try {
+      const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
+      const p = OneSignal?.Notifications?.permission
+      setPermOS(p || null)
+    } catch {
+      setPermOS(null)
+    }
+  }
+  function openSiteSettings() {
+    try {
+      const ua = typeof navigator !== 'undefined' ? navigator.userAgent.toLowerCase() : ''
+      const isAndroid = /android/.test(ua)
+      const isFirefox = /firefox/.test(ua)
+      const isChrome = /chrome/.test(ua) && !/edge|edg|opr/.test(ua)
+      if (isFirefox) {
+        setShowHelp(true)
+        return
+      }
+      if (isChrome && isAndroid) {
+        setShowHelp(true)
+        return
+      }
+      setShowHelp(true)
+    } catch {
+      setShowHelp(true)
     }
   }
 
@@ -205,12 +257,34 @@ export default function AlertasPage() {
                 )}
                 <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
                   <div className="flex items-center justify-between gap-3">
-                    <div>Ative as notificações no navegador</div>
-                    <Button onClick={activateOneSignal} className="bg-red-600 text-white hover:bg-red-700">
-                      Ativar Alertas de Licitação
-                    </Button>
+                    <div className="flex flex-col gap-1">
+                      <div>Ative as notificações no navegador</div>
+                      <div className="text-xs text-red-700">Status: {String(permOS || permWeb || 'indisponível')}</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button onClick={() => { activateOneSignal(); updatePermStatus() }} className="bg-red-600 text-white hover:bg-red-700">
+                        Ativar Alertas de Licitação
+                      </Button>
+                      <Button onClick={openSiteSettings} className="bg-gray-100 text-gray-800 hover:bg-gray-200">
+                        Abrir configurações do site
+                      </Button>
+                    </div>
                   </div>
                 </div>
+                {showHelp && (
+                  <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
+                    <div className="font-medium mb-2">Como permitir notificações</div>
+                    <div className="space-y-2">
+                      <div>Android Chrome: toque no cadeado ao lado da barra de endereço → Notificações → Permitir.</div>
+                      <div>Desktop Chrome/Firefox: clique no cadeado ao lado do endereço → Notificações → Permitir.</div>
+                      <div>iOS Safari: iOS 16.4+, permita notificações nas Configurações e considere instalar o site como App.</div>
+                    </div>
+                    <div className="mt-3 flex gap-2">
+                      <Button onClick={() => { setShowHelp(false); activateOneSignal(); updatePermStatus() }} className="bg-blue-800 text-white hover:bg-blue-700">Tentar novamente</Button>
+                      <Button onClick={() => setShowHelp(false)} className="bg-gray-100 text-gray-800 hover:bg-gray-200">Fechar</Button>
+                    </div>
+                  </div>
+                )}
                 <div className="grid gap-3">
                   <label className="text-xs font-medium text-slate-500 uppercase">Palavras-chave</label>
                   <div className="flex items-end gap-2">
