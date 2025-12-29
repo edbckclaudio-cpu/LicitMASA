@@ -30,6 +30,8 @@ export default function AlertasPage() {
   const [permOS, setPermOS] = useState<string | null>(null)
   const [showHelp, setShowHelp] = useState(false)
   const isGranted = useMemo(() => (permOS === 'granted' || permWeb === 'granted'), [permOS, permWeb])
+  const [osExternalId, setOsExternalId] = useState<string | null>(null)
+  const [osPlayerId, setOsPlayerId] = useState<string | null>(null)
 
   useEffect(() => {
     async function init() {
@@ -91,6 +93,23 @@ export default function AlertasPage() {
     } catch {
       setPermOS(null)
     }
+    async function loadOneSignalInfo() {
+      try {
+        const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
+        if (!OneSignal) return
+        let ext: any = null
+        let pid: any = null
+        try { ext = await OneSignal?.User?.getExternalId?.() } catch {}
+        if (!ext) { try { ext = await OneSignal?.getExternalUserId?.() } catch {} }
+        setOsExternalId(ext ? String(ext) : null)
+        try { pid = await OneSignal?.getUserId?.() } catch {}
+        if (!pid) { try { pid = await OneSignal?.User?.getUserId?.() } catch {} }
+        if (!pid) { try { pid = OneSignal?.User?.pushSubscription?.id } catch {} }
+        if (!pid) { try { pid = await OneSignal?.getSubscriptionId?.() } catch {} }
+        setOsPlayerId(pid ? String(pid) : null)
+      } catch {}
+    }
+    loadOneSignalInfo()
   }, [])
 
   async function sendTestNotification() {
@@ -117,6 +136,7 @@ export default function AlertasPage() {
           body: 'Notificação de teste via OneSignal',
         }),
       })
+      try { const j = await res.clone().json(); console.log('OneSignal test response', j) } catch {}
       if (res.ok) {
         setUiMsg('Notificação enviada')
       } else {
@@ -196,6 +216,33 @@ export default function AlertasPage() {
       setShowHelp(true)
     } catch {
       setShowHelp(true)
+    }
+  }
+  async function syncDevice() {
+    try {
+      setUiMsg(null)
+      setError(null)
+      const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
+      if (!OneSignal) { setError('OneSignal não carregado'); return }
+      if (!userId) { setError('Entre para sincronizar'); return }
+      try { await OneSignal?.login?.(userId) } catch {}
+      try { await OneSignal?.User?.addTag?.('user_id', userId) } catch {}
+      try { await OneSignal?.setExternalUserId?.(userId) } catch {}
+      try {
+        let ext: any = null
+        let pid: any = null
+        try { ext = await OneSignal?.User?.getExternalId?.() } catch {}
+        if (!ext) { try { ext = await OneSignal?.getExternalUserId?.() } catch {} }
+        setOsExternalId(ext ? String(ext) : null)
+        try { pid = await OneSignal?.getUserId?.() } catch {}
+        if (!pid) { try { pid = await OneSignal?.User?.getUserId?.() } catch {} }
+        if (!pid) { try { pid = OneSignal?.User?.pushSubscription?.id } catch {} }
+        if (!pid) { try { pid = await OneSignal?.getSubscriptionId?.() } catch {} }
+        setOsPlayerId(pid ? String(pid) : null)
+      } catch {}
+      setUiMsg('Dispositivo sincronizado')
+    } catch {
+      setError('Falha ao sincronizar dispositivo')
     }
   }
 
@@ -306,6 +353,16 @@ export default function AlertasPage() {
                     </div>
                   </div>
                 )}
+                <div className="rounded-md border border-slate-200 bg-white p-3 text-sm text-gray-800">
+                  <div className="font-medium mb-2">Diagnóstico OneSignal</div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <div className="rounded-md border px-2 py-1 text-xs">External User ID: {osExternalId || '—'}</div>
+                    <div className="rounded-md border px-2 py-1 text-xs">Player ID: {osPlayerId || '—'}</div>
+                  </div>
+                  <div className="mt-2">
+                    <Button onClick={syncDevice} className="bg-blue-800 text-white hover:bg-blue-700">Sincronizar Dispositivo</Button>
+                  </div>
+                </div>
                 {showHelp && (
                   <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
                     <div className="font-medium mb-2">Como permitir notificações</div>
