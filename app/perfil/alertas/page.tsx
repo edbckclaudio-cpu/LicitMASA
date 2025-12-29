@@ -22,9 +22,7 @@ export default function AlertasPage() {
   const [ufs, setUfs] = useState<string[]>([])
   const [minValue, setMinValue] = useState<string>('')
   const [ativo, setAtivo] = useState(true)
-  const [whats, setWhats] = useState('')
   const [pushOn, setPushOn] = useState(true)
-  const [waOn, setWaOn] = useState(false)
   const [savedId, setSavedId] = useState<string | null>(null)
   const [testLoading, setTestLoading] = useState(false)
   const [uiMsg, setUiMsg] = useState<string | null>(null)
@@ -43,16 +41,14 @@ export default function AlertasPage() {
       const email = String(user.email || '').toLowerCase()
       const premium = Boolean(prof?.is_premium) || String(prof?.plan || '').toLowerCase() === 'premium' || allow.includes(email)
       setIsPremium(premium)
-      const { data, error: uaErr } = await supabase.from('user_alerts').select('id,keywords,ufs,valor_minimo,whatsapp_notificacao,whatsapp_numero,push_notificacao,ativo').eq('user_id', user.id).limit(1).maybeSingle()
+      const { data, error: uaErr } = await supabase.from('user_alerts').select('id,keywords,ufs,valor_minimo,push_notificacao,ativo').eq('user_id', user.id).limit(1).maybeSingle()
       if (data) {
         setSavedId(String(data.id))
         setKeywords(Array.isArray(data.keywords) ? data.keywords.filter((x: any) => typeof x === 'string') : [])
         setUfs(Array.isArray(data.ufs) ? data.ufs.filter((x: any) => typeof x === 'string') : [])
         setMinValue(data.valor_minimo ? String(data.valor_minimo) : '')
         setAtivo(Boolean(data.ativo))
-        setWhats(String(data.whatsapp_numero || ''))
         setPushOn(Boolean(data.push_notificacao))
-        setWaOn(Boolean(data.whatsapp_notificacao))
       } else if (typeof window !== 'undefined') {
         try {
           const raw = window.localStorage.getItem(`user_alerts:${user.id}`) || ''
@@ -62,9 +58,7 @@ export default function AlertasPage() {
             setUfs(Array.isArray(j.ufs) ? j.ufs.filter((x: any) => typeof x === 'string') : [])
             setMinValue(j.valor_minimo ? String(j.valor_minimo) : '')
             setAtivo(Boolean(j.ativo))
-            setWhats(String(j.whatsapp_numero || ''))
             setPushOn(Boolean(j.push_notificacao))
-            setWaOn(Boolean(j.whatsapp_notificacao))
           }
         } catch {}
       }
@@ -124,22 +118,7 @@ export default function AlertasPage() {
   function toggleUf(uf: string) {
     setUfs((prev) => prev.includes(uf) ? prev.filter((x) => x !== uf) : [...prev, uf])
   }
-  function formatPhoneBR(v: string): string {
-    const d = v.replace(/\D/g, '')
-    if (d.length <= 2) return d
-    if (d.startsWith('55')) {
-      const n = d.slice(2)
-      const p1 = n.slice(0, 2)
-      const p2 = n.slice(2, 7)
-      const p3 = n.slice(7, 11)
-      return `+55 ${p1} ${p2}${p3 ? '-' + p3 : ''}`.trim()
-    } else {
-      const p1 = d.slice(0, 2)
-      const p2 = d.slice(2, 7)
-      const p3 = d.slice(7, 11)
-      return `+55 ${p1} ${p2}${p3 ? '-' + p3 : ''}`.trim()
-    }
-  }
+  
 
   async function savePrefs() {
     setError(null)
@@ -150,8 +129,6 @@ export default function AlertasPage() {
       ufs,
       valor_minimo: minValue ? Number(minValue) : 0,
       ativo: ativo,
-      whatsapp_notificacao: waOn,
-      whatsapp_numero: whats || null,
       push_notificacao: pushOn,
     } as any
     const { data, error } = await supabase.from('user_alerts').upsert(payload, { onConflict: 'user_id' }).select('id').maybeSingle()
@@ -238,7 +215,7 @@ export default function AlertasPage() {
                     })}
                   </div>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div className="grid gap-1.5">
                     <label className="text-xs font-medium text-slate-500 uppercase">Valor mínimo (R$)</label>
                     <Input
@@ -249,32 +226,17 @@ export default function AlertasPage() {
                     />
                   </div>
                   <div className="grid gap-1.5">
-                    <label className="text-xs font-medium text-slate-500 uppercase">WhatsApp para alertas</label>
-                    <Input
-                      placeholder="Ex: +55 11 99999-9999"
-                      value={whats}
-                      onChange={(e) => setWhats(formatPhoneBR(e.target.value))}
-                      disabled={!canInteract}
-                    />
-                  </div>
-                  <div className="grid gap-1.5">
                     <label className="text-xs font-medium text-slate-500 uppercase">Ativar alerta diário</label>
                     <Button onClick={() => canInteract && setAtivo((v) => !v)} className={"border " + (ativo ? "bg-green-600 text-white hover:bg-green-700" : "bg-gray-100 text-gray-800 hover:bg-gray-200")} disabled={!canInteract}>
                       {ativo ? "Ativado" : "Desativado"}
                     </Button>
                   </div>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div className="grid gap-1.5">
                     <label className="text-xs font-medium text-slate-500 uppercase">Receber Push</label>
                     <Button onClick={() => canInteract && setPushOn((v) => !v)} className={"border " + (pushOn ? "bg-blue-800 text-white hover:bg-blue-700" : "bg-gray-100 text-gray-800 hover:bg-gray-200")} disabled={!canInteract}>
                       {pushOn ? "Ativado" : "Desativado"}
-                    </Button>
-                  </div>
-                  <div className="grid gap-1.5">
-                    <label className="text-xs font-medium text-slate-500 uppercase">Receber via WhatsApp</label>
-                    <Button onClick={() => canInteract && setWaOn((v) => !v)} className={"border " + (waOn ? "bg-blue-800 text-white hover:bg-blue-700" : "bg-gray-100 text-gray-800 hover:bg-gray-200")} disabled={!canInteract}>
-                      {waOn ? "Ativado" : "Desativado"}
                     </Button>
                   </div>
                 </div>
@@ -298,7 +260,7 @@ export default function AlertasPage() {
                         setError('Falha ao enviar notificação')
                       }
                     }} disabled={!canInteract} className="bg-green-600 text-white hover:bg-green-700">🔔 Testar Notificação Agora</Button>
-                    <Button onClick={savePrefs} disabled={!((keywords.length > 0 || ufs.length > 0) && canInteract)} className="bg-blue-800 text-white hover:bg-blue-700">Salvar Configurações</Button>
+                    <Button onClick={savePrefs} disabled={!canInteract} className="bg-blue-800 text-white hover:bg-blue-700">Salvar Configurações</Button>
                   </div>
                 </div>
               </div>
