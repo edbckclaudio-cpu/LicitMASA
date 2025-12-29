@@ -29,6 +29,7 @@ export default function AlertasPage() {
   const [permWeb, setPermWeb] = useState<string | null>(null)
   const [permOS, setPermOS] = useState<string | null>(null)
   const [showHelp, setShowHelp] = useState(false)
+  const isGranted = useMemo(() => (permOS === 'granted' || permWeb === 'granted'), [permOS, permWeb])
 
   useEffect(() => {
     async function init() {
@@ -133,6 +134,11 @@ export default function AlertasPage() {
       try { perm = OneSignal?.Notifications?.permission } catch {}
       if (perm === 'granted') {
         setUiMsg('Você já está recebendo alertas!')
+        try {
+          if (userId) {
+            OneSignal.push(function() { OneSignal.setExternalUserId(userId) })
+          }
+        } catch {}
         return
       }
       try {
@@ -141,6 +147,11 @@ export default function AlertasPage() {
       try { perm = OneSignal?.Notifications?.permission } catch {}
       if (perm === 'granted') {
         setUiMsg('Alertas ativados! ✅')
+        try {
+          if (userId) {
+            OneSignal.push(function() { OneSignal.setExternalUserId(userId) })
+          }
+        } catch {}
       } else {
         setError('Permissão negada ou não concedida')
       }
@@ -255,22 +266,39 @@ export default function AlertasPage() {
                 {error && (
                   <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</div>
                 )}
-                <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex flex-col gap-1">
-                      <div>Ative as notificações no navegador</div>
-                      <div className="text-xs text-red-700">Status: {String(permOS || permWeb || 'indisponível')}</div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button onClick={() => { activateOneSignal(); updatePermStatus() }} className="bg-red-600 text-white hover:bg-red-700">
-                        Ativar Alertas de Licitação
-                      </Button>
-                      <Button onClick={openSiteSettings} className="bg-gray-100 text-gray-800 hover:bg-gray-200">
-                        Abrir configurações do site
-                      </Button>
+                {!isGranted && (
+                  <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex flex-col gap-1">
+                        <div>Ative as notificações no navegador</div>
+                        <div className="text-xs text-red-700">Status: {String(permOS || permWeb || 'indisponível')}</div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button onClick={() => { activateOneSignal(); updatePermStatus() }} className="bg-red-600 text-white hover:bg-red-700">
+                          Ativar Alertas de Licitação
+                        </Button>
+                        <Button onClick={openSiteSettings} className="bg-gray-100 text-gray-800 hover:bg-gray-200">
+                          Abrir configurações do site
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
+                {isGranted && (
+                  <div className="rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-800">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex flex-col gap-1">
+                        <div>Notificações permitidas</div>
+                        <div className="text-xs text-green-700">Status: {String(permOS || permWeb)}</div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button onClick={() => { activateOneSignal(); updatePermStatus() }} className="bg-green-600 text-white hover:bg-green-700">
+                          Já está ativo
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {showHelp && (
                   <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
                     <div className="font-medium mb-2">Como permitir notificações</div>
