@@ -31,12 +31,30 @@ export default function ServiceWorkerRegister() {
     OneSignal.push(function() {
       try { window.alert('Iniciando OneSignal...') } catch {}
       try {
-        OneSignal.init({
+        const p = OneSignal.init({
           appId: '43f9ce9c-8d86-4076-a8b6-30dac8429149',
+          serviceWorkerParam: { scope: '/' },
+          serviceWorkerPath: 'OneSignalSDKWorker.js',
         })
-        try { window.alert('OneSignal Iniciado com Sucesso!') } catch {}
+        Promise.resolve(p)
+          .then(() => { try { window.alert('OneSignal Iniciado com Sucesso!') } catch {} })
+          .catch((e: any) => {
+            const msg = String(e?.message || e)
+            let reason = msg
+            try {
+              if (/invalid.*app.*id/i.test(msg)) reason = 'App ID Inválido'
+              else if (/service.*worker.*(not|missing|fail)/i.test(msg)) reason = 'Service Worker não encontrado'
+            } catch {}
+            try { window.alert('Erro OneSignal: ' + reason) } catch {}
+          })
       } catch (e: any) {
-        try { window.alert('Erro OneSignal: ' + String(e?.message || e)) } catch {}
+        const msg = String(e?.message || e)
+        let reason = msg
+        try {
+          if (/invalid.*app.*id/i.test(msg)) reason = 'App ID Inválido'
+          else if (/service.*worker.*(not|missing|fail)/i.test(msg)) reason = 'Service Worker não encontrado'
+        } catch {}
+        try { window.alert('Erro OneSignal: ' + reason) } catch {}
       }
       try { OneSignal.Notifications.requestPermission() } catch {}
     })
