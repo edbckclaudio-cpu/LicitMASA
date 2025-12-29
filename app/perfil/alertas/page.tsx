@@ -260,6 +260,18 @@ export default function AlertasPage() {
       setError('Falha ao solicitar permissão')
     }
   }
+  function testSdkLoad() {
+    try {
+      const fn = typeof window !== 'undefined' ? (window as any).verificarOneSignal : null
+      if (typeof fn === 'function') {
+        fn()
+      } else {
+        alert('Função não definida')
+      }
+    } catch {
+      alert('Falha ao executar teste')
+    }
+  }
   function openSiteSettings() {
     try {
       const ua = typeof navigator !== 'undefined' ? navigator.userAgent.toLowerCase() : ''
@@ -443,6 +455,7 @@ export default function AlertasPage() {
                   </div>
                   <div className="mt-2">
                     <Button onClick={syncDevice} className="bg-blue-800 text-white hover:bg-blue-700">Vincular meu Aparelho</Button>
+                    <Button onClick={testSdkLoad} className="ml-2 bg-gray-200 text-gray-900 hover:bg-gray-300">TESTAR CARREGAMENTO DO SDK</Button>
                   </div>
                 </div>
                 {showHelp && (
