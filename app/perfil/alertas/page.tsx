@@ -179,6 +179,14 @@ export default function AlertasPage() {
         }
       } catch {}
       try { console.log('Tentando vincular o ID:', userId) } catch {}
+      try { await OneSignal?.User?.PushSubscription?.optIn?.() } catch {}
+      try {
+        const perm = typeof Notification !== 'undefined' ? Notification.permission : 'unknown'
+        const pid = (() => {
+          try { return OneSignal?.User?.PushSubscription?.id || null } catch { return null }
+        })()
+        alert('Permission: ' + String(perm) + ' | ID: ' + String(pid || '—'))
+      } catch {}
       let beforeExt: any = null
       try { beforeExt = await OneSignal?.User?.getExternalId?.() } catch {}
       if (!beforeExt) { try { beforeExt = await OneSignal?.getExternalUserId?.() } catch {} }

@@ -36,9 +36,9 @@ export default function ServiceWorkerRegister() {
       try { window.alert('Iniciando OneSignal...') } catch {}
       try {
         const p = OneSignal.init({
-          appId: '43f9ce9c-8d86-4076-a8b6-30dac8429149',
-          serviceWorkerParam: { scope: '/' },
+          appId: String(process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || ''),
           serviceWorkerPath: 'OneSignalSDKWorker.js',
+          allowLocalhostAsSecureOrigin: true,
         })
         Promise.resolve(p)
           .then(() => { try { window.alert('OneSignal Iniciado com Sucesso!') } catch {} })
