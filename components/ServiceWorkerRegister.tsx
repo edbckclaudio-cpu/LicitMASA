@@ -8,6 +8,10 @@ export default function ServiceWorkerRegister() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return
+    try { window.alert('Status do SDK: ' + (typeof (window as any).OneSignal !== 'undefined')) } catch {}
+  }, [])
+  useEffect(() => {
+    if (typeof window === 'undefined') return
     if ('serviceWorker' in navigator) {
       const isProd = process.env.NODE_ENV === 'production'
       if (isProd) {
@@ -45,6 +49,7 @@ export default function ServiceWorkerRegister() {
               if (/invalid.*app.*id/i.test(msg)) reason = 'App ID Inválido'
               else if (/service.*worker.*(not|missing|fail)/i.test(msg)) reason = 'Service Worker não encontrado'
             } catch {}
+            try { (window as any).__ONE_SIGNAL_INIT_ERROR = reason } catch {}
             try { window.alert('Erro OneSignal: ' + reason) } catch {}
           })
       } catch (e: any) {
@@ -54,6 +59,7 @@ export default function ServiceWorkerRegister() {
           if (/invalid.*app.*id/i.test(msg)) reason = 'App ID Inválido'
           else if (/service.*worker.*(not|missing|fail)/i.test(msg)) reason = 'Service Worker não encontrado'
         } catch {}
+        try { (window as any).__ONE_SIGNAL_INIT_ERROR = reason } catch {}
         try { window.alert('Erro OneSignal: ' + reason) } catch {}
       }
       try { OneSignal.Notifications.requestPermission() } catch {}

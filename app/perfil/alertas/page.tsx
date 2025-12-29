@@ -31,6 +31,7 @@ export default function AlertasPage() {
   const isGranted = useMemo(() => (permOS === 'granted' || permWeb === 'granted'), [permOS, permWeb])
   const [osExternalId, setOsExternalId] = useState<string | null>(null)
   const [osPlayerId, setOsPlayerId] = useState<string | null>(null)
+  const [initErrorTop, setInitErrorTop] = useState<string | null>(null)
 
   useEffect(() => {
     async function init() {
@@ -72,6 +73,12 @@ export default function AlertasPage() {
     init()
   }, [])
   useEffect(() => {
+    try {
+      const msg = typeof window !== 'undefined' ? (window as any).__ONE_SIGNAL_INIT_ERROR : null
+      setInitErrorTop(msg ? String(msg) : null)
+    } catch {
+      setInitErrorTop(null)
+    }
     try {
       const p = typeof Notification !== 'undefined' ? Notification.permission : undefined
       setPermWeb(p || null)
@@ -364,6 +371,7 @@ export default function AlertasPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {initErrorTop && <div className="mx-auto max-w-5xl px-6 py-3"><div className="rounded-md border-2 border-red-300 bg-red-50 p-3 text-xl font-semibold text-red-800">{initErrorTop}</div></div>}
       <div className="px-6 py-2 text-xs text-gray-700">Debug ID: {String(process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || '')}</div>
       <header className="border-b bg-white">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
