@@ -171,9 +171,25 @@ export default function AlertasPage() {
           try { console.log('ServiceWorker registrations:', regs) } catch {}
         }
       } catch {}
+      let beforeExt: any = null
+      try { beforeExt = await OneSignal?.User?.getExternalId?.() } catch {}
+      if (!beforeExt) { try { beforeExt = await OneSignal?.getExternalUserId?.() } catch {} }
+      try { console.log('External ID antes do login:', beforeExt) } catch {}
       try { await OneSignal?.login?.(userId) } catch (e: any) { try { console.error('OneSignal.login error:', e) } catch {} }
       try { await OneSignal?.User?.addTag?.('user_id', userId) } catch (e: any) { try { console.error('OneSignal.addTag error:', e) } catch {} }
-      try { window.location.reload() } catch {}
+      let afterExt: any = null
+      let afterPid: any = null
+      try { afterExt = await OneSignal?.User?.getExternalId?.() } catch {}
+      if (!afterExt) { try { afterExt = await OneSignal?.getExternalUserId?.() } catch {} }
+      try { console.log('External ID após login:', afterExt) } catch {}
+      try { afterPid = await OneSignal?.getUserId?.() } catch {}
+      if (!afterPid) { try { afterPid = await OneSignal?.User?.getUserId?.() } catch {} }
+      if (!afterPid) { try { afterPid = OneSignal?.User?.pushSubscription?.id } catch {} }
+      if (!afterPid) { try { afterPid = await OneSignal?.getSubscriptionId?.() } catch {} }
+      setOsExternalId(afterExt ? String(afterExt) : null)
+      setOsPlayerId(afterPid ? String(afterPid) : null)
+      updatePermStatus()
+      setUiMsg('Vínculo atualizado')
     } catch {
       setError('Falha ao reparar vínculo')
     }
