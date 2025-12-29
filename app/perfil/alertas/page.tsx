@@ -163,6 +163,19 @@ export default function AlertasPage() {
       setTestLoading(false)
     }
   }
+  async function resetTechnical() {
+    try {
+      const nav: any = typeof navigator !== 'undefined' ? navigator : null
+      if (nav?.serviceWorker?.getRegistrations) {
+        const regs = await nav.serviceWorker.getRegistrations().catch(() => [])
+        for (const r of regs) {
+          try { await r.unregister() } catch {}
+        }
+      }
+    } catch {}
+    try { window.localStorage.removeItem('onesignal-notification-prompt-counts') } catch {}
+    try { (window as any).location?.reload?.(true) } catch { try { window.location.reload() } catch {} }
+  }
   async function repairLink() {
     try {
       setUiMsg(null)
@@ -473,6 +486,7 @@ export default function AlertasPage() {
                   <div className="mt-2">
                     <Button onClick={syncDevice} className="bg-blue-800 text-white hover:bg-blue-700">Vincular meu Aparelho</Button>
                     <Button onClick={testSdkLoad} className="ml-2 bg-gray-200 text-gray-900 hover:bg-gray-300">TESTAR CARREGAMENTO DO SDK</Button>
+                    <Button onClick={resetTechnical} className="ml-2 bg-red-600 text-white hover:bg-red-700">Limpar Registros Técnicos (Reset)</Button>
                   </div>
                 </div>
                 {showHelp && (
