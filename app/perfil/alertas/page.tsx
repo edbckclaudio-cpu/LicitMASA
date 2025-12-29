@@ -171,6 +171,7 @@ export default function AlertasPage() {
           try { console.log('ServiceWorker registrations:', regs) } catch {}
         }
       } catch {}
+      try { console.log('Tentando vincular o ID:', userId) } catch {}
       let beforeExt: any = null
       try { beforeExt = await OneSignal?.User?.getExternalId?.() } catch {}
       if (!beforeExt) { try { beforeExt = await OneSignal?.getExternalUserId?.() } catch {} }
@@ -190,6 +191,7 @@ export default function AlertasPage() {
       setOsPlayerId(afterPid ? String(afterPid) : null)
       updatePermStatus()
       setUiMsg('Vínculo atualizado')
+      try { setTimeout(() => { try { window.location.reload() } catch {} }, 2000) } catch {}
     } catch {
       setError('Falha ao reparar vínculo')
     }

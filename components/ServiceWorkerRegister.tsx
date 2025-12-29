@@ -51,6 +51,8 @@ export default function ServiceWorkerRegister() {
           const user = ud?.data?.user
           if (user?.id) {
             OneSignal.push(function() {
+              try { console.log('OneSignal init: fazendo login com usuário', user.id) } catch {}
+              try { OneSignal.login?.(user.id) } catch {}
               OneSignal.setExternalUserId(user.id)
             })
           }
@@ -59,6 +61,8 @@ export default function ServiceWorkerRegister() {
           const uid = session?.user?.id
           OneSignal.push(function() {
             if (uid) {
+              try { console.log('OneSignal auth change: fazendo login com usuário', uid) } catch {}
+              try { OneSignal.login?.(uid) } catch {}
               OneSignal.setExternalUserId(uid)
             } else {
               OneSignal.removeExternalUserId()
