@@ -24,7 +24,12 @@ export async function POST(req: Request) {
         contents: { en: message },
       }),
     })
-    return NextResponse.json({ ok: res.ok }, { status: res.ok ? 200 : 500 })
+    let json: any = null
+    try { json = await res.clone().json() } catch {}
+    try { console.log('[OneSignal Test] response', json || (await res.text())) } catch {}
+    const notifId = json?.id || null
+    try { if (notifId) console.log('[OneSignal Test] notification id:', notifId) } catch {}
+    return NextResponse.json({ ok: res.ok, id: notifId }, { status: res.ok ? 200 : 500 })
   } catch {
     return NextResponse.json({ ok: false }, { status: 500 })
   }

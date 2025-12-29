@@ -7,7 +7,6 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { requestAndSaveToken } from '@/lib/firebase'
 
 const UFS = ['AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MG','MS','MT','PA','PB','PE','PI','PR','RJ','RN','RO','RR','RS','SC','SE','SP','TO']
 
@@ -73,13 +72,6 @@ export default function AlertasPage() {
     init()
   }, [])
   useEffect(() => {
-    async function ensurePushSetup() {
-      if (!userId || !pushOn) return
-      try { await requestAndSaveToken() } catch {}
-    }
-    ensurePushSetup()
-  }, [userId, pushOn])
-  useEffect(() => {
     try {
       const p = typeof Notification !== 'undefined' ? Notification.permission : undefined
       setPermWeb(p || null)
@@ -110,6 +102,22 @@ export default function AlertasPage() {
       } catch {}
     }
     loadOneSignalInfo()
+  }, [])
+  useEffect(() => {
+    try {
+      const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
+      OneSignal?.Debug?.setLogLevel?.('verbose')
+    } catch {}
+    try {
+      const nav: any = typeof navigator !== 'undefined' ? navigator : null
+      if (nav?.serviceWorker?.getRegistrations) {
+        nav.serviceWorker.getRegistrations().then((regs: any) => {
+          try { console.log('ServiceWorker registrations:', regs) } catch {}
+        }).catch((e: any) => {
+          try { console.error('ServiceWorker check error:', e) } catch {}
+        })
+      }
+    } catch {}
   }, [])
 
   async function sendTestNotification() {
@@ -146,6 +154,28 @@ export default function AlertasPage() {
       setUiMsg('Falha ao enviar notificação')
     } finally {
       setTestLoading(false)
+    }
+  }
+  async function repairLink() {
+    try {
+      setUiMsg(null)
+      setError(null)
+      const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
+      if (!OneSignal) { setError('OneSignal não carregado'); return }
+      if (!userId) { setError('Entre para reparar vínculo'); return }
+      try { OneSignal?.Debug?.setLogLevel?.('verbose') } catch {}
+      try {
+        const nav: any = typeof navigator !== 'undefined' ? navigator : null
+        if (nav?.serviceWorker?.getRegistrations) {
+          const regs = await nav.serviceWorker.getRegistrations().catch(() => [])
+          try { console.log('ServiceWorker registrations:', regs) } catch {}
+        }
+      } catch {}
+      try { await OneSignal?.login?.(userId) } catch (e: any) { try { console.error('OneSignal.login error:', e) } catch {} }
+      try { await OneSignal?.User?.addTag?.('user_id', userId) } catch (e: any) { try { console.error('OneSignal.addTag error:', e) } catch {} }
+      try { window.location.reload() } catch {}
+    } catch {
+      setError('Falha ao reparar vínculo')
     }
   }
   async function activateOneSignal() {
@@ -199,6 +229,19 @@ export default function AlertasPage() {
       setPermOS(null)
     }
   }
+  async function resetAndRequestPermission() {
+    try {
+      setUiMsg(null)
+      setError(null)
+      const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
+      if (!OneSignal) { setError('OneSignal não carregado'); return }
+      try { OneSignal?.Debug?.setLogLevel?.('verbose') } catch {}
+      try { await OneSignal?.Notifications?.requestPermission() } catch (e: any) { try { console.error('OneSignal requestPermission error:', e) } catch {} }
+      updatePermStatus()
+    } catch {
+      setError('Falha ao solicitar permissão')
+    }
+  }
   function openSiteSettings() {
     try {
       const ua = typeof navigator !== 'undefined' ? navigator.userAgent.toLowerCase() : ''
@@ -225,6 +268,7 @@ export default function AlertasPage() {
       const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
       if (!OneSignal) { setError('OneSignal não carregado'); return }
       if (!userId) { setError('Entre para sincronizar'); return }
+      try { console.log('Tentando vincular ID:', userId) } catch {}
       try { await OneSignal?.login?.(userId) } catch {}
       try { await OneSignal?.User?.addTag?.('user_id', userId) } catch {}
       try { await OneSignal?.setExternalUserId?.(userId) } catch {}
@@ -303,6 +347,19 @@ export default function AlertasPage() {
           </div>
         </div>
       </header>
+      <div className="mx-auto max-w-5xl px-6">
+        <div className="mt-3 rounded-md border border-slate-200 bg-white p-3 text-sm text-gray-800">
+          <div className="font-medium mb-2">Painel de Diagnóstico</div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+            <div className="rounded-md border px-2 py-1 text-xs">User ID (Supabase): {userId || '—'}</div>
+            <div className="rounded-md border px-2 py-1 text-xs">External ID (OneSignal): {osExternalId || '—'}</div>
+            <div className="rounded-md border px-2 py-1 text-xs">Subscription ID: {osPlayerId || '—'}</div>
+          </div>
+          <div className="mt-2">
+            <Button onClick={repairLink} className="bg-blue-800 text-white hover:bg-blue-700">Reparar Vínculo</Button>
+          </div>
+        </div>
+      </div>
       <main className="mx-auto max-w-5xl px-6 py-8">
         <Card>
           <CardHeader>
@@ -333,6 +390,9 @@ export default function AlertasPage() {
                         <Button onClick={openSiteSettings} className="bg-gray-100 text-gray-800 hover:bg-gray-200">
                           Abrir configurações do site
                         </Button>
+                        <Button onClick={resetAndRequestPermission} className="bg-gray-200 text-gray-900 hover:bg-gray-300">
+                          Resetar e Pedir Permissão Novamente
+                        </Button>
                       </div>
                     </div>
                   </div>
@@ -349,18 +409,22 @@ export default function AlertasPage() {
                         <Button onClick={() => { activateOneSignal(); updatePermStatus() }} className="bg-green-600 text-white hover:bg-green-700">
                           Já está ativo
                         </Button>
+                        <Button onClick={resetAndRequestPermission} className="bg-gray-200 text-gray-900 hover:bg-gray-300">
+                          Resetar e Pedir Permissão Novamente
+                        </Button>
                       </div>
                     </div>
                   </div>
                 )}
                 <div className="rounded-md border border-slate-200 bg-white p-3 text-sm text-gray-800">
                   <div className="font-medium mb-2">Diagnóstico OneSignal</div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    <div className="rounded-md border px-2 py-1 text-xs">External User ID: {osExternalId || '—'}</div>
-                    <div className="rounded-md border px-2 py-1 text-xs">Player ID: {osPlayerId || '—'}</div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                    <div className="rounded-md border px-2 py-1 text-xs">Meu ID no Banco: {userId || '—'}</div>
+                    <div className="rounded-md border px-2 py-1 text-xs">Meu ID no OneSignal: {osPlayerId || '—'}</div>
+                    <div className="rounded-md border px-2 py-1 text-xs">Vínculo: {osExternalId || '—'}</div>
                   </div>
                   <div className="mt-2">
-                    <Button onClick={syncDevice} className="bg-blue-800 text-white hover:bg-blue-700">Sincronizar Dispositivo</Button>
+                    <Button onClick={syncDevice} className="bg-blue-800 text-white hover:bg-blue-700">Vincular meu Aparelho</Button>
                   </div>
                 </div>
                 {showHelp && (
@@ -442,24 +506,6 @@ export default function AlertasPage() {
                 </div>
                 <div className="flex items-center justify-end">
                   <div className="flex gap-2">
-                    <Button onClick={async () => {
-                      if (!canInteract) return
-                      const t = await requestAndSaveToken()
-                      if (!t) { setError('Permissão negada ou indisponível'); return }
-                      try {
-                        if (typeof window !== 'undefined' && Notification.permission === 'granted') {
-                          try { new Notification('LicitMASA', { body: 'Seu dispositivo está pronto para receber alertas às 07:00 e às 16:00.' }) } catch {}
-                        }
-                        await fetch('/api/notifications/test', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ token: t })
-                        }).catch(() => {})
-                        alert('Notificação de teste acionada')
-                      } catch {
-                        setError('Falha ao enviar notificação')
-                      }
-                    }} disabled={!canInteract} className="bg-green-600 text-white hover:bg-green-700">🔔 Testar Notificação Agora</Button>
                     <Button onClick={savePrefs} disabled={!canInteract} className="bg-blue-800 text-white hover:bg-blue-700">Salvar Configurações</Button>
                   </div>
                 </div>
