@@ -26,68 +26,40 @@ export default function ServiceWorkerRegister() {
   }, [])
   useEffect(() => {
     if (typeof window === 'undefined') return
-    try { alert('ID: ' + (process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || '')) } catch {}
-    const isProd = process.env.NODE_ENV === 'production'
-    const appIdEnv = process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || ''
-    const appIdWanted = '43f9ce9c-8d86-4076-a8b6-30dac8429149'
-    const appId = appIdEnv || appIdWanted
-    try {
-      if (appId !== appIdWanted) {
-        console.error('OneSignal appId diferente do esperado', { appIdEnv, appIdUsed: appId, appIdWanted })
+    const OneSignal = (window as any).OneSignal || []
+    ;(window as any).OneSignal = OneSignal
+    OneSignal.push(function() {
+      try { window.alert('Iniciando OneSignal...') } catch {}
+      try {
+        OneSignal.init({
+          appId: '43f9ce9c-8d86-4076-a8b6-30dac8429149',
+        })
+        try { window.alert('OneSignal Iniciado com Sucesso!') } catch {}
+      } catch (e: any) {
+        try { window.alert('Erro OneSignal: ' + String(e?.message || e)) } catch {}
       }
-    } catch {}
-    if (!isProd) return
-    if (!(window as any).OneSignal) {
-      const s = document.createElement('script')
-      s.src = 'https://cdn.onesignal.com/sdks/OneSignalSDK.js'
-      s.async = true
-      s.onerror = (e) => { try { console.error('Falha ao carregar OneSignalSDK.js', e) } catch {} }
-      s.onload = () => {
-        const OneSignal = (window as any).OneSignal || []
-        ;(window as any).OneSignal = OneSignal
+      try { OneSignal.Notifications.requestPermission() } catch {}
+    })
+    supabase?.auth.getUser().then((ud) => {
+      const user = ud?.data?.user
+      if (user?.id) {
         OneSignal.push(function() {
-          try {
-            try { window.alert('Iniciando OneSignal...') } catch {}
-            OneSignal.init({
-              appId: '43f9ce9c-8d86-4076-a8b6-30dac8429149',
-              allowLocalhostAsSecureOrigin: true,
-              serviceWorkerPath: '/OneSignalSDKWorker.js',
-              serviceWorkerUpdaterPath: '/OneSignalSDKUpdaterWorker.js',
-              notifyButton: { enable: false },
-            })
-            try { window.alert('OneSignal Iniciado com Sucesso!') } catch {}
-          } catch (e: any) {
-            try { console.log('OneSignal.init error', e) } catch {}
-            try { console.error('Erro ao inicializar OneSignal', e) } catch {}
-            try { window.alert('Erro OneSignal: ' + String(e?.message || e)) } catch {}
-          }
-          try { OneSignal.Notifications.requestPermission() } catch {}
-        })
-        supabase?.auth.getUser().then((ud) => {
-          const user = ud?.data?.user
-          if (user?.id) {
-            OneSignal.push(function() {
-              try { console.log('OneSignal init: fazendo login com usuário', user.id) } catch {}
-              try { OneSignal.login?.(user.id) } catch {}
-              OneSignal.setExternalUserId(user.id)
-            })
-          }
-        })
-        supabase?.auth.onAuthStateChange((_ev, session) => {
-          const uid = session?.user?.id
-          OneSignal.push(function() {
-            if (uid) {
-              try { console.log('OneSignal auth change: fazendo login com usuário', uid) } catch {}
-              try { OneSignal.login?.(uid) } catch {}
-              OneSignal.setExternalUserId(uid)
-            } else {
-              OneSignal.removeExternalUserId()
-            }
-          })
+          try { OneSignal.login?.(user.id) } catch {}
+          try { OneSignal.setExternalUserId(user.id) } catch {}
         })
       }
-      document.head.appendChild(s)
-    }
+    })
+    supabase?.auth.onAuthStateChange((_ev, session) => {
+      const uid = session?.user?.id
+      OneSignal.push(function() {
+        if (uid) {
+          try { OneSignal.login?.(uid) } catch {}
+          try { OneSignal.setExternalUserId(uid) } catch {}
+        } else {
+          try { OneSignal.removeExternalUserId() } catch {}
+        }
+      })
+    })
   }, [])
 
   useEffect(() => {
