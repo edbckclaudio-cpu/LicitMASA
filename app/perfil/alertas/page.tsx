@@ -435,32 +435,34 @@ export default function AlertasPage() {
           
           <button 
             onClick={async () => { 
-              console.log('Botão clicado'); 
               try { 
+                console.log('Iniciando diagnóstico do botão verde...'); 
+                
                 if (typeof window.OneSignal === 'undefined') { 
-                  alert('ERRO: O SDK do OneSignal não foi carregado pelo navegador. Verifique se o script está no <head>.'); 
+                  alert('❌ ERRO: O objeto OneSignal não foi encontrado no navegador. O script principal pode ter falhado ao carregar.'); 
                   return; 
                 } 
-                
-                alert('Tentando registrar... (Aguarde)'); 
-                
+                alert('🔍 SDK Detectado. Verificando inicialização...'); 
                 if (!window.OneSignal.initialized) { 
-                   await window.OneSignal.init({ 
-                     appId: '43f9ce9c-8d86-4076-a8b6-30dac8429149', 
-                     allowLocalhostAsSecureOrigin: true 
-                   }); 
+                  alert('⚙️ OneSignal não estava iniciado. Iniciando agora...'); 
+                  await window.OneSignal.init({ 
+                    appId: '43f9ce9c-8d86-4076-a8b6-30dac8429149', 
+                    allowLocalhostAsSecureOrigin: true, 
+                    serviceWorkerPath: 'OneSignalSDKWorker.js' 
+                  }); 
                 } 
+                alert('🚀 Solicitando Opt-In (Criação de ID)...'); 
                 await window.OneSignal.User.PushSubscription.optIn(); 
-                const id = window.OneSignal.User.PushSubscription.id; 
-                if (id) { 
-                  alert('VITÓRIA! ID Gerado: ' + id); 
+                const currentId = window.OneSignal.User.PushSubscription.id; 
+                if (currentId) { 
+                  alert('✅ SUCESSO! Seu ID é: ' + currentId); 
                   window.location.reload(); 
                 } else { 
-                  alert('O OneSignal processou, mas o ID continua vazio. Verifique se as notificações estão permitidas no Android.'); 
+                  const perm = Notification.permission; 
+                  alert('⚠️ O comando rodou, mas o ID continua vazio.\nPermissão no Chrome: ' + perm + '\nVerifique se o seu Android não bloqueou o Chrome de enviar notificações.'); 
                 } 
               } catch (err: any) { 
-                alert('ERRO TÉCNICO: ' + (err?.message || String(err))); 
-                console.error(err); 
+                alert('💥 ERRO NO CÓDIGO: ' + (err?.message || String(err))); 
               } 
             }} 
             style={{ background: '#16a34a', color: 'white', padding: '15px', borderRadius: '8px', fontWeight: 'bold' }} 
