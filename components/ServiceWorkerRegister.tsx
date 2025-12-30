@@ -14,9 +14,7 @@ export default function ServiceWorkerRegister() {
     if (typeof window === 'undefined') return
     if ('serviceWorker' in navigator) {
       const isProd = process.env.NODE_ENV === 'production'
-      if (isProd) {
-        navigator.serviceWorker.register('/sw.js').catch(() => {})
-      } else {
+      if (!isProd) {
         navigator.serviceWorker.getRegistrations()
           .then((regs) => Promise.all(regs.map((r) => r.unregister())))
           .catch(() => {})
@@ -25,6 +23,14 @@ export default function ServiceWorkerRegister() {
             keys.forEach((k) => caches.delete(k))
           }).catch(() => {})
         }
+      } else {
+        try {
+          navigator.serviceWorker.getRegistrations()
+            .then((regs) => {
+              try { window.alert('SW registrados: ' + regs.map((r) => r.scope).join(', ') ) } catch {}
+            })
+            .catch(() => {})
+        } catch {}
       }
     }
   }, [])
