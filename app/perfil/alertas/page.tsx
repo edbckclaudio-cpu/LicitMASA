@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 declare const OneSignal: any
+declare global { interface Window { OneSignal: any } }
 
 const UFS = ['AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MG','MS','MT','PA','PB','PE','PI','PR','RJ','RN','RO','RR','RS','SC','SE','SP','TO']
 
@@ -419,6 +420,36 @@ export default function AlertasPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <div style={{ background: '#fef3c7', padding: '20px', border: '4px solid #f59e0b', margin: '20px 0', zIndex: 9999 }}>
+        <h2 style={{ color: '#92400e', fontWeight: 'bold', marginBottom: '10px' }}>⚠️ FERRAMENTAS DE REPARO (EXCLUSIVO ANDROID)</h2>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <button 
+            onClick={async () => { 
+              const p = await window.Notification.requestPermission(); 
+              alert('Permissão do Navegador: ' + p); 
+            }} 
+            style={{ background: '#2563eb', color: 'white', padding: '15px', borderRadius: '8px', fontWeight: 'bold' }} 
+          > 
+            1. SOLICITAR PERMISSÃO (POP-UP) 
+          </button> 
+          
+          <button 
+            onClick={async () => { 
+              try { 
+                await window.OneSignal.User.PushSubscription.optIn(); 
+                const id = window.OneSignal.User.PushSubscription.id; 
+                alert(id ? 'SUCESSO! ID GERADO: ' + id : 'FALHA: ID AINDA VAZIO'); 
+                window.location.reload(); 
+              } catch (err) { 
+                alert('Erro no registro: ' + err); 
+              } 
+            }} 
+            style={{ background: '#16a34a', color: 'white', padding: '15px', borderRadius: '8px', fontWeight: 'bold' }} 
+          > 
+            2. GERAR ID DE ASSINATURA AGORA 
+          </button> 
+        </div> 
+      </div> 
       {initErrorTop && <div className="mx-auto max-w-5xl px-6 py-3"><div className="rounded-md border-2 border-red-300 bg-red-50 p-3 text-xl font-semibold text-red-800">{initErrorTop}</div></div>}
       <div className="px-6 py-2 text-xs text-gray-700">Debug ID: {String(process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || '')}</div>
       <header className="border-b bg-white">
