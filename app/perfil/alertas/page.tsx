@@ -436,33 +436,18 @@ export default function AlertasPage() {
           <button 
             onClick={async () => { 
               try { 
-                console.log('Iniciando diagnóstico do botão verde...'); 
-                
-                if (typeof window.OneSignal === 'undefined') { 
-                  alert('❌ ERRO: O objeto OneSignal não foi encontrado no navegador. O script principal pode ter falhado ao carregar.'); 
-                  return; 
-                } 
-                alert('🔍 SDK Detectado. Verificando inicialização...'); 
-                if (!window.OneSignal.initialized) { 
-                  alert('⚙️ OneSignal não estava iniciado. Iniciando agora...'); 
-                  await window.OneSignal.init({ 
-                    appId: '43f9ce9c-8d86-4076-a8b6-30dac8429149', 
-                    allowLocalhostAsSecureOrigin: true, 
-                    serviceWorkerPath: 'OneSignalSDKWorker.js' 
-                  }); 
-                } 
-                alert('🚀 Solicitando Opt-In (Criação de ID)...'); 
+                alert('O motor já está ligado. Gerando seu ID agora...'); 
                 await window.OneSignal.User.PushSubscription.optIn(); 
-                const currentId = window.OneSignal.User.PushSubscription.id; 
-                if (currentId) { 
-                  alert('✅ SUCESSO! Seu ID é: ' + currentId); 
+                const id = window.OneSignal.User.PushSubscription.id; 
+                if (id) { 
+                  alert('✅ VENCEMOS! Seu ID é: ' + id); 
                   window.location.reload(); 
                 } else { 
                   const perm = Notification.permission; 
-                  alert('⚠️ O comando rodou, mas o ID continua vazio.\nPermissão no Chrome: ' + perm + '\nVerifique se o seu Android não bloqueou o Chrome de enviar notificações.'); 
+                  alert('⚠️ O motor rodou, mas o ID não saiu.\nStatus da Permissão: ' + perm + '\n\nSe aqui disser \"granted\", clique em REPARAR VÍNCULO abaixo.'); 
                 } 
               } catch (err: any) { 
-                alert('💥 ERRO NO CÓDIGO: ' + (err?.message || String(err))); 
+                alert('Erro ao registrar: ' + (err?.message || String(err))); 
               } 
             }} 
             style={{ background: '#16a34a', color: 'white', padding: '15px', borderRadius: '8px', fontWeight: 'bold' }} 
