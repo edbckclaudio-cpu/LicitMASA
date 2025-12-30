@@ -57,6 +57,13 @@ export default function AlertasPage() {
         setMinValue(data.valor_minimo ? String(data.valor_minimo) : '')
         setAtivo(Boolean(data.ativo))
         setPushOn(Boolean(data.push_notificacao))
+        try {
+          if (supabase) {
+            const { data: tok } = await supabase.from('user_alerts').select('fcm_token').eq('user_id', user.id).limit(1).maybeSingle()
+            const t = String((tok as any)?.fcm_token || '')
+            if (t) setOsPlayerId(t)
+          }
+        } catch {}
       } else if (typeof window !== 'undefined') {
         try {
           const raw = window.localStorage.getItem(`user_alerts:${user.id}`) || ''
@@ -105,9 +112,18 @@ export default function AlertasPage() {
         setOsExternalId(ext ? String(ext) : null)
         try { pid = await OneSignal?.getUserId?.() } catch {}
         if (!pid) { try { pid = await OneSignal?.User?.getUserId?.() } catch {} }
-        if (!pid) { try { pid = OneSignal?.User?.pushSubscription?.id } catch {} }
+        if (!pid) { try { pid = OneSignal?.User?.PushSubscription?.id } catch {} }
         if (!pid) { try { pid = await OneSignal?.getSubscriptionId?.() } catch {} }
         setOsPlayerId(pid ? String(pid) : null)
+        if (!pid && userId) {
+          try {
+            if (supabase) {
+              const { data: tok } = await supabase.from('user_alerts').select('fcm_token').eq('user_id', userId).limit(1).maybeSingle()
+              const t = String((tok as any)?.fcm_token || '')
+              if (t) setOsPlayerId(t || null)
+            }
+          } catch {}
+        }
       } catch {}
     }
     loadOneSignalInfo()
@@ -144,11 +160,22 @@ export default function AlertasPage() {
         setTestLoading(false)
         return
       }
+      let playerIdToUse = osPlayerId || null
+      if (!playerIdToUse) {
+        try {
+          if (supabase) {
+            const { data: tok } = await supabase.from('user_alerts').select('fcm_token').eq('user_id', userId).limit(1).maybeSingle()
+            const t = String((tok as any)?.fcm_token || '')
+            if (t) playerIdToUse = t
+          }
+        } catch {}
+      }
       const res = await fetch('/api/notifications/onesignal-test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId,
+          playerId: playerIdToUse,
           title: 'Teste de Alerta',
           body: 'Notificação de teste via OneSignal',
         }),
@@ -219,6 +246,7 @@ export default function AlertasPage() {
       if (!afterPid) { try { afterPid = await OneSignal?.getSubscriptionId?.() } catch {} }
       setOsExternalId(afterExt ? String(afterExt) : null)
       setOsPlayerId(afterPid ? String(afterPid) : null)
+      try { if (supabase && userId && afterPid) await supabase.from('user_alerts').upsert({ user_id: userId, fcm_token: String(afterPid) }, { onConflict: 'user_id' }) } catch {}
       updatePermStatus()
       setUiMsg('Vínculo atualizado')
       try { setTimeout(() => { try { window.location.reload() } catch {} }, 2000) } catch {}
@@ -303,6 +331,7 @@ export default function AlertasPage() {
       await OneSignal.User.PushSubscription.optIn();
       const id = OneSignal.User.PushSubscription.id;
       alert('ID Gerado: ' + id);
+      try { if (supabase && userId && id) await supabase.from('user_alerts').upsert({ user_id: userId, fcm_token: String(id) }, { onConflict: 'user_id' }) } catch {}
     } catch (e: any) {
       alert('Erro ao gerar: ' + e.message);
     }
@@ -312,6 +341,7 @@ export default function AlertasPage() {
       await OneSignal.User.PushSubscription.optOut();
       await OneSignal.User.PushSubscription.optIn();
       alert('ID Gerado: ' + OneSignal.User.PushSubscription.id);
+      try { if (supabase && userId && OneSignal.User.PushSubscription.id) await supabase.from('user_alerts').upsert({ user_id: userId, fcm_token: String(OneSignal.User.PushSubscription.id) }, { onConflict: 'user_id' }) } catch {}
     } catch (e: any) {
       alert('Erro ao registrar: ' + e.message);
     }
@@ -440,6 +470,7 @@ export default function AlertasPage() {
                 await window.OneSignal.User.PushSubscription.optIn(); 
                 const id = window.OneSignal.User.PushSubscription.id; 
                 if (id) { 
+                  try { if (userId) await window.OneSignal.login(userId) } catch {} 
                   alert('✅ VENCEMOS! Seu ID é: ' + id); 
                   window.location.reload(); 
                 } else { 

@@ -1,15 +1,32 @@
 import { NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
+
+function admin() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+  if (!url || !key) return null
+  return createClient(url, key)
+}
 
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({} as any))
     const userId = String(body.userId || '').trim()
+    const playerId = String(body.playerId || '').trim()
     const title = String(body.title || 'Teste de Alerta').trim()
     const message = String(body.body || 'Notificação de teste via OneSignal').trim()
     const appId = process.env.ONESIGNAL_APP_ID || ''
     const apiKey = process.env.ONESIGNAL_API_KEY || ''
-    if (!appId || !apiKey || !userId) {
+    if (!appId || !apiKey || (!userId && !playerId)) {
       return NextResponse.json({ ok: false, error: 'MISSING_CONFIG_OR_USER' }, { status: 400 })
+    }
+    if (userId && playerId) {
+      try {
+        const supa = admin()
+        if (supa) {
+          await supa.from('user_alerts').upsert({ user_id: userId, fcm_token: playerId }, { onConflict: 'user_id' })
+        }
+      } catch {}
     }
     const res = await fetch('https://api.onesignal.com/notifications', {
       method: 'POST',
@@ -19,7 +36,7 @@ export async function POST(req: Request) {
       },
       body: JSON.stringify({
         app_id: appId,
-        include_external_user_ids: [userId],
+        ...(playerId ? { include_subscription_ids: [playerId] } : { include_external_user_ids: [userId] }),
         headings: { en: title },
         contents: { en: message },
       }),
