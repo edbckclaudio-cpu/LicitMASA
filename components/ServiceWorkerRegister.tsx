@@ -35,7 +35,7 @@ export default function ServiceWorkerRegister() {
     OneSignal.push(function() {
       try { window.alert('1. Carregando SDK...') } catch {}
       try {
-        const APP_ID = (typeof window !== 'undefined' ? String((window as any).ONESIGNAL_APP_ID || '') : '') || String(process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || '')
+        const APP_ID = '43f9ce9c-8d86-4076-a8b6-30dac8429149'
         try { window.alert('2. ID sendo usado: ' + APP_ID) } catch {}
         const p = OneSignal.init({
           appId: APP_ID,
@@ -54,6 +54,7 @@ export default function ServiceWorkerRegister() {
             } catch {}
             try { (window as any).__ONE_SIGNAL_INIT_ERROR = reason } catch {}
             try { window.alert('3. Resultado do Init: ' + reason) } catch {}
+            try { window.alert('Erro OneSignal: ' + String(e?.message || e)) } catch {}
           })
       } catch (e: any) {
         const msg = String(e?.message || e)
@@ -64,6 +65,7 @@ export default function ServiceWorkerRegister() {
         } catch {}
         try { (window as any).__ONE_SIGNAL_INIT_ERROR = reason } catch {}
         try { window.alert('3. Resultado do Init: ' + reason) } catch {}
+        try { window.alert('Erro OneSignal: ' + String(e?.message || e)) } catch {}
       }
       try { OneSignal.Notifications.requestPermission() } catch {}
     })

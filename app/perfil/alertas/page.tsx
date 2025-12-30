@@ -306,6 +306,14 @@ export default function AlertasPage() {
       alert('Erro ao gerar: ' + e.message);
     }
   }
+  async function registerAndroidNow() {
+    try {
+      await OneSignal.User.PushSubscription.optIn();
+      alert('Registro solicitado. Verifique se o ID aparece após alguns segundos.');
+    } catch (e: any) {
+      alert('Erro ao registrar: ' + e.message);
+    }
+  }
   function testSdkLoad() {
     try {
       const fn = typeof window !== 'undefined' ? (window as any).verificarOneSignal : null
@@ -476,6 +484,9 @@ export default function AlertasPage() {
                         </Button>
                         <Button onClick={forceGenerateIdNow} className="bg-indigo-700 text-white hover:bg-indigo-800">
                           [FORÇAR GERAÇÃO DE ID AGORA]
+                        </Button>
+                        <Button onClick={registerAndroidNow} className="bg-green-700 text-white hover:bg-green-800">
+                          [REGISTRAR MEU ANDROID AGORA]
                         </Button>
                       </div>
                     </div>
