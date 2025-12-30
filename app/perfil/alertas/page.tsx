@@ -49,6 +49,12 @@ export default function AlertasPage() {
       const email = String(user.email || '').toLowerCase()
       const premium = Boolean(prof?.is_premium) || String(prof?.plan || '').toLowerCase() === 'premium' || allow.includes(email)
       setIsPremium(premium)
+      try {
+        const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
+        if (OneSignal) {
+          await OneSignal?.login?.(user.id)
+        }
+      } catch {}
       const { data, error: uaErr } = await supabase.from('user_alerts').select('id,keywords,ufs,valor_minimo,push_notificacao,ativo').eq('user_id', user.id).limit(1).maybeSingle()
       if (data) {
         setSavedId(String(data.id))
@@ -247,6 +253,7 @@ export default function AlertasPage() {
       setOsExternalId(afterExt ? String(afterExt) : null)
       setOsPlayerId(afterPid ? String(afterPid) : null)
       try { if (supabase && userId && afterPid) await supabase.from('user_alerts').upsert({ user_id: userId, fcm_token: String(afterPid) }, { onConflict: 'user_id' }) } catch {}
+      try { if (supabase && userId && afterPid) await supabase.from('profiles').update({ onesignal_id: String(afterPid) }).eq('id', userId) } catch {}
       updatePermStatus()
       setUiMsg('Vínculo atualizado')
       try { setTimeout(() => { try { window.location.reload() } catch {} }, 2000) } catch {}
@@ -332,6 +339,7 @@ export default function AlertasPage() {
       const id = OneSignal.User.PushSubscription.id;
       alert('ID Gerado: ' + id);
       try { if (supabase && userId && id) await supabase.from('user_alerts').upsert({ user_id: userId, fcm_token: String(id) }, { onConflict: 'user_id' }) } catch {}
+      try { if (supabase && userId && id) await supabase.from('profiles').update({ onesignal_id: String(id) }).eq('id', userId) } catch {}
     } catch (e: any) {
       alert('Erro ao gerar: ' + e.message);
     }
@@ -342,6 +350,7 @@ export default function AlertasPage() {
       await OneSignal.User.PushSubscription.optIn();
       alert('ID Gerado: ' + OneSignal.User.PushSubscription.id);
       try { if (supabase && userId && OneSignal.User.PushSubscription.id) await supabase.from('user_alerts').upsert({ user_id: userId, fcm_token: String(OneSignal.User.PushSubscription.id) }, { onConflict: 'user_id' }) } catch {}
+      try { if (supabase && userId && OneSignal.User.PushSubscription.id) await supabase.from('profiles').update({ onesignal_id: String(OneSignal.User.PushSubscription.id) }).eq('id', userId) } catch {}
     } catch (e: any) {
       alert('Erro ao registrar: ' + e.message);
     }
@@ -471,6 +480,7 @@ export default function AlertasPage() {
                 const id = window.OneSignal.User.PushSubscription.id; 
                 if (id) { 
                   try { if (userId) await window.OneSignal.login(userId) } catch {} 
+                  try { if (supabase && userId) await supabase.from('profiles').update({ onesignal_id: String(id) }).eq('id', userId) } catch {}
                   alert('✅ VENCEMOS! Seu ID é: ' + id); 
                   window.location.reload(); 
                 } else { 

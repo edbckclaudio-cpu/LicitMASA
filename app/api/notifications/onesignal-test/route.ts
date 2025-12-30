@@ -1,12 +1,4 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-function admin() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
-  if (!url || !key) return null
-  return createClient(url, key)
-}
 
 export async function POST(req: Request) {
   try {
@@ -19,14 +11,6 @@ export async function POST(req: Request) {
     const apiKey = process.env.ONESIGNAL_API_KEY || ''
     if (!appId || !apiKey || (!userId && !playerId)) {
       return NextResponse.json({ ok: false, error: 'MISSING_CONFIG_OR_USER' }, { status: 400 })
-    }
-    if (userId && playerId) {
-      try {
-        const supa = admin()
-        if (supa) {
-          await supa.from('user_alerts').upsert({ user_id: userId, fcm_token: playerId }, { onConflict: 'user_id' })
-        }
-      } catch {}
     }
     const res = await fetch('https://api.onesignal.com/notifications', {
       method: 'POST',
