@@ -435,13 +435,32 @@ export default function AlertasPage() {
           
           <button 
             onClick={async () => { 
+              console.log('Botão clicado'); 
               try { 
+                if (typeof window.OneSignal === 'undefined') { 
+                  alert('ERRO: O SDK do OneSignal não foi carregado pelo navegador. Verifique se o script está no <head>.'); 
+                  return; 
+                } 
+                
+                alert('Tentando registrar... (Aguarde)'); 
+                
+                if (!window.OneSignal.initialized) { 
+                   await window.OneSignal.init({ 
+                     appId: '43f9ce9c-8d86-4076-a8b6-30dac8429149', 
+                     allowLocalhostAsSecureOrigin: true 
+                   }); 
+                } 
                 await window.OneSignal.User.PushSubscription.optIn(); 
                 const id = window.OneSignal.User.PushSubscription.id; 
-                alert(id ? 'SUCESSO! ID GERADO: ' + id : 'FALHA: ID AINDA VAZIO'); 
-                window.location.reload(); 
-              } catch (err) { 
-                alert('Erro no registro: ' + err); 
+                if (id) { 
+                  alert('VITÓRIA! ID Gerado: ' + id); 
+                  window.location.reload(); 
+                } else { 
+                  alert('O OneSignal processou, mas o ID continua vazio. Verifique se as notificações estão permitidas no Android.'); 
+                } 
+              } catch (err: any) { 
+                alert('ERRO TÉCNICO: ' + (err?.message || String(err))); 
+                console.error(err); 
               } 
             }} 
             style={{ background: '#16a34a', color: 'white', padding: '15px', borderRadius: '8px', fontWeight: 'bold' }} 
