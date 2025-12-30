@@ -286,7 +286,13 @@ export default function AlertasPage() {
       if (res.ok) {
         setUiMsg('Notificação enviada')
       } else {
-        setUiMsg('Falha ao enviar notificação')
+        try {
+          const err = await res.clone().json()
+          const msg = typeof err?.error === 'string' ? err.error : JSON.stringify(err?.error || err)
+          setUiMsg('Falha ao enviar: ' + msg)
+        } catch {
+          setUiMsg('Falha ao enviar notificação')
+        }
       }
     } catch {
       setUiMsg('Falha ao enviar notificação')
