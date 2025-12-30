@@ -33,16 +33,18 @@ export default function ServiceWorkerRegister() {
     const OneSignal = (window as any).OneSignal || []
     ;(window as any).OneSignal = OneSignal
     OneSignal.push(function() {
-      try { window.alert('Iniciando OneSignal...') } catch {}
+      try { window.alert('1. Carregando SDK...') } catch {}
       try {
         const APP_ID = (typeof window !== 'undefined' ? String((window as any).ONESIGNAL_APP_ID || '') : '') || String(process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || '')
+        try { window.alert('2. ID sendo usado: ' + APP_ID) } catch {}
         const p = OneSignal.init({
           appId: APP_ID,
           serviceWorkerPath: 'OneSignalSDKWorker.js',
+          serviceWorkerParam: { scope: '/' },
           allowLocalhostAsSecureOrigin: true,
         })
         Promise.resolve(p)
-          .then(() => { try { window.alert('OneSignal Iniciado com Sucesso!') } catch {} })
+          .then((res: any) => { try { window.alert('3. Resultado do Init: ' + String(res ?? 'ok')) } catch {} })
           .catch((e: any) => {
             const msg = String(e?.message || e)
             let reason = msg
@@ -51,7 +53,7 @@ export default function ServiceWorkerRegister() {
               else if (/service.*worker.*(not|missing|fail)/i.test(msg)) reason = 'Service Worker não encontrado'
             } catch {}
             try { (window as any).__ONE_SIGNAL_INIT_ERROR = reason } catch {}
-            try { window.alert('Erro OneSignal: ' + reason) } catch {}
+            try { window.alert('3. Resultado do Init: ' + reason) } catch {}
           })
       } catch (e: any) {
         const msg = String(e?.message || e)
@@ -61,7 +63,7 @@ export default function ServiceWorkerRegister() {
           else if (/service.*worker.*(not|missing|fail)/i.test(msg)) reason = 'Service Worker não encontrado'
         } catch {}
         try { (window as any).__ONE_SIGNAL_INIT_ERROR = reason } catch {}
-        try { window.alert('Erro OneSignal: ' + reason) } catch {}
+        try { window.alert('3. Resultado do Init: ' + reason) } catch {}
       }
       try { OneSignal.Notifications.requestPermission() } catch {}
     })

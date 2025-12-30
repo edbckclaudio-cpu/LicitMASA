@@ -297,6 +297,15 @@ export default function AlertasPage() {
       window.location.reload();
     }
   }
+  async function forceGenerateIdNow() {
+    try {
+      await OneSignal.User.PushSubscription.optIn();
+      const id = OneSignal.User.PushSubscription.id;
+      alert('ID Gerado: ' + id);
+    } catch (e: any) {
+      alert('Erro ao gerar: ' + e.message);
+    }
+  }
   function testSdkLoad() {
     try {
       const fn = typeof window !== 'undefined' ? (window as any).verificarOneSignal : null
@@ -464,6 +473,9 @@ export default function AlertasPage() {
                         </Button>
                         <Button onClick={forceNativePermission} className="bg-orange-600 text-white hover:bg-orange-700">
                           [FORÇAR DIÁLOGO DE PERMISSÃO]
+                        </Button>
+                        <Button onClick={forceGenerateIdNow} className="bg-indigo-700 text-white hover:bg-indigo-800">
+                          [FORÇAR GERAÇÃO DE ID AGORA]
                         </Button>
                       </div>
                     </div>
