@@ -308,8 +308,9 @@ export default function AlertasPage() {
   }
   async function registerAndroidNow() {
     try {
-      await OneSignal.User.PushSubscription.optIn();
-      alert('Registro solicitado. Verifique se o ID aparece após alguns segundos.');
+      await OneSignal.Notifications.requestPermission()
+      await OneSignal.User.PushSubscription.optIn()
+      alert('Status após opt-in: ' + String(OneSignal.User.PushSubscription.optedIn))
     } catch (e: any) {
       alert('Erro ao registrar: ' + e.message);
     }
