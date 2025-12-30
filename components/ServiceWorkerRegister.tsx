@@ -37,16 +37,6 @@ export default function ServiceWorkerRegister() {
           allowLocalhostAsSecureOrigin: true,
           serviceWorkerPath: 'OneSignalSDKWorker.js'
         })
-        try {
-          OneSignal.User.PushSubscription.addEventListener('change', (event: any) => {
-            try {
-              if (event?.current?.id) {
-                alert('Novo ID Gerado: ' + String(event.current.id))
-                window.location.reload()
-              }
-            } catch {}
-          })
-        } catch {}
       } catch {}
     })
     supabase?.auth.getUser().then((ud) => {
