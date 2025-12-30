@@ -545,14 +545,15 @@ export default function AlertasPage() {
   async function forceLinkAccountNow() {
     try {
       const uid = userId
-      if (!uid) throw new Error('Usuário não logado no sistema')
-      alert('Iniciando login no OneSignal para o ID: ' + uid)
-      await window.OneSignal.login(uid)
-      const externalId = await window.OneSignal.User.getExternalId()
-      alert('Vínculo concluído! External ID atual: ' + externalId)
+      if (!uid) { alert('Usuário não logado'); return }
+      alert('Vinculando ID: ' + uid)
+      await (window as any).OneSignal.login(uid)
+      await new Promise((r) => setTimeout(r, 1000))
+      const currentExternalId = (window as any).OneSignal?.User?.externalId
+      alert('Vínculo processado! ID no OneSignal: ' + String(currentExternalId))
       window.location.reload()
     } catch (err: any) {
-      alert('Erro no vínculo: ' + (err?.message || String(err)))
+      alert('Erro técnico: ' + (err?.message || String(err)))
     }
   }
 
