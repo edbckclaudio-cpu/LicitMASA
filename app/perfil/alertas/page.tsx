@@ -18,6 +18,7 @@ export default function AlertasPage() {
   const [error, setError] = useState<string | null>(null)
   const [isPremium, setIsPremium] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
+  const [appIdCfg, setAppIdCfg] = useState<string | null>(null)
   const [keywordsInput, setKeywordsInput] = useState('')
   const [keywords, setKeywords] = useState<string[]>([])
   const [ufs, setUfs] = useState<string[]>([])
@@ -34,6 +35,8 @@ export default function AlertasPage() {
   const [osExternalId, setOsExternalId] = useState<string | null>(null)
   const [osPlayerId, setOsPlayerId] = useState<string | null>(null)
   const [initErrorTop, setInitErrorTop] = useState<string | null>(null)
+  const [swStatus, setSwStatus] = useState<string | null>(null)
+  const [auditLog, setAuditLog] = useState<string[]>([])
 
   useEffect(() => {
     async function init() {
@@ -144,12 +147,88 @@ export default function AlertasPage() {
       const nav: any = typeof navigator !== 'undefined' ? navigator : null
       if (nav?.serviceWorker?.getRegistrations) {
         nav.serviceWorker.getRegistrations().then((regs: any) => {
-          try { console.log('ServiceWorker registrations:', regs) } catch {}
+          try {
+            const tgt = (regs || []).find((r: any) => {
+              try { return String(r?.active?.scriptURL || '').includes('OneSignalSDKWorker.js') } catch { return false }
+            })
+            const st = tgt?.active?.state ? String(tgt.active.state) : (tgt ? 'installed' : 'none')
+            setSwStatus(st || null)
+          } catch {}
         }).catch((e: any) => {
-          try { console.error('ServiceWorker check error:', e) } catch {}
+          try {
+            setSwStatus('error')
+          } catch {}
         })
       }
     } catch {}
+    try {
+      const id = (typeof window !== 'undefined' ? (window as any).ONESIGNAL_APP_ID : undefined) || process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || null
+      setAppIdCfg(id ? String(id) : null)
+    } catch { setAppIdCfg(null) }
+    try {
+      const origErr = console.error
+      const origWarn = console.warn
+      ;(console as any).__origErr = origErr
+      ;(console as any).__origWarn = origWarn
+      console.error = function(...args: any[]) {
+        try {
+          const msg = args.map((a: any) => (typeof a === 'string' ? a : (a?.message || JSON.stringify(a)))).join(' ')
+          if (/onesignal/i.test(msg)) setAuditLog((prev) => [...prev.slice(-99), `[error] ${new Date().toISOString()} ${msg}`])
+        } catch {}
+        try { origErr.apply(console, args) } catch {}
+      }
+      console.warn = function(...args: any[]) {
+        try {
+          const msg = args.map((a: any) => (typeof a === 'string' ? a : (a?.message || JSON.stringify(a)))).join(' ')
+          if (/onesignal/i.test(msg)) setAuditLog((prev) => [...prev.slice(-99), `[warn] ${new Date().toISOString()} ${msg}`])
+        } catch {}
+        try { origWarn.apply(console, args) } catch {}
+      }
+      window.addEventListener('error', (ev: any) => {
+        try {
+          const m = String(ev?.message || '')
+          if (/onesignal/i.test(m)) setAuditLog((prev) => [...prev.slice(-99), `[error] ${new Date().toISOString()} ${m}`])
+        } catch {}
+      })
+      window.addEventListener('unhandledrejection', (ev: any) => {
+        try {
+          const m = String(ev?.reason?.message || ev?.reason || '')
+          if (/onesignal/i.test(m)) setAuditLog((prev) => [...prev.slice(-99), `[reject] ${new Date().toISOString()} ${m}`])
+        } catch {}
+      })
+    } catch {}
+    const int = setInterval(() => {
+      try {
+        const p = typeof Notification !== 'undefined' ? Notification.permission : undefined
+        setPermWeb(p || null)
+      } catch {}
+      try {
+        const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
+        const p = OneSignal?.Notifications?.permission
+        setPermOS(p || null)
+      } catch {}
+      try {
+        const nav: any = typeof navigator !== 'undefined' ? navigator : null
+        if (nav?.serviceWorker?.getRegistrations) {
+          nav.serviceWorker.getRegistrations().then((regs: any) => {
+            try {
+              const tgt = (regs || []).find((r: any) => {
+                try { return String(r?.active?.scriptURL || '').includes('OneSignalSDKWorker.js') } catch { return false }
+              })
+              const st = tgt?.active?.state ? String(tgt.active.state) : (tgt ? 'installed' : 'none')
+              setSwStatus(st || null)
+            } catch {}
+          }).catch(() => {})
+        }
+      } catch {}
+    }, 3000)
+    return () => { try {
+      clearInterval(int)
+      const origErr = (console as any).__origErr
+      const origWarn = (console as any).__origWarn
+      if (origErr) console.error = origErr
+      if (origWarn) console.warn = origWarn
+    } catch {} }
   }, [])
 
   async function sendTestNotification() {
@@ -449,6 +528,20 @@ export default function AlertasPage() {
       setError('Falha ao vincular External ID')
     }
   }
+  async function forceSyncUserTypeTest() {
+    try {
+      setUiMsg(null)
+      setError(null)
+      const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
+      if (!OneSignal) { setError('OneSignal não carregado'); return }
+      if (!userId) { setError('Entre para sincronizar'); return }
+      await OneSignal?.login?.(userId)
+      await OneSignal?.User?.addTag?.('user_type', 'test')
+      setUiMsg('Sincronização forçada executada')
+    } catch {
+      setError('Falha na sincronização forçada')
+    }
+  }
 
   function addKeywordFromInput() {
     const parts = keywordsInput.split(/[,\s]+/).map((s) => s.trim()).filter(Boolean)
@@ -662,7 +755,22 @@ export default function AlertasPage() {
                     <Button onClick={resetTechnical} className="ml-2 bg-red-600 text-white hover:bg-red-700">Limpar Registros Técnicos (Reset)</Button>
                     <Button onClick={displayInternalNotification} className="ml-2 bg-green-700 text-white hover:bg-green-800">Exibir Notificação Interna</Button>
                     <Button onClick={linkExternalIdNow} className="ml-2 bg-indigo-700 text-white hover:bg-indigo-800">Vincular External ID</Button>
+                    <Button onClick={forceSyncUserTypeTest} className="ml-2 bg-purple-700 text-white hover:bg-purple-800">Sincronização Forçada</Button>
                   </div>
+                </div>
+                <div className="mt-4 rounded-md border border-slate-200 bg-white p-3 text-xs text-gray-800">
+                  <div className="font-semibold mb-1">Audit Log</div>
+                  <pre className="whitespace-pre-wrap text-[11px] leading-4">{[
+                    `App ID Configurado: ${String(appIdCfg || '—')}`,
+                    `User ID (Supabase): ${String(userId || '—')}`,
+                    `OneSignal Subscription ID: ${String(osPlayerId || '—')}`,
+                    `OneSignal External ID: ${String(osExternalId || '—')}`,
+                    `Notification.permission: ${String(permWeb || '—')}`,
+                    `ServiceWorker Status: ${String(swStatus || '—')}`,
+                    '',
+                    'Log de Eventos:',
+                    ...(auditLog.length ? auditLog : ['—'])
+                  ].join('\n')}</pre>
                 </div>
                 {showHelp && (
                   <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
