@@ -250,6 +250,15 @@ export default function AlertasPage() {
       if (!playerIdToUse) {
         try {
           if (supabase) {
+            const { data: prof } = await supabase.from('profiles').select('onesignal_id').eq('id', userId).limit(1).maybeSingle()
+            const p = String((prof as any)?.onesignal_id || '')
+            if (p) playerIdToUse = p
+          }
+        } catch {}
+      }
+      if (!playerIdToUse) {
+        try {
+          if (supabase) {
             const { data: tok } = await supabase.from('user_alerts').select('fcm_token').eq('user_id', userId).limit(1).maybeSingle()
             const t = String((tok as any)?.fcm_token || '')
             if (t) playerIdToUse = t
@@ -277,6 +286,9 @@ export default function AlertasPage() {
     } finally {
       setTestLoading(false)
     }
+  }
+  async function saveSubscriptionIdToProfile(id: string) {
+    try { if (supabase && userId && id) await supabase.from('profiles').update({ onesignal_id: String(id) }).eq('id', userId) } catch {}
   }
   async function resetTechnical() {
     try {
@@ -333,7 +345,7 @@ export default function AlertasPage() {
       setOsExternalId(afterExt ? String(afterExt) : null)
       setOsPlayerId(afterPid ? String(afterPid) : null)
       try { if (supabase && userId && afterPid) await supabase.from('user_alerts').upsert({ user_id: userId, fcm_token: String(afterPid) }, { onConflict: 'user_id' }) } catch {}
-      try { if (supabase && userId && afterPid) await supabase.from('profiles').update({ onesignal_id: String(afterPid) }).eq('id', userId) } catch {}
+      await saveSubscriptionIdToProfile(String(afterPid || ''))
       updatePermStatus()
       setUiMsg('Vínculo atualizado')
       try { setTimeout(() => { try { window.location.reload() } catch {} }, 2000) } catch {}
@@ -409,28 +421,30 @@ export default function AlertasPage() {
     const permission = await window.Notification.requestPermission();
     alert('Resultado da permissão: ' + permission);
     if (permission === 'granted') {
-      await OneSignal.Notifications.requestPermission();
+      await (window as any).OneSignal?.Notifications?.requestPermission?.();
       window.location.reload();
     }
   }
   async function forceGenerateIdNow() {
     try {
-      await OneSignal.User.PushSubscription.optIn();
-      const id = OneSignal.User.PushSubscription.id;
+      alert('Meu ID no banco é: ' + String(userId || 'undefined'))
+      await (window as any).OneSignal?.User?.PushSubscription?.optIn?.();
+      const id = (window as any).OneSignal?.User?.PushSubscription?.id;
       alert('ID Gerado: ' + id);
       try { if (supabase && userId && id) await supabase.from('user_alerts').upsert({ user_id: userId, fcm_token: String(id) }, { onConflict: 'user_id' }) } catch {}
-      try { if (supabase && userId && id) await supabase.from('profiles').update({ onesignal_id: String(id) }).eq('id', userId) } catch {}
+      await saveSubscriptionIdToProfile(String(id || ''))
     } catch (e: any) {
       alert('Erro ao gerar: ' + e.message);
     }
   }
   async function registerAndroidNow() {
     try {
-      await OneSignal.User.PushSubscription.optOut();
-      await OneSignal.User.PushSubscription.optIn();
-      alert('ID Gerado: ' + OneSignal.User.PushSubscription.id);
-      try { if (supabase && userId && OneSignal.User.PushSubscription.id) await supabase.from('user_alerts').upsert({ user_id: userId, fcm_token: String(OneSignal.User.PushSubscription.id) }, { onConflict: 'user_id' }) } catch {}
-      try { if (supabase && userId && OneSignal.User.PushSubscription.id) await supabase.from('profiles').update({ onesignal_id: String(OneSignal.User.PushSubscription.id) }).eq('id', userId) } catch {}
+      alert('Meu ID no banco é: ' + String(userId || 'undefined'))
+      await (window as any).OneSignal?.User?.PushSubscription?.optOut?.();
+      await (window as any).OneSignal?.User?.PushSubscription?.optIn?.();
+      alert('ID Gerado: ' + String((window as any).OneSignal?.User?.PushSubscription?.id || ''));
+      try { if (supabase && userId && (window as any).OneSignal?.User?.PushSubscription?.id) await supabase.from('user_alerts').upsert({ user_id: userId, fcm_token: String((window as any).OneSignal?.User?.PushSubscription?.id) }, { onConflict: 'user_id' }) } catch {}
+      await saveSubscriptionIdToProfile(String((window as any).OneSignal?.User?.PushSubscription?.id || ''))
     } catch (e: any) {
       alert('Erro ao registrar: ' + e.message);
     }
@@ -500,7 +514,7 @@ export default function AlertasPage() {
       setError(null)
       const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
       if (!OneSignal) { setError('OneSignal não carregado'); return }
-      await OneSignal?.Notifications?.displayNotification?.({
+      await (window as any).OneSignal?.Notifications?.displayNotification?.({
         title: 'Teste Interno',
         body: 'Se você vir isso, o motor do celular está OK!',
         icon: '/icons/icone_L_192.png'
@@ -517,11 +531,11 @@ export default function AlertasPage() {
       const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
       if (!OneSignal) { setError('OneSignal não carregado'); return }
       if (!userId) { setError('Entre para vincular'); return }
-      await OneSignal?.login?.(userId)
-      await OneSignal?.setExternalUserId?.(userId)
+      await (window as any).OneSignal?.login?.(userId)
+      await (window as any).OneSignal?.setExternalUserId?.(userId)
       let ext: any = null
-      try { ext = await OneSignal?.User?.getExternalId?.() } catch {}
-      if (!ext) { try { ext = await OneSignal?.getExternalUserId?.() } catch {} }
+      try { ext = await (window as any).OneSignal?.User?.getExternalId?.() } catch {}
+      if (!ext) { try { ext = await (window as any).OneSignal?.getExternalUserId?.() } catch {} }
       setOsExternalId(ext ? String(ext) : null)
       setUiMsg('External ID vinculado')
     } catch {
@@ -535,8 +549,8 @@ export default function AlertasPage() {
       const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
       if (!OneSignal) { setError('OneSignal não carregado'); return }
       if (!userId) { setError('Entre para sincronizar'); return }
-      await OneSignal?.login?.(userId)
-      await OneSignal?.User?.addTag?.('user_type', 'test')
+      await (window as any).OneSignal?.login?.(userId)
+      await (window as any).OneSignal?.User?.addTag?.('user_type', 'test')
       setUiMsg('Sincronização forçada executada')
     } catch {
       setError('Falha na sincronização forçada')
@@ -545,11 +559,24 @@ export default function AlertasPage() {
   async function forceLinkAccountNow() {
     try {
       const uid = userId
-      if (!uid) { alert('Usuário não logado'); return }
-      alert('Vinculando ID: ' + uid)
-      await (window as any).OneSignal.login(uid)
+      alert('Meu ID no banco é: ' + String(uid || 'undefined'))
+      const userIdToUse = uid || 'ID_MANUAL_TESTE'
+      alert('Vinculando ID: ' + userIdToUse)
+      await (window as any).OneSignal.login(userIdToUse)
+      try {
+        if (supabase) {
+          const { data: userData } = await supabase.auth.getUser()
+          const email = String(userData?.user?.email || '')
+          await (window as any).OneSignal?.User?.addTag?.('user_id', userIdToUse)
+          if (email) await (window as any).OneSignal?.User?.addTag?.('email', email)
+        }
+      } catch {}
       await new Promise((r) => setTimeout(r, 1000))
       const currentExternalId = (window as any).OneSignal?.User?.externalId
+      try {
+        const subId = (window as any).OneSignal?.User?.PushSubscription?.id
+        if (subId) await saveSubscriptionIdToProfile(String(subId))
+      } catch {}
       alert('Vínculo processado! ID no OneSignal: ' + String(currentExternalId))
       window.location.reload()
     } catch (err: any) {
