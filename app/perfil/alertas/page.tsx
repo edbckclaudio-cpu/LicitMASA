@@ -199,7 +199,7 @@ export default function AlertasPage() {
         const pid = (() => {
           try { return OneSignal?.User?.PushSubscription?.id || null } catch { return null }
         })()
-        alert('Permission: ' + String(perm) + ' | ID: ' + String(pid || '—'))
+        if (pid) alert('ID Gerado: ' + String(pid))
       } catch {}
       let beforeExt: any = null
       try { beforeExt = await OneSignal?.User?.getExternalId?.() } catch {}
