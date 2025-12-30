@@ -61,6 +61,15 @@ export default function ServiceWorkerRegister() {
             try { (window as any).__ONE_SIGNAL_INIT_ERROR = reason } catch {}
             try { window.alert('3. Resultado do Init: ' + reason) } catch {}
             try { window.alert('Erro OneSignal: ' + String(e?.message || e)) } catch {}
+            try {
+              const m = String(reason).match(/https?:\/\/[^\s]+/i)
+              const target = m ? m[0].replace(/\/+$/,'') : ''
+              const current = typeof window !== 'undefined' ? String(window.location.origin).replace(/\/+$/,'') : ''
+              if (target && current && target !== current) {
+                const path = typeof window !== 'undefined' ? (String(window.location.pathname || '') + String(window.location.search || '')) : ''
+                window.location.href = target + path
+              }
+            } catch {}
           })
       } catch (e: any) {
         const msg = String(e?.message || e)
@@ -72,6 +81,15 @@ export default function ServiceWorkerRegister() {
         try { (window as any).__ONE_SIGNAL_INIT_ERROR = reason } catch {}
         try { window.alert('3. Resultado do Init: ' + reason) } catch {}
         try { window.alert('Erro OneSignal: ' + String(e?.message || e)) } catch {}
+        try {
+          const m = String(reason).match(/https?:\/\/[^\s]+/i)
+          const target = m ? m[0].replace(/\/+$/,'') : ''
+          const current = typeof window !== 'undefined' ? String(window.location.origin).replace(/\/+$/,'') : ''
+          if (target && current && target !== current) {
+            const path = typeof window !== 'undefined' ? (String(window.location.pathname || '') + String(window.location.search || '')) : ''
+            window.location.href = target + path
+          }
+        } catch {}
       }
       try { OneSignal.Notifications.requestPermission() } catch {}
     })
