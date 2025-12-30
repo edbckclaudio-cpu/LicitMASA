@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+declare const OneSignal: any
 
 const UFS = ['AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MG','MS','MT','PA','PB','PE','PI','PR','RJ','RN','RO','RR','RS','SC','SE','SP','TO']
 
@@ -288,6 +289,14 @@ export default function AlertasPage() {
       setError('Falha ao solicitar permissão')
     }
   }
+  async function forceNativePermission() {
+    const permission = await window.Notification.requestPermission();
+    alert('Resultado da permissão: ' + permission);
+    if (permission === 'granted') {
+      await OneSignal.Notifications.requestPermission();
+      window.location.reload();
+    }
+  }
   function testSdkLoad() {
     try {
       const fn = typeof window !== 'undefined' ? (window as any).verificarOneSignal : null
@@ -452,6 +461,9 @@ export default function AlertasPage() {
                         </Button>
                         <Button onClick={resetAndRequestPermission} className="bg-gray-200 text-gray-900 hover:bg-gray-300">
                           Resetar e Pedir Permissão Novamente
+                        </Button>
+                        <Button onClick={forceNativePermission} className="bg-orange-600 text-white hover:bg-orange-700">
+                          [FORÇAR DIÁLOGO DE PERMISSÃO]
                         </Button>
                       </div>
                     </div>
