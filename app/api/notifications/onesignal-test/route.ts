@@ -3,25 +3,29 @@ import { NextResponse } from 'next/server'
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({} as any))
+    const externalId = String(body.externalId || '').trim()
     const userId = String(body.userId || '').trim()
     const playerId = String(body.playerId || '').trim()
     const title = String(body.title || 'Teste de Alerta').trim()
     const message = String(body.body || 'Notificação de teste via OneSignal').trim()
     const appId = process.env.ONESIGNAL_APP_ID || ''
-  const apiKey = process.env.ONESIGNAL_API_KEY || ''
-  if (!appId || !apiKey || (!userId && !playerId)) {
-    return NextResponse.json({ ok: false, error: 'MISSING_CONFIG_OR_USER' }, { status: 400 })
-  }
-  try { console.log('[OneSignal Test] target', playerId ? { subscription_id: playerId } : { external_user_id: userId }) } catch {}
-  const res = await fetch('https://api.onesignal.com/notifications', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Basic ${apiKey}`,
-      'Content-Type': 'application/json',
+    const apiKey = process.env.ONESIGNAL_API_KEY || process.env.ONESIGNAL_REST_API_KEY || ''
+    if (!appId || !apiKey || (!externalId && !userId && !playerId)) {
+      return NextResponse.json({ ok: false, error: 'MISSING_CONFIG_OR_USER' }, { status: 400 })
+    }
+    const target = externalId ? { external_user_id: externalId }
+      : (userId ? { external_user_id: userId } : { subscription_id: playerId })
+    try { console.log('[OneSignal Test] target', target) } catch {}
+    const res = await fetch('https://api.onesignal.com/notifications', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${apiKey}`,
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         app_id: appId,
-        ...(playerId ? { include_subscription_ids: [playerId] } : { include_external_user_ids: [userId] }),
+        ...(externalId ? { include_external_user_ids: [externalId] }
+          : (userId ? { include_external_user_ids: [userId] } : { include_subscription_ids: [playerId] })),
         headings: { en: title },
         contents: { en: message },
       }),

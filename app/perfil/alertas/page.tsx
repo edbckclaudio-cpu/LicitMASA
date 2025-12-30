@@ -247,6 +247,12 @@ export default function AlertasPage() {
         return
       }
       let playerIdToUse = osPlayerId || null
+      let externalIdToUse = osExternalId || null
+      if (!externalIdToUse) {
+        try {
+          externalIdToUse = (typeof window !== 'undefined' ? (window as any).OneSignal?.User?.externalId : null) || null
+        } catch {}
+      }
       if (!playerIdToUse) {
         try {
           if (supabase) {
@@ -269,6 +275,7 @@ export default function AlertasPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          externalId: externalIdToUse || '',
           userId,
           playerId: playerIdToUse,
           title: 'Teste de Alerta',
