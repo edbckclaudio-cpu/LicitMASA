@@ -542,6 +542,19 @@ export default function AlertasPage() {
       setError('Falha na sincronização forçada')
     }
   }
+  async function forceLinkAccountNow() {
+    try {
+      const uid = userId
+      if (!uid) throw new Error('Usuário não logado no sistema')
+      alert('Iniciando login no OneSignal para o ID: ' + uid)
+      await window.OneSignal.login(uid)
+      const externalId = await window.OneSignal.User.getExternalId()
+      alert('Vínculo concluído! External ID atual: ' + externalId)
+      window.location.reload()
+    } catch (err: any) {
+      alert('Erro no vínculo: ' + (err?.message || String(err)))
+    }
+  }
 
   function addKeywordFromInput() {
     const parts = keywordsInput.split(/[,\s]+/).map((s) => s.trim()).filter(Boolean)
@@ -756,6 +769,7 @@ export default function AlertasPage() {
                     <Button onClick={displayInternalNotification} className="ml-2 bg-green-700 text-white hover:bg-green-800">Exibir Notificação Interna</Button>
                     <Button onClick={linkExternalIdNow} className="ml-2 bg-indigo-700 text-white hover:bg-indigo-800">Vincular External ID</Button>
                     <Button onClick={forceSyncUserTypeTest} className="ml-2 bg-purple-700 text-white hover:bg-purple-800">Sincronização Forçada</Button>
+                    <Button onClick={forceLinkAccountNow} className="ml-2 bg-blue-700 text-white hover:bg-blue-800">[VINCULAR MINHA CONTA AGORA]</Button>
                   </div>
                 </div>
                 <div className="mt-4 rounded-md border border-slate-200 bg-white p-3 text-xs text-gray-800">

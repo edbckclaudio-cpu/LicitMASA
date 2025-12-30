@@ -8,15 +8,16 @@ export async function POST(req: Request) {
     const title = String(body.title || 'Teste de Alerta').trim()
     const message = String(body.body || 'Notificação de teste via OneSignal').trim()
     const appId = process.env.ONESIGNAL_APP_ID || ''
-    const apiKey = process.env.ONESIGNAL_API_KEY || ''
-    if (!appId || !apiKey || (!userId && !playerId)) {
-      return NextResponse.json({ ok: false, error: 'MISSING_CONFIG_OR_USER' }, { status: 400 })
-    }
-    const res = await fetch('https://api.onesignal.com/notifications', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Basic ${apiKey}`,
-        'Content-Type': 'application/json',
+  const apiKey = process.env.ONESIGNAL_API_KEY || ''
+  if (!appId || !apiKey || (!userId && !playerId)) {
+    return NextResponse.json({ ok: false, error: 'MISSING_CONFIG_OR_USER' }, { status: 400 })
+  }
+  try { console.log('[OneSignal Test] target', playerId ? { subscription_id: playerId } : { external_user_id: userId }) } catch {}
+  const res = await fetch('https://api.onesignal.com/notifications', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Basic ${apiKey}`,
+      'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         app_id: appId,
