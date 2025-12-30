@@ -308,15 +308,9 @@ export default function AlertasPage() {
   }
   async function registerAndroidNow() {
     try {
+      await OneSignal.User.PushSubscription.optOut();
       await OneSignal.User.PushSubscription.optIn();
-      const newId = OneSignal.User.PushSubscription.id;
-      if (newId) {
-        alert('Sucesso! ID Gerado: ' + newId);
-        window.location.reload();
-      } else {
-        const perm = OneSignal?.Notifications?.permission;
-        alert('O ID ainda não foi gerado. Status da permissão: ' + perm);
-      }
+      alert('ID Gerado: ' + OneSignal.User.PushSubscription.id);
     } catch (e: any) {
       alert('Erro ao registrar: ' + e.message);
     }
