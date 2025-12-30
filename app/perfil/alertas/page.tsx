@@ -57,6 +57,14 @@ export default function AlertasPage() {
         if (OneSignal) {
           await OneSignal?.login?.(user.id)
           await OneSignal?.setExternalUserId?.(user.id)
+          try {
+            const extNow = OneSignal?.User?.externalId
+            if (extNow) setOsExternalId(String(extNow))
+          } catch {}
+          try {
+            const pidNow = OneSignal?.User?.PushSubscription?.id
+            if (pidNow) setOsPlayerId(String(pidNow))
+          } catch {}
         }
       } catch {}
       const { data, error: uaErr } = await supabase.from('user_alerts').select('id,keywords,ufs,valor_minimo,push_notificacao,ativo').eq('user_id', user.id).limit(1).maybeSingle()
@@ -112,31 +120,29 @@ export default function AlertasPage() {
       setPermOS(null)
     }
     async function loadOneSignalInfo() {
-      try {
-        const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
-        if (!OneSignal) return
-        let ext: any = null
-        let pid: any = null
-        try { ext = await OneSignal?.User?.getExternalId?.() } catch {}
-        if (!ext) { try { ext = await OneSignal?.getExternalUserId?.() } catch {} }
-        setOsExternalId(ext ? String(ext) : null)
-        try { pid = await OneSignal?.getUserId?.() } catch {}
-        if (!pid) { try { pid = await OneSignal?.User?.getUserId?.() } catch {} }
-        if (!pid) { try { pid = OneSignal?.User?.PushSubscription?.id } catch {} }
-        if (!pid) { try { pid = await OneSignal?.getSubscriptionId?.() } catch {} }
-        setOsPlayerId(pid ? String(pid) : null)
-        if (!pid && userId) {
-          try {
-            if (supabase) {
-              const { data: tok } = await supabase.from('user_alerts').select('fcm_token').eq('user_id', userId).limit(1).maybeSingle()
-              const t = String((tok as any)?.fcm_token || '')
-              if (t) setOsPlayerId(t || null)
-            }
-          } catch {}
-        }
-      } catch {}
-    }
-    loadOneSignalInfo()
+    try {
+      const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
+      if (!OneSignal) return
+      let ext: any = null
+      let pid: any = null
+      try { ext = OneSignal?.User?.externalId } catch {}
+      if (!ext) { try { ext = await OneSignal?.getExternalUserId?.() } catch {} }
+      setOsExternalId(ext ? String(ext) : null)
+      try { pid = OneSignal?.User?.PushSubscription?.id } catch {}
+      if (!pid) { try { pid = await OneSignal?.getSubscriptionId?.() } catch {} }
+      setOsPlayerId(pid ? String(pid) : null)
+      if (!pid && userId) {
+        try {
+          if (supabase) {
+            const { data: tok } = await supabase.from('user_alerts').select('fcm_token').eq('user_id', userId).limit(1).maybeSingle()
+            const t = String((tok as any)?.fcm_token || '')
+            if (t) setOsPlayerId(t || null)
+          }
+        } catch {}
+      }
+    } catch {}
+  }
+  loadOneSignalInfo()
   }, [])
   useEffect(() => {
     try {
@@ -811,6 +817,24 @@ export default function AlertasPage() {
                     <Button onClick={linkExternalIdNow} className="ml-2 bg-indigo-700 text-white hover:bg-indigo-800">Vincular External ID</Button>
                     <Button onClick={forceSyncUserTypeTest} className="ml-2 bg-purple-700 text-white hover:bg-purple-800">Sincronização Forçada</Button>
                     <Button onClick={forceLinkAccountNow} className="ml-2 bg-blue-700 text-white hover:bg-blue-800">[VINCULAR MINHA CONTA AGORA]</Button>
+                    <Button
+                      onClick={() => {
+                        if (!('Notification' in window)) {
+                          alert('Este navegador não suporta notificações')
+                        } else if (Notification.permission === 'granted') {
+                          const notif = new Notification('Teste Local LicitMASA', {
+                            body: 'Se você está vendo isso, o Android está OK!',
+                            icon: '/icons/icone_L_192.png'
+                          })
+                          alert('O comando foi enviado ao Android. Se não apareceu nada no topo, o Android está bloqueando o Chrome.')
+                        } else {
+                          alert('A permissão ainda é: ' + Notification.permission)
+                        }
+                      }}
+                      className="ml-2 bg-teal-700 text-white hover:bg-teal-800"
+                    >
+                      [TESTE LOCAL DO SISTEMA]
+                    </Button>
                   </div>
                 </div>
                 <div className="mt-4 rounded-md border border-slate-200 bg-white p-3 text-xs text-gray-800">

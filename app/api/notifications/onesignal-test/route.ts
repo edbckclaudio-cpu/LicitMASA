@@ -9,7 +9,7 @@ export async function POST(req: Request) {
     const title = String(body.title || 'Teste de Alerta').trim()
     const message = String(body.body || 'Notificação de teste via OneSignal').trim()
     const appId = process.env.ONESIGNAL_APP_ID || ''
-    const apiKey = process.env.ONESIGNAL_API_KEY || process.env.ONESIGNAL_REST_API_KEY || ''
+    const apiKey = process.env.ONESIGNAL_REST_API_KEY || process.env.ONESIGNAL_API_KEY || ''
     const keyNameUsed = process.env.ONESIGNAL_REST_API_KEY ? 'ONESIGNAL_REST_API_KEY' : (process.env.ONESIGNAL_API_KEY ? 'ONESIGNAL_API_KEY' : 'NONE')
     if (!appId || !apiKey || (!externalId && !userId && !playerId)) {
       return NextResponse.json({ ok: false, error: 'MISSING_CONFIG_OR_USER' }, { status: 400 })
