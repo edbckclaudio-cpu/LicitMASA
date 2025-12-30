@@ -414,6 +414,22 @@ export default function AlertasPage() {
       setError('Falha ao sincronizar dispositivo')
     }
   }
+  async function displayInternalNotification() {
+    try {
+      setUiMsg(null)
+      setError(null)
+      const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
+      if (!OneSignal) { setError('OneSignal não carregado'); return }
+      await OneSignal?.Notifications?.displayNotification?.({
+        title: 'Teste Interno',
+        body: 'Se você vir isso, o motor do celular está OK!',
+        icon: '/icons/icone_L_192.png'
+      })
+      setUiMsg('Notificação interna exibida')
+    } catch {
+      setError('Falha ao exibir notificação interna')
+    }
+  }
 
   function addKeywordFromInput() {
     const parts = keywordsInput.split(/[,\s]+/).map((s) => s.trim()).filter(Boolean)
@@ -625,6 +641,7 @@ export default function AlertasPage() {
                     <Button onClick={syncDevice} className="bg-blue-800 text-white hover:bg-blue-700">Vincular meu Aparelho</Button>
                     <Button onClick={testSdkLoad} className="ml-2 bg-gray-200 text-gray-900 hover:bg-gray-300">TESTAR CARREGAMENTO DO SDK</Button>
                     <Button onClick={resetTechnical} className="ml-2 bg-red-600 text-white hover:bg-red-700">Limpar Registros Técnicos (Reset)</Button>
+                    <Button onClick={displayInternalNotification} className="ml-2 bg-green-700 text-white hover:bg-green-800">Exibir Notificação Interna</Button>
                   </div>
                 </div>
                 {showHelp && (
