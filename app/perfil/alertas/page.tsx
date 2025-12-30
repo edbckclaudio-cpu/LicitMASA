@@ -512,6 +512,30 @@ export default function AlertasPage() {
                     </div>
                   </div>
                 )}
+                <div className="flex flex-col gap-2 p-4 bg-yellow-100 border-2 border-yellow-500 rounded-lg mb-6">
+                  <h3 className="font-bold text-yellow-800">Ferramentas de Reparo:</h3>
+                  <button 
+                    onClick={async () => { 
+                      const p = await window.Notification.requestPermission(); 
+                      alert('Permissão: ' + p); 
+                    }} 
+                    className="bg-blue-600 text-white p-3 rounded shadow" 
+                  > 
+                    1. [FORÇAR DIÁLOGO DE PERMISSÃO] 
+                  </button> 
+                  
+                  <button 
+                    onClick={async () => { 
+                      await OneSignal.User.PushSubscription.optIn(); 
+                      const id = OneSignal.User.PushSubscription.id; 
+                      alert(id ? 'Sucesso! ID: ' + id : 'Falha: ID continua vazio'); 
+                      window.location.reload(); 
+                    }} 
+                    className="bg-green-600 text-white p-3 rounded shadow" 
+                  > 
+                    2. [REGISTRAR MEU ANDROID AGORA] 
+                  </button> 
+                </div> 
                 <div className="rounded-md border border-slate-200 bg-white p-3 text-sm text-gray-800">
                   <div className="font-medium mb-2">Diagnóstico OneSignal</div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
