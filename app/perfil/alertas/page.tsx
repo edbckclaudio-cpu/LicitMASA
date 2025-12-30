@@ -53,6 +53,7 @@ export default function AlertasPage() {
         const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
         if (OneSignal) {
           await OneSignal?.login?.(user.id)
+          await OneSignal?.setExternalUserId?.(user.id)
         }
       } catch {}
       const { data, error: uaErr } = await supabase.from('user_alerts').select('id,keywords,ufs,valor_minimo,push_notificacao,ativo').eq('user_id', user.id).limit(1).maybeSingle()
@@ -430,6 +431,24 @@ export default function AlertasPage() {
       setError('Falha ao exibir notificação interna')
     }
   }
+  async function linkExternalIdNow() {
+    try {
+      setUiMsg(null)
+      setError(null)
+      const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
+      if (!OneSignal) { setError('OneSignal não carregado'); return }
+      if (!userId) { setError('Entre para vincular'); return }
+      await OneSignal?.login?.(userId)
+      await OneSignal?.setExternalUserId?.(userId)
+      let ext: any = null
+      try { ext = await OneSignal?.User?.getExternalId?.() } catch {}
+      if (!ext) { try { ext = await OneSignal?.getExternalUserId?.() } catch {} }
+      setOsExternalId(ext ? String(ext) : null)
+      setUiMsg('External ID vinculado')
+    } catch {
+      setError('Falha ao vincular External ID')
+    }
+  }
 
   function addKeywordFromInput() {
     const parts = keywordsInput.split(/[,\s]+/).map((s) => s.trim()).filter(Boolean)
@@ -642,6 +661,7 @@ export default function AlertasPage() {
                     <Button onClick={testSdkLoad} className="ml-2 bg-gray-200 text-gray-900 hover:bg-gray-300">TESTAR CARREGAMENTO DO SDK</Button>
                     <Button onClick={resetTechnical} className="ml-2 bg-red-600 text-white hover:bg-red-700">Limpar Registros Técnicos (Reset)</Button>
                     <Button onClick={displayInternalNotification} className="ml-2 bg-green-700 text-white hover:bg-green-800">Exibir Notificação Interna</Button>
+                    <Button onClick={linkExternalIdNow} className="ml-2 bg-indigo-700 text-white hover:bg-indigo-800">Vincular External ID</Button>
                   </div>
                 </div>
                 {showHelp && (
