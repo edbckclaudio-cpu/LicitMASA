@@ -290,7 +290,7 @@ export default function AlertasPage() {
       })
       try {
         const raw = await res.clone().text()
-        alert(raw)
+        alert(`Status: ${res.status}\n\n${raw}`)
         try { const j = JSON.parse(raw); console.log('OneSignal test response', j) } catch { console.log('OneSignal test response (text)', raw) }
       } catch {}
       if (res.ok) {

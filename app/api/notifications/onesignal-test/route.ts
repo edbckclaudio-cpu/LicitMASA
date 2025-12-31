@@ -9,7 +9,8 @@ export async function POST(req: Request) {
     const title = String(body.title || 'Teste de Alerta').trim()
     const message = String(body.body || 'Notificação de teste via OneSignal').trim()
     const appId = process.env.ONESIGNAL_APP_ID || process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || '43f9ce9c-8d86-4076-a8b6-30dac8429149'
-    const apiKey = (process.env.ONESIGNAL_REST_API_KEY || process.env.ONESIGNAL_API_KEY || '').trim()
+    const apiKeyRaw = (process.env.ONESIGNAL_REST_API_KEY || process.env.ONESIGNAL_API_KEY || '').trim()
+    const apiKey = apiKeyRaw.replace(/^(?:Key|Basic)\s+/i, '').trim()
     const keyNameUsed = process.env.ONESIGNAL_REST_API_KEY ? 'ONESIGNAL_REST_API_KEY' : (process.env.ONESIGNAL_API_KEY ? 'ONESIGNAL_API_KEY' : 'NONE')
     if (!appId || !apiKey || (!externalId && !userId && !playerId)) {
       return NextResponse.json({ ok: false, error: 'MISSING_CONFIG_OR_USER' }, { status: 400 })
@@ -18,7 +19,7 @@ export async function POST(req: Request) {
       : (userId ? { external_user_id: userId } : { subscription_id: playerId })
     try {
       console.log('[OneSignal Test] endpoint https://api.onesignal.com/notifications')
-      console.log('[OneSignal Test] using key env:', keyNameUsed)
+      console.log('[OneSignal Test] using key env:', keyNameUsed, 'sanitized=', apiKey.length > 0)
       console.log('[OneSignal Test] app_id:', appId ? '[present]' : '[missing]')
       console.log('[OneSignal Test] target', target)
     } catch {}
