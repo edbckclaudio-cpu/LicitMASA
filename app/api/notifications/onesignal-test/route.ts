@@ -24,18 +24,25 @@ export async function POST(req: Request) {
       console.log('[OneSignal Test] target', target)
     } catch {}
     const usingAliases = !!(externalId || userId)
+    const basePayload = {
+      app_id: appId,
+      contents: { en: message },
+      headings: { en: title },
+      priority: 10,
+      android_visibility: 1,
+      android_accent_color: 'FF0000',
+      android_sound: 'default',
+      vibrate: true,
+      android_vibration_pattern: '200,100,200,100,200',
+    } as any
     const requestBody = usingAliases
       ? {
-          app_id: appId,
+          ...basePayload,
           include_external_user_ids: [externalId || userId],
-          contents: { en: message },
-          headings: { en: title },
         }
       : {
-          app_id: appId,
+          ...basePayload,
           include_subscription_ids: [playerId],
-          contents: { en: message },
-          headings: { en: title },
         }
     const res = await fetch('https://api.onesignal.com/notifications', {
       method: 'POST',
