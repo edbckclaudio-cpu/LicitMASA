@@ -38,6 +38,9 @@ export default function AlertasPage() {
   const [dbPlayerId, setDbPlayerId] = useState<string | null>(null)
   const [profileOnesignalId, setProfileOnesignalId] = useState<string | null>(null)
   const [initErrorTop, setInitErrorTop] = useState<string | null>(null)
+  const [swRegistered, setSwRegistered] = useState<boolean>(false)
+  const [swScope, setSwScope] = useState<string | null>(null)
+  const [lastPayloadSent, setLastPayloadSent] = useState<any>(null)
   
 
   useEffect(() => {
@@ -110,6 +113,29 @@ export default function AlertasPage() {
       setLoading(false)
     }
     init()
+  }, [])
+  useEffect(() => {
+    const check = async () => {
+      try {
+        if (!('serviceWorker' in navigator)) { setSwRegistered(false); setSwScope(null); return }
+        const regs = await navigator.serviceWorker.getRegistrations()
+        let found = false
+        let scope: string | null = null
+        for (const r of regs) {
+          const s1 = (r.active && (r.active as any).scriptURL) || ''
+          const s2 = (r.installing && (r.installing as any).scriptURL) || ''
+          const s3 = (r.waiting && (r.waiting as any).scriptURL) || ''
+          const has = [s1, s2, s3].some((u) => typeof u === 'string' && /OneSignalSDKWorker\.js/i.test(u))
+          if (has) { found = true; scope = r.scope; break }
+        }
+        setSwRegistered(found)
+        setSwScope(scope)
+      } catch {
+        setSwRegistered(false)
+        setSwScope(null)
+      }
+    }
+    check()
   }, [])
   useEffect(() => {
     try {
@@ -234,13 +260,17 @@ export default function AlertasPage() {
       const res = await fetch('/api/notifications/onesignal-test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          externalId: externalIdToUse || '',
-          userId,
-          playerId: playerIdToUse,
-          title: 'Teste de Alerta',
-          body: 'Notificação de teste via OneSignal',
-        }),
+        body: (() => {
+          const payload = {
+            externalId: externalIdToUse || '',
+            userId,
+            playerId: playerIdToUse,
+            title: 'Teste de Alerta',
+            body: 'Notificação de teste via OneSignal',
+          }
+          try { setLastPayloadSent(payload) } catch {}
+          return JSON.stringify(payload)
+        })(),
       })
       try {
         const raw = await res.clone().text()
@@ -300,10 +330,14 @@ export default function AlertasPage() {
           const res = await fetch('/api/notifications/test', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'x-admin-token': 'DEV' },
-            body: JSON.stringify({
-              userId: uid,
-              priority: 10,
-            }),
+            body: (() => {
+              const payload = {
+                userId: uid,
+                priority: 10,
+              }
+              try { setLastPayloadSent(payload) } catch {}
+              return JSON.stringify(payload)
+            })(),
           })
           try { console.log('Disparo agendado concluído', { status: res.status, ok: res.ok, subscriptionId }) } catch {}
         } catch (err: any) {
@@ -401,6 +435,38 @@ export default function AlertasPage() {
     } catch {
       setShowHelp(true)
     }
+  }
+  async function refreshSwInfo() {
+    try {
+      if (!('serviceWorker' in navigator)) { setSwRegistered(false); setSwScope(null); return }
+      const regs = await navigator.serviceWorker.getRegistrations()
+      let found = false
+      let scope: string | null = null
+      for (const r of regs) {
+        const s1 = (r.active && (r.active as any).scriptURL) || ''
+        const s2 = (r.installing && (r.installing as any).scriptURL) || ''
+        const s3 = (r.waiting && (r.waiting as any).scriptURL) || ''
+        const has = [s1, s2, s3].some((u) => typeof u === 'string' && /OneSignalSDKWorker\.js/i.test(u))
+        if (has) { found = true; scope = r.scope; break }
+      }
+      setSwRegistered(found)
+      setSwScope(scope)
+    } catch {
+      setSwRegistered(false)
+      setSwScope(null)
+    }
+  }
+  async function resetFactory() {
+    try {
+      try {
+        const regs = await navigator.serviceWorker.getRegistrations()
+        for (const reg of regs) { try { await reg.unregister() } catch {} }
+      } catch {}
+      try { window.localStorage.clear() } catch {}
+      try { window.sessionStorage.clear() } catch {}
+      try { alert('Memória limpa! Reinicie o navegador e tente de novo.') } catch {}
+      try { window.location.reload() } catch {}
+    } catch {}
   }
 
   function addKeywordFromInput() {
@@ -605,6 +671,25 @@ export default function AlertasPage() {
                 <div className="flex items-center justify-end">
                   <div className="flex gap-2">
                     <Button onClick={savePrefs} disabled={!canInteract} className="bg-blue-800 text-white hover:bg-blue-700">Salvar Configurações</Button>
+                  </div>
+                </div>
+                <div className="rounded-md border border-gray-200 bg-white p-3 text-sm text-gray-800">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex flex-col gap-1">
+                      <div>Monitor de Service Worker</div>
+                      <div className="text-xs text-gray-600">Registrado: {String(swRegistered)}</div>
+                      <div className="text-xs text-gray-600">Scope: {String(swScope || '—')}</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button onClick={refreshSwInfo} className="bg-gray-100 text-gray-800 hover:bg-gray-200 text-xs">Atualizar</Button>
+                    </div>
+                  </div>
+                  <div className="mt-3">
+                    <div className="font-medium mb-1">Captura de Payload</div>
+                    <pre className="rounded-md border bg-gray-50 p-2 text-[11px] text-gray-800 overflow-auto max-h-40">{(() => { try { return JSON.stringify(lastPayloadSent ?? {}, null, 2) } catch { return '{}' } })()}</pre>
+                  </div>
+                  <div className="mt-3">
+                    <Button onClick={resetFactory} className="bg-red-700 text-white hover:bg-red-800 text-xs">RESET DE FÁBRICA (NUCLEAR)</Button>
                   </div>
                 </div>
               </div>

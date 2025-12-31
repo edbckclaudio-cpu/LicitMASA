@@ -37,6 +37,7 @@ export default function ServiceWorkerRegister() {
           allowLocalhostAsSecureOrigin: true,
           serviceWorkerPath: 'OneSignalSDKWorker.js'
         })
+        try { OneSignal?.Debug?.setLogLevel?.('trace') } catch {}
         try { await OneSignal?.Notifications?.requestPermission?.() } catch {}
       } catch {}
     })
