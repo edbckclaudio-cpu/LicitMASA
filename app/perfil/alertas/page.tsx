@@ -101,6 +101,18 @@ export default function AlertasPage() {
   }, [])
   useEffect(() => {
     try {
+      const run = async () => {
+        if (supabase && userId && osPlayerId) {
+          try {
+            await supabase.from('profiles').update({ onesignal_id: String(osPlayerId) }).eq('id', userId)
+          } catch {}
+        }
+      }
+      run()
+    } catch {}
+  }, [userId, osPlayerId])
+  useEffect(() => {
+    try {
       const msg = typeof window !== 'undefined' ? (window as any).__ONE_SIGNAL_INIT_ERROR : null
       setInitErrorTop(msg ? String(msg) : null)
     } catch {
@@ -671,8 +683,7 @@ export default function AlertasPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {initErrorTop && <div className="mx-auto max-w-5xl px-6 py-3"><div className="rounded-md border-2 border-red-300 bg-red-50 p-3 text-xl font-semibold text-red-800">{initErrorTop}</div></div>}
-      <div className="px-6 py-2 text-xs text-gray-700">Debug ID: {String(process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || '')}</div>
+      
       <header className="border-b bg-white">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
           <h1 className="text-xl font-semibold text-blue-900">Meus Alertas</h1>
@@ -686,19 +697,6 @@ export default function AlertasPage() {
           </div>
         </div>
       </header>
-      <div className="mx-auto max-w-5xl px-6">
-        <div className="mt-3 rounded-md border border-slate-200 bg-white p-3 text-sm text-gray-800">
-          <div className="font-medium mb-2">Painel de Diagnóstico</div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-            <div className="rounded-md border px-2 py-1 text-xs">User ID (Supabase): {userId || '—'}</div>
-            <div className="rounded-md border px-2 py-1 text-xs">External ID (OneSignal): {osExternalId || '—'}</div>
-            <div className="rounded-md border px-2 py-1 text-xs">Subscription ID: {osPlayerId || '—'}</div>
-          </div>
-          <div className="mt-2">
-            <Button onClick={repairLink} className="bg-blue-800 text-white hover:bg-blue-700">Reparar Vínculo</Button>
-          </div>
-        </div>
-      </div>
       <main className="mx-auto max-w-5xl px-6 py-8">
         <Card>
           <CardHeader>
@@ -764,17 +762,6 @@ export default function AlertasPage() {
                     </div>
                   </div>
                 )}
-                <div className="rounded-md border border-slate-200 bg-white p-3 text-sm text-gray-800">
-                  <div className="font-medium mb-2">Diagnóstico OneSignal</div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                    <div className="rounded-md border px-2 py-1 text-xs">Meu ID no Banco: {userId || '—'}</div>
-                    <div className="rounded-md border px-2 py-1 text-xs">Meu ID no OneSignal: {osPlayerId || '—'}</div>
-                    <div className="rounded-md border px-2 py-1 text-xs">Vínculo: {osExternalId || '—'}</div>
-                  </div>
-                  <div className="mt-2">
-                    <Button onClick={syncDevice} className="bg-blue-800 text-white hover:bg-blue-700">Vincular meu Aparelho</Button>
-                  </div>
-                </div>
                 {showHelp && (
                   <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
                     <div className="font-medium mb-2">Como permitir notificações</div>
