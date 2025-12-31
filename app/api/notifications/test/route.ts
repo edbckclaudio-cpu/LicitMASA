@@ -9,15 +9,15 @@ function admin() {
 }
 
 async function sendOneSignal(subscriptionId: string) {
-  const appId = process.env.ONESIGNAL_APP_ID || process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || '43f9ce9c-8d86-4076-a8b6-30dac8429149'
+  const appId = '43f9ce9c-8d86-4076-a8b6-30dac8429149'
   const apiKeyRaw = (process.env.ONESIGNAL_REST_API_KEY || process.env.ONESIGNAL_API_KEY || '').trim()
   const apiKey = apiKeyRaw.replace(/^(?:Key|Basic)\\s+/i, '').trim()
   if (!appId || !apiKey) return { ok: false }
   const basePayload: any = {
     app_id: appId,
     include_subscription_ids: [String(subscriptionId)],
-    headings: { en: 'LicitMASA: Teste Real' },
-    contents: { en: 'Sua notificação chegou corretamente agora!' },
+    headings: { en: 'LicitMASA Alertas', pt: 'LicitMASA Alertas' },
+    contents: { en: 'Teste de Notificação Real', pt: 'Teste de Notificação Real' },
     priority: 10,
     android_channel_id: 'push_notifications',
     android_visibility: 1,
