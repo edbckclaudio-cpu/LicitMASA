@@ -279,6 +279,34 @@ export default function AlertasPage() {
       setTestLoading(false)
     }
   }
+  async function sendTestNotificationDelayed() {
+    try {
+      alert('Iniciando contagem de 10 segundos. BLOQUEIE A TELA AGORA!')
+      setUiMsg(null)
+      setError(null)
+      setTimeout(async () => {
+        try {
+          const subscriptionId = (typeof window !== 'undefined' ? (window as any).OneSignal?.User?.pushSubscriptionId : null) || null
+          const uid = userId
+          if (!uid) throw new Error('Usuário não logado')
+          const res = await fetch('/api/notifications/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-admin-token': 'DEV' },
+            body: JSON.stringify({
+              userId: uid,
+              priority: 10,
+              ttl: 3600,
+            }),
+          })
+          try { console.log('Disparo agendado concluído', { status: res.status, ok: res.ok, subscriptionId }) } catch {}
+        } catch (err: any) {
+          try { console.error('Erro no disparo agendado:', err?.message || String(err)) } catch {}
+        }
+      }, 10000)
+    } catch {
+      setUiMsg('Falha ao agendar envio')
+    }
+  }
   async function saveSubscriptionIdToProfile(id: string) {
     try { if (supabase && userId && id) await supabase.from('profiles').update({ onesignal_id: String(id) }).eq('id', userId) } catch {}
   }
@@ -404,6 +432,9 @@ export default function AlertasPage() {
           <div className="flex items-center gap-2">
             <Button onClick={sendTestNotification} disabled={testLoading} className="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-xs font-medium text-white hover:bg-blue-700">
               {testLoading ? '...' : 'Enviar Teste'}
+            </Button>
+            <Button onClick={sendTestNotificationDelayed} disabled={testLoading} className="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-xs font-medium text-white hover:bg-indigo-700">
+              {testLoading ? '...' : 'Teste (10 segundos)'}
             </Button>
             <Button onClick={() => router.push('/')} className="inline-flex items-center rounded-md bg-gray-100 px-3 py-2 text-xs font-medium text-gray-800 hover:bg-gray-200">
               Voltar
