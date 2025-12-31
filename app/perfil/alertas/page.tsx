@@ -284,18 +284,25 @@ export default function AlertasPage() {
       alert('Bloqueie a tela!')
       setUiMsg(null)
       setError(null)
+      const uidCaptured = userId
+      if (!uidCaptured) { setError('Usuário não logado'); return }
+      try { console.log('Preparando envio em 10 segundos para usuário:', uidCaptured) } catch {}
+      const updates = ['Enviando em 3...', 'Enviando em 2...', 'Enviando em 1...']
+      try {
+        setTimeout(() => { try { setUiMsg(updates[0]) } catch {} }, 7000)
+        setTimeout(() => { try { setUiMsg(updates[1]) } catch {} }, 8000)
+        setTimeout(() => { try { setUiMsg(updates[2]) } catch {} }, 9000)
+      } catch {}
       setTimeout(async () => {
         try {
           const subscriptionId = (typeof window !== 'undefined' ? (window as any).OneSignal?.User?.pushSubscriptionId : null) || null
-          const uid = userId
-          if (!uid) throw new Error('Usuário não logado')
+          const uid = uidCaptured
           const res = await fetch('/api/notifications/test', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'x-admin-token': 'DEV' },
             body: JSON.stringify({
               userId: uid,
               priority: 10,
-              ttl: 3600,
             }),
           })
           try { console.log('Disparo agendado concluído', { status: res.status, ok: res.ok, subscriptionId }) } catch {}
