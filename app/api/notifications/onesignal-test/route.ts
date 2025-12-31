@@ -8,8 +8,8 @@ export async function POST(req: Request) {
     const playerId = String(body.playerId || '').trim()
     const title = String(body.title || 'Teste de Alerta').trim()
     const message = String(body.body || 'Notificação de teste via OneSignal').trim()
-    const appId = process.env.ONESIGNAL_APP_ID || process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || ''
-    const apiKey = process.env.ONESIGNAL_REST_API_KEY || process.env.ONESIGNAL_API_KEY || ''
+    const appId = process.env.ONESIGNAL_APP_ID || process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || '43f9ce9c-8d86-4076-a8b6-30dac8429149'
+    const apiKey = (process.env.ONESIGNAL_REST_API_KEY || process.env.ONESIGNAL_API_KEY || '').trim()
     const keyNameUsed = process.env.ONESIGNAL_REST_API_KEY ? 'ONESIGNAL_REST_API_KEY' : (process.env.ONESIGNAL_API_KEY ? 'ONESIGNAL_API_KEY' : 'NONE')
     if (!appId || !apiKey || (!externalId && !userId && !playerId)) {
       return NextResponse.json({ ok: false, error: 'MISSING_CONFIG_OR_USER' }, { status: 400 })
@@ -17,7 +17,7 @@ export async function POST(req: Request) {
     const target = externalId ? { external_user_id: externalId }
       : (userId ? { external_user_id: userId } : { subscription_id: playerId })
     try {
-      console.log('[OneSignal Test] endpoint https://api.onesignal.com/notifications?c=push')
+      console.log('[OneSignal Test] endpoint https://api.onesignal.com/notifications')
       console.log('[OneSignal Test] using key env:', keyNameUsed)
       console.log('[OneSignal Test] app_id:', appId ? '[present]' : '[missing]')
       console.log('[OneSignal Test] target', target)
@@ -26,47 +26,34 @@ export async function POST(req: Request) {
     const requestBody = usingAliases
       ? {
           app_id: appId,
-          include_aliases: { external_id: [externalId || userId] },
-          target_channel: 'push',
-          headings: { en: title },
+          include_external_user_ids: [externalId || userId],
           contents: { en: message },
+          headings: { en: title },
         }
       : {
           app_id: appId,
           include_subscription_ids: [playerId],
-          target_channel: 'push',
-          headings: { en: title },
           contents: { en: message },
+          headings: { en: title },
         }
-    const res = await fetch('https://api.onesignal.com/notifications?c=push', {
+    const res = await fetch('https://api.onesignal.com/notifications', {
       method: 'POST',
       headers: {
-        'Authorization': `key ${apiKey}`,
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/json; charset=utf-8',
+        'Authorization': `Key ${apiKey}`,
       },
       body: JSON.stringify(requestBody),
     })
-    let json: any = null
-    let text: string | null = null
-    try { json = await res.clone().json() } catch { try { text = await res.text() } catch {} }
-    try { console.log('[OneSignal Test] response status', res.status, 'ok=', res.ok) } catch {}
     try {
-      if (!res.ok) {
-        console.error('[OneSignal Test] request body (redacted)', { ...requestBody, app_id: '[present]' })
-        console.error('[OneSignal Test] error payload', json || text || '[none]')
-        if (res.status === 401 || res.status === 403) {
-          console.error('[OneSignal Test] Access Denied: verifique ONESIGNAL_REST_API_KEY possui permissão de escrita e corresponde ao App ID')
-        }
-      } else {
-        console.log('[OneSignal Test] success payload', json || text || '[none]')
-      }
-    } catch {}
-    const notifId = json?.id || null
-    try { if (notifId) console.log('[OneSignal Test] notification id:', notifId) } catch {}
-    if (!res.ok) {
-      return NextResponse.json({ ok: false, status: res.status, error: (json || text || null) }, { status: res.status || 500 })
+      const raw = await res.text()
+      try { console.log('[OneSignal Test] status', res.status, 'ok=', res.ok) } catch {}
+      try { console.log('[OneSignal Test] raw response', raw) } catch {}
+      let parsed: any = null
+      try { parsed = JSON.parse(raw) } catch {}
+      return NextResponse.json(parsed ?? { raw }, { status: res.status || 500 })
+    } catch (e: any) {
+      return NextResponse.json({ ok: false, error: e?.message || 'UNKNOWN' }, { status: 500 })
     }
-    return NextResponse.json({ ok: true, id: notifId }, { status: 200 })
   } catch {
     return NextResponse.json({ ok: false }, { status: 500 })
   }

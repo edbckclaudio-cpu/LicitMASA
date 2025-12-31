@@ -288,13 +288,21 @@ export default function AlertasPage() {
           body: 'Notificação de teste via OneSignal',
         }),
       })
-      try { const j = await res.clone().json(); console.log('OneSignal test response', j) } catch {}
+      try {
+        const raw = await res.clone().text()
+        alert(raw)
+        try { const j = JSON.parse(raw); console.log('OneSignal test response', j) } catch { console.log('OneSignal test response (text)', raw) }
+      } catch {}
       if (res.ok) {
         setUiMsg('Notificação enviada')
       } else {
         try {
-          const err = await res.clone().json()
-          const msg = typeof err?.error === 'string' ? err.error : JSON.stringify(err?.error || err)
+          const errRaw = await res.clone().text()
+          let msg = errRaw
+          try {
+            const err = JSON.parse(errRaw)
+            msg = typeof err?.error === 'string' ? err.error : JSON.stringify(err?.error || err)
+          } catch {}
           setUiMsg('Falha ao enviar: ' + msg)
         } catch {
           setUiMsg('Falha ao enviar notificação')
