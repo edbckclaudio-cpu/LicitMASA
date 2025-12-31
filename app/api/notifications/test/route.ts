@@ -31,8 +31,8 @@ async function sendOneSignal({
   if (!appId || !apiKey) return { ok: false }
   const basePayload: any = {
     app_id: appId,
-    contents: { en: message || 'Encontramos uma oportunidade baseada no seu perfil Premium.' },
-    headings: { en: title || 'Nova Licitação Encontrada! 🏛️' },
+    contents: { en: message || 'TESTE REAL: Licitação encontrada!' },
+    headings: { en: title || 'LicitMASA Alertas' },
     priority: typeof priority === 'number' ? priority : 10,
     android_channel_id: channelId || 'high_importance',
     android_visibility: typeof visibility === 'number' ? visibility : 1,

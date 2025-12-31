@@ -346,6 +346,21 @@ export default function AlertasPage() {
       setError('Falha ao ativar notificações')
     }
   }
+  async function resetAndReinstallNotifications() {
+    try {
+      if ('serviceWorker' in navigator) {
+        try {
+          const regs = await navigator.serviceWorker.getRegistrations()
+          await Promise.all(regs.map((r) => r.unregister()))
+        } catch {}
+      }
+      try {
+        const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
+        await OneSignal?.User?.logout?.()
+      } catch {}
+      try { location.reload() } catch {}
+    } catch {}
+  }
   function updatePermStatus() {
     try {
       const p = typeof Notification !== 'undefined' ? Notification.permission : undefined
@@ -435,6 +450,9 @@ export default function AlertasPage() {
             </Button>
             <Button onClick={sendTestNotificationDelayed} disabled={testLoading} className="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-xs font-medium text-white hover:bg-indigo-700">
               {testLoading ? '...' : 'Teste (10 segundos)'}
+            </Button>
+            <Button onClick={resetAndReinstallNotifications} className="inline-flex items-center rounded-md bg-red-600 px-3 py-2 text-xs font-medium text-white hover:bg-red-700">
+              RESETAR E REINSTALAR NOTIFICAÇÕES
             </Button>
             <Button onClick={() => router.push('/')} className="inline-flex items-center rounded-md bg-gray-100 px-3 py-2 text-xs font-medium text-gray-800 hover:bg-gray-200">
               Voltar
