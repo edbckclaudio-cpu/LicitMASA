@@ -290,8 +290,19 @@ export default function AlertasPage() {
       })
       try {
         const raw = await res.clone().text()
-        alert(`Status: ${res.status}\n\n${raw}`)
-        try { const j = JSON.parse(raw); console.log('OneSignal test response', j) } catch { console.log('OneSignal test response (text)', raw) }
+        let data: any = null
+        try { data = JSON.parse(raw) } catch {}
+        const sentExternal = externalIdToUse || userId
+        const recipients = typeof data?.recipients === 'number' ? data.recipients : null
+        const payloadToShow = {
+          status: res.status,
+          recipients,
+          externalIdUsed: sentExternal,
+          equalsTarget: String(sentExternal) === 'f3f3f88f-6f29-4171-85b2-320d74f26b2b',
+          data: data ?? raw,
+        }
+        alert(JSON.stringify(payloadToShow, null, 2))
+        try { console.log('OneSignal test response', payloadToShow) } catch {}
       } catch {}
       if (res.ok) {
         setUiMsg('Notificação enviada')
