@@ -354,6 +354,11 @@ export default function AlertasPage() {
         if (nav?.serviceWorker?.getRegistrations) {
           const regs = await nav.serviceWorker.getRegistrations().catch(() => [])
           try { console.log('ServiceWorker registrations:', regs) } catch {}
+          try {
+            for (const r of regs) {
+              await r.unregister()
+            }
+          } catch {}
         }
       } catch {}
       try { console.log('Tentando vincular o ID:', userId) } catch {}
@@ -666,44 +671,6 @@ export default function AlertasPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div style={{ background: '#fef3c7', padding: '20px', border: '4px solid #f59e0b', margin: '20px 0', zIndex: 9999 }}>
-        <h2 style={{ color: '#92400e', fontWeight: 'bold', marginBottom: '10px' }}>⚠️ FERRAMENTAS DE REPARO (EXCLUSIVO ANDROID)</h2>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          <button 
-            onClick={async () => { 
-              const p = await window.Notification.requestPermission(); 
-              alert('Permissão do Navegador: ' + p); 
-            }} 
-            style={{ background: '#2563eb', color: 'white', padding: '15px', borderRadius: '8px', fontWeight: 'bold' }} 
-          > 
-            1. SOLICITAR PERMISSÃO (POP-UP) 
-          </button> 
-          
-          <button 
-            onClick={async () => { 
-              try { 
-                alert('O motor já está ligado. Gerando seu ID agora...'); 
-                await window.OneSignal.User.PushSubscription.optIn(); 
-                const id = window.OneSignal.User.PushSubscription.id; 
-                if (id) { 
-                  try { if (userId) await window.OneSignal.login(userId) } catch {} 
-                  try { if (supabase && userId) await supabase.from('profiles').update({ onesignal_id: String(id) }).eq('id', userId) } catch {}
-                  alert('✅ VENCEMOS! Seu ID é: ' + id); 
-                  window.location.reload(); 
-                } else { 
-                  const perm = Notification.permission; 
-                  alert('⚠️ O motor rodou, mas o ID não saiu.\nStatus da Permissão: ' + perm + '\n\nSe aqui disser \"granted\", clique em REPARAR VÍNCULO abaixo.'); 
-                } 
-              } catch (err: any) { 
-                alert('Erro ao registrar: ' + (err?.message || String(err))); 
-              } 
-            }} 
-            style={{ background: '#16a34a', color: 'white', padding: '15px', borderRadius: '8px', fontWeight: 'bold' }} 
-          > 
-            2. GERAR ID DE ASSINATURA AGORA 
-          </button> 
-        </div> 
-      </div> 
       {initErrorTop && <div className="mx-auto max-w-5xl px-6 py-3"><div className="rounded-md border-2 border-red-300 bg-red-50 p-3 text-xl font-semibold text-red-800">{initErrorTop}</div></div>}
       <div className="px-6 py-2 text-xs text-gray-700">Debug ID: {String(process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || '')}</div>
       <header className="border-b bg-white">
@@ -797,30 +764,6 @@ export default function AlertasPage() {
                     </div>
                   </div>
                 )}
-                <div className="flex flex-col gap-2 p-4 bg-yellow-100 border-2 border-yellow-500 rounded-lg mb-6">
-                  <h3 className="font-bold text-yellow-800">Ferramentas de Reparo:</h3>
-                  <button 
-                    onClick={async () => { 
-                      const p = await window.Notification.requestPermission(); 
-                      alert('Permissão: ' + p); 
-                    }} 
-                    className="bg-blue-600 text-white p-3 rounded shadow" 
-                  > 
-                    1. [FORÇAR DIÁLOGO DE PERMISSÃO] 
-                  </button> 
-                  
-                  <button 
-                    onClick={async () => { 
-                      await OneSignal.User.PushSubscription.optIn(); 
-                      const id = OneSignal.User.PushSubscription.id; 
-                      alert(id ? 'Sucesso! ID: ' + id : 'Falha: ID continua vazio'); 
-                      window.location.reload(); 
-                    }} 
-                    className="bg-green-600 text-white p-3 rounded shadow" 
-                  > 
-                    2. [REGISTRAR MEU ANDROID AGORA] 
-                  </button> 
-                </div> 
                 <div className="rounded-md border border-slate-200 bg-white p-3 text-sm text-gray-800">
                   <div className="font-medium mb-2">Diagnóstico OneSignal</div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
@@ -830,45 +773,7 @@ export default function AlertasPage() {
                   </div>
                   <div className="mt-2">
                     <Button onClick={syncDevice} className="bg-blue-800 text-white hover:bg-blue-700">Vincular meu Aparelho</Button>
-                    <Button onClick={testSdkLoad} className="ml-2 bg-gray-200 text-gray-900 hover:bg-gray-300">TESTAR CARREGAMENTO DO SDK</Button>
-                    <Button onClick={resetTechnical} className="ml-2 bg-red-600 text-white hover:bg-red-700">Limpar Registros Técnicos (Reset)</Button>
-                    <Button onClick={displayInternalNotification} className="ml-2 bg-green-700 text-white hover:bg-green-800">Exibir Notificação Interna</Button>
-                    <Button onClick={linkExternalIdNow} className="ml-2 bg-indigo-700 text-white hover:bg-indigo-800">Vincular External ID</Button>
-                    <Button onClick={forceSyncUserTypeTest} className="ml-2 bg-purple-700 text-white hover:bg-purple-800">Sincronização Forçada</Button>
-                    <Button onClick={forceLinkAccountNow} className="ml-2 bg-blue-700 text-white hover:bg-blue-800">[VINCULAR MINHA CONTA AGORA]</Button>
-                    <Button
-                      onClick={() => {
-                        if (!('Notification' in window)) {
-                          alert('Este navegador não suporta notificações')
-                        } else if (Notification.permission === 'granted') {
-                          const notif = new Notification('Teste Local LicitMASA', {
-                            body: 'Se você está vendo isso, o Android está OK!',
-                            icon: '/icons/icone_L_192.png'
-                          })
-                          alert('O comando foi enviado ao Android. Se não apareceu nada no topo, o Android está bloqueando o Chrome.')
-                        } else {
-                          alert('A permissão ainda é: ' + Notification.permission)
-                        }
-                      }}
-                      className="ml-2 bg-teal-700 text-white hover:bg-teal-800"
-                    >
-                      [TESTE LOCAL DO SISTEMA]
-                    </Button>
                   </div>
-                </div>
-                <div className="mt-4 rounded-md border border-slate-200 bg-white p-3 text-xs text-gray-800">
-                  <div className="font-semibold mb-1">Audit Log</div>
-                  <pre className="whitespace-pre-wrap text-[11px] leading-4">{[
-                    `App ID Configurado: ${String(appIdCfg || '—')}`,
-                    `User ID (Supabase): ${String(userId || '—')}`,
-                    `OneSignal Subscription ID: ${String(osPlayerId || '—')}`,
-                    `OneSignal External ID: ${String(osExternalId || '—')}`,
-                    `Notification.permission: ${String(permWeb || '—')}`,
-                    `ServiceWorker Status: ${String(swStatus || '—')}`,
-                    '',
-                    'Log de Eventos:',
-                    ...(auditLog.length ? auditLog : ['—'])
-                  ].join('\n')}</pre>
                 </div>
                 {showHelp && (
                   <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
