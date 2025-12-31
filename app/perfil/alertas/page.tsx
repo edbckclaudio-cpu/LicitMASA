@@ -35,8 +35,7 @@ export default function AlertasPage() {
   const [osExternalId, setOsExternalId] = useState<string | null>(null)
   const [osPlayerId, setOsPlayerId] = useState<string | null>(null)
   const [initErrorTop, setInitErrorTop] = useState<string | null>(null)
-  const [swStatus, setSwStatus] = useState<string | null>(null)
-  const [auditLog, setAuditLog] = useState<string[]>([])
+  
 
   useEffect(() => {
     async function init() {
@@ -156,98 +155,7 @@ export default function AlertasPage() {
   }
   loadOneSignalInfo()
   }, [])
-  useEffect(() => {
-    try {
-      const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
-      OneSignal?.Debug?.setLogLevel?.('verbose')
-    } catch {}
-    try {
-      const nav: any = typeof navigator !== 'undefined' ? navigator : null
-      if (nav?.serviceWorker?.getRegistrations) {
-        nav.serviceWorker.getRegistrations().then((regs: any) => {
-          try {
-            const tgt = (regs || []).find((r: any) => {
-              try { return String(r?.active?.scriptURL || '').includes('OneSignalSDKWorker.js') } catch { return false }
-            })
-            const st = tgt?.active?.state ? String(tgt.active.state) : (tgt ? 'installed' : 'none')
-            setSwStatus(st || null)
-          } catch {}
-        }).catch((e: any) => {
-          try {
-            setSwStatus('error')
-          } catch {}
-        })
-      }
-    } catch {}
-    try {
-      const id = (typeof window !== 'undefined' ? (window as any).ONESIGNAL_APP_ID : undefined) || process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || null
-      setAppIdCfg(id ? String(id) : null)
-    } catch { setAppIdCfg(null) }
-    try {
-      const origErr = console.error
-      const origWarn = console.warn
-      ;(console as any).__origErr = origErr
-      ;(console as any).__origWarn = origWarn
-      console.error = function(...args: any[]) {
-        try {
-          const msg = args.map((a: any) => (typeof a === 'string' ? a : (a?.message || JSON.stringify(a)))).join(' ')
-          if (/onesignal/i.test(msg)) setAuditLog((prev) => [...prev.slice(-99), `[error] ${new Date().toISOString()} ${msg}`])
-        } catch {}
-        try { origErr.apply(console, args) } catch {}
-      }
-      console.warn = function(...args: any[]) {
-        try {
-          const msg = args.map((a: any) => (typeof a === 'string' ? a : (a?.message || JSON.stringify(a)))).join(' ')
-          if (/onesignal/i.test(msg)) setAuditLog((prev) => [...prev.slice(-99), `[warn] ${new Date().toISOString()} ${msg}`])
-        } catch {}
-        try { origWarn.apply(console, args) } catch {}
-      }
-      window.addEventListener('error', (ev: any) => {
-        try {
-          const m = String(ev?.message || '')
-          if (/onesignal/i.test(m)) setAuditLog((prev) => [...prev.slice(-99), `[error] ${new Date().toISOString()} ${m}`])
-        } catch {}
-      })
-      window.addEventListener('unhandledrejection', (ev: any) => {
-        try {
-          const m = String(ev?.reason?.message || ev?.reason || '')
-          if (/onesignal/i.test(m)) setAuditLog((prev) => [...prev.slice(-99), `[reject] ${new Date().toISOString()} ${m}`])
-        } catch {}
-      })
-    } catch {}
-    const int = setInterval(() => {
-      try {
-        const p = typeof Notification !== 'undefined' ? Notification.permission : undefined
-        setPermWeb(p || null)
-      } catch {}
-      try {
-        const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
-        const p = OneSignal?.Notifications?.permission
-        setPermOS(p || null)
-      } catch {}
-      try {
-        const nav: any = typeof navigator !== 'undefined' ? navigator : null
-        if (nav?.serviceWorker?.getRegistrations) {
-          nav.serviceWorker.getRegistrations().then((regs: any) => {
-            try {
-              const tgt = (regs || []).find((r: any) => {
-                try { return String(r?.active?.scriptURL || '').includes('OneSignalSDKWorker.js') } catch { return false }
-              })
-              const st = tgt?.active?.state ? String(tgt.active.state) : (tgt ? 'installed' : 'none')
-              setSwStatus(st || null)
-            } catch {}
-          }).catch(() => {})
-        }
-      } catch {}
-    }, 3000)
-    return () => { try {
-      clearInterval(int)
-      const origErr = (console as any).__origErr
-      const origWarn = (console as any).__origWarn
-      if (origErr) console.error = origErr
-      if (origWarn) console.warn = origWarn
-    } catch {} }
-  }, [])
+  
 
   async function sendTestNotification() {
     try {
@@ -340,74 +248,6 @@ export default function AlertasPage() {
   async function saveSubscriptionIdToProfile(id: string) {
     try { if (supabase && userId && id) await supabase.from('profiles').update({ onesignal_id: String(id) }).eq('id', userId) } catch {}
   }
-  async function resetTechnical() {
-    try {
-      const nav: any = typeof navigator !== 'undefined' ? navigator : null
-      if (nav?.serviceWorker?.getRegistrations) {
-        const regs = await nav.serviceWorker.getRegistrations().catch(() => [])
-        for (const r of regs) {
-          try { await r.unregister() } catch {}
-        }
-      }
-    } catch {}
-    try { window.localStorage.removeItem('onesignal-notification-prompt-counts') } catch {}
-    try { (window as any).location?.reload?.(true) } catch { try { window.location.reload() } catch {} }
-  }
-  async function repairLink() {
-    try {
-      setUiMsg(null)
-      setError(null)
-      const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
-      if (!OneSignal) { setError('OneSignal não carregado'); return }
-      if (!userId) { setError('Entre para reparar vínculo'); return }
-      try { OneSignal?.Debug?.setLogLevel?.('verbose') } catch {}
-      try {
-        const nav: any = typeof navigator !== 'undefined' ? navigator : null
-        if (nav?.serviceWorker?.getRegistrations) {
-          const regs = await nav.serviceWorker.getRegistrations().catch(() => [])
-          try { console.log('ServiceWorker registrations:', regs) } catch {}
-          try {
-            for (const r of regs) {
-              await r.unregister()
-            }
-          } catch {}
-        }
-      } catch {}
-      try { console.log('Tentando vincular o ID:', userId) } catch {}
-      try { await OneSignal?.User?.PushSubscription?.optIn?.() } catch {}
-      try {
-        const perm = typeof Notification !== 'undefined' ? Notification.permission : 'unknown'
-        const pid = (() => {
-          try { return OneSignal?.User?.PushSubscription?.id || null } catch { return null }
-        })()
-        if (pid) alert('ID Gerado: ' + String(pid))
-      } catch {}
-      let beforeExt: any = null
-      try { beforeExt = await OneSignal?.User?.getExternalId?.() } catch {}
-      if (!beforeExt) { try { beforeExt = await OneSignal?.getExternalUserId?.() } catch {} }
-      try { console.log('External ID antes do login:', beforeExt) } catch {}
-      try { await OneSignal?.login?.(userId) } catch (e: any) { try { console.error('OneSignal.login error:', e) } catch {} }
-      try { await OneSignal?.User?.addTag?.('user_id', userId) } catch (e: any) { try { console.error('OneSignal.addTag error:', e) } catch {} }
-      let afterExt: any = null
-      let afterPid: any = null
-      try { afterExt = await OneSignal?.User?.getExternalId?.() } catch {}
-      if (!afterExt) { try { afterExt = await OneSignal?.getExternalUserId?.() } catch {} }
-      try { console.log('External ID após login:', afterExt) } catch {}
-      try { afterPid = await OneSignal?.getUserId?.() } catch {}
-      if (!afterPid) { try { afterPid = await OneSignal?.User?.getUserId?.() } catch {} }
-      if (!afterPid) { try { afterPid = OneSignal?.User?.pushSubscription?.id } catch {} }
-      if (!afterPid) { try { afterPid = await OneSignal?.getSubscriptionId?.() } catch {} }
-      setOsExternalId(afterExt ? String(afterExt) : null)
-      setOsPlayerId(afterPid ? String(afterPid) : null)
-      try { if (supabase && userId && afterPid) await supabase.from('user_alerts').upsert({ user_id: userId, fcm_token: String(afterPid) }, { onConflict: 'user_id' }) } catch {}
-      await saveSubscriptionIdToProfile(String(afterPid || ''))
-      updatePermStatus()
-      setUiMsg('Vínculo atualizado')
-      try { setTimeout(() => { try { window.location.reload() } catch {} }, 2000) } catch {}
-    } catch {
-      setError('Falha ao reparar vínculo')
-    }
-  }
   async function activateOneSignal() {
     try {
       setUiMsg(null)
@@ -459,63 +299,6 @@ export default function AlertasPage() {
       setPermOS(null)
     }
   }
-  async function resetAndRequestPermission() {
-    try {
-      setUiMsg(null)
-      setError(null)
-      const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
-      if (!OneSignal) { setError('OneSignal não carregado'); return }
-      try { OneSignal?.Debug?.setLogLevel?.('verbose') } catch {}
-      try { await OneSignal?.Notifications?.requestPermission() } catch (e: any) { try { console.error('OneSignal requestPermission error:', e) } catch {} }
-      updatePermStatus()
-    } catch {
-      setError('Falha ao solicitar permissão')
-    }
-  }
-  async function forceNativePermission() {
-    const permission = await window.Notification.requestPermission();
-    alert('Resultado da permissão: ' + permission);
-    if (permission === 'granted') {
-      await (window as any).OneSignal?.Notifications?.requestPermission?.();
-      window.location.reload();
-    }
-  }
-  async function forceGenerateIdNow() {
-    try {
-      alert('Meu ID no banco é: ' + String(userId || 'undefined'))
-      await (window as any).OneSignal?.User?.PushSubscription?.optIn?.();
-      const id = (window as any).OneSignal?.User?.PushSubscription?.id;
-      alert('ID Gerado: ' + id);
-      try { if (supabase && userId && id) await supabase.from('user_alerts').upsert({ user_id: userId, fcm_token: String(id) }, { onConflict: 'user_id' }) } catch {}
-      await saveSubscriptionIdToProfile(String(id || ''))
-    } catch (e: any) {
-      alert('Erro ao gerar: ' + e.message);
-    }
-  }
-  async function registerAndroidNow() {
-    try {
-      alert('Meu ID no banco é: ' + String(userId || 'undefined'))
-      await (window as any).OneSignal?.User?.PushSubscription?.optOut?.();
-      await (window as any).OneSignal?.User?.PushSubscription?.optIn?.();
-      alert('ID Gerado: ' + String((window as any).OneSignal?.User?.PushSubscription?.id || ''));
-      try { if (supabase && userId && (window as any).OneSignal?.User?.PushSubscription?.id) await supabase.from('user_alerts').upsert({ user_id: userId, fcm_token: String((window as any).OneSignal?.User?.PushSubscription?.id) }, { onConflict: 'user_id' }) } catch {}
-      await saveSubscriptionIdToProfile(String((window as any).OneSignal?.User?.PushSubscription?.id || ''))
-    } catch (e: any) {
-      alert('Erro ao registrar: ' + e.message);
-    }
-  }
-  function testSdkLoad() {
-    try {
-      const fn = typeof window !== 'undefined' ? (window as any).verificarOneSignal : null
-      if (typeof fn === 'function') {
-        fn()
-      } else {
-        alert('Função não definida')
-      }
-    } catch {
-      alert('Falha ao executar teste')
-    }
-  }
   function openSiteSettings() {
     try {
       const ua = typeof navigator !== 'undefined' ? navigator.userAgent.toLowerCase() : ''
@@ -533,109 +316,6 @@ export default function AlertasPage() {
       setShowHelp(true)
     } catch {
       setShowHelp(true)
-    }
-  }
-  async function syncDevice() {
-    try {
-      setUiMsg(null)
-      setError(null)
-      const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
-      if (!OneSignal) { setError('OneSignal não carregado'); return }
-      if (!userId) { setError('Entre para sincronizar'); return }
-      try { console.log('Tentando vincular ID:', userId) } catch {}
-      try { await OneSignal?.login?.(userId) } catch {}
-      try { await OneSignal?.User?.addTag?.('user_id', userId) } catch {}
-      try { await OneSignal?.setExternalUserId?.(userId) } catch {}
-      try {
-        let ext: any = null
-        let pid: any = null
-        try { ext = await OneSignal?.User?.getExternalId?.() } catch {}
-        if (!ext) { try { ext = await OneSignal?.getExternalUserId?.() } catch {} }
-        setOsExternalId(ext ? String(ext) : null)
-        try { pid = await OneSignal?.getUserId?.() } catch {}
-        if (!pid) { try { pid = await OneSignal?.User?.getUserId?.() } catch {} }
-        if (!pid) { try { pid = OneSignal?.User?.pushSubscription?.id } catch {} }
-        if (!pid) { try { pid = await OneSignal?.getSubscriptionId?.() } catch {} }
-        setOsPlayerId(pid ? String(pid) : null)
-      } catch {}
-      setUiMsg('Dispositivo sincronizado')
-    } catch {
-      setError('Falha ao sincronizar dispositivo')
-    }
-  }
-  async function displayInternalNotification() {
-    try {
-      setUiMsg(null)
-      setError(null)
-      const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
-      if (!OneSignal) { setError('OneSignal não carregado'); return }
-      await (window as any).OneSignal?.Notifications?.displayNotification?.({
-        title: 'Teste Interno',
-        body: 'Se você vir isso, o motor do celular está OK!',
-        icon: '/icons/icone_L_192.png'
-      })
-      setUiMsg('Notificação interna exibida')
-    } catch {
-      setError('Falha ao exibir notificação interna')
-    }
-  }
-  async function linkExternalIdNow() {
-    try {
-      setUiMsg(null)
-      setError(null)
-      const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
-      if (!OneSignal) { setError('OneSignal não carregado'); return }
-      if (!userId) { setError('Entre para vincular'); return }
-      await (window as any).OneSignal?.login?.(userId)
-      await (window as any).OneSignal?.setExternalUserId?.(userId)
-      let ext: any = null
-      try { ext = await (window as any).OneSignal?.User?.getExternalId?.() } catch {}
-      if (!ext) { try { ext = await (window as any).OneSignal?.getExternalUserId?.() } catch {} }
-      setOsExternalId(ext ? String(ext) : null)
-      setUiMsg('External ID vinculado')
-    } catch {
-      setError('Falha ao vincular External ID')
-    }
-  }
-  async function forceSyncUserTypeTest() {
-    try {
-      setUiMsg(null)
-      setError(null)
-      const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
-      if (!OneSignal) { setError('OneSignal não carregado'); return }
-      if (!userId) { setError('Entre para sincronizar'); return }
-      await (window as any).OneSignal?.login?.(userId)
-      await (window as any).OneSignal?.User?.addTag?.('user_type', 'test')
-      setUiMsg('Sincronização forçada executada')
-    } catch {
-      setError('Falha na sincronização forçada')
-    }
-  }
-  async function forceLinkAccountNow() {
-    try {
-      const uid = userId
-      alert('Meu ID no banco é: ' + String(uid || 'undefined'))
-      const userIdToUse = uid || 'ID_MANUAL_TESTE'
-      alert('Vinculando ID: ' + userIdToUse)
-      await (window as any).OneSignal.login(userIdToUse)
-      try {
-        if (supabase) {
-          const { data: userData } = await supabase.auth.getUser()
-          const email = String(userData?.user?.email || '')
-          await (window as any).OneSignal?.User?.addTag?.('user_id', userIdToUse)
-          if (email) await (window as any).OneSignal?.User?.addTag?.('email', email)
-        }
-      } catch {}
-      await new Promise((r) => setTimeout(r, 1000))
-      const currentExternalId = (window as any).OneSignal?.User?.externalId
-      try {
-        const subId = (window as any).OneSignal?.User?.PushSubscription?.id
-        if (subId) await saveSubscriptionIdToProfile(String(subId))
-      } catch {}
-      alert('Vínculo processado! ID no OneSignal: ' + String(currentExternalId))
-      window.location.reload()
-    } catch (err: any) {
-      alert('Erro técnico: ' + (err?.message || String(err)))
     }
   }
 
@@ -727,18 +407,6 @@ export default function AlertasPage() {
                         <Button onClick={openSiteSettings} className="bg-gray-100 text-gray-800 hover:bg-gray-200">
                           Abrir configurações do site
                         </Button>
-                        <Button onClick={resetAndRequestPermission} className="bg-gray-200 text-gray-900 hover:bg-gray-300">
-                          Resetar e Pedir Permissão Novamente
-                        </Button>
-                        <Button onClick={forceNativePermission} className="bg-orange-600 text-white hover:bg-orange-700">
-                          [FORÇAR DIÁLOGO DE PERMISSÃO]
-                        </Button>
-                        <Button onClick={forceGenerateIdNow} className="bg-indigo-700 text-white hover:bg-indigo-800">
-                          [FORÇAR GERAÇÃO DE ID AGORA]
-                        </Button>
-                        <Button onClick={registerAndroidNow} className="bg-green-700 text-white hover:bg-green-800">
-                          [REGISTRAR MEU ANDROID AGORA]
-                        </Button>
                       </div>
                     </div>
                   </div>
@@ -754,9 +422,6 @@ export default function AlertasPage() {
                       <div className="flex items-center gap-2">
                         <Button onClick={() => { activateOneSignal(); updatePermStatus() }} className="bg-green-600 text-white hover:bg-green-700">
                           Já está ativo
-                        </Button>
-                        <Button onClick={resetAndRequestPermission} className="bg-gray-200 text-gray-900 hover:bg-gray-300">
-                          Resetar e Pedir Permissão Novamente
                         </Button>
                       </div>
                     </div>
