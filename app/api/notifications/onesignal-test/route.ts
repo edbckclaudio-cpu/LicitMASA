@@ -31,6 +31,7 @@ export async function POST(req: Request) {
       priority: 10,
       android_visibility: 1,
       android_accent_color: 'FF0000',
+      android_channel_id: 'push_notifications',
       android_sound: 'default',
       vibrate: true,
       android_vibration_pattern: '200,100,200,100,200',
