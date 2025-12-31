@@ -19,18 +19,25 @@ async function sendOneSignal(subscriptionId: string) {
     headings: { en: 'LicitMASA Alertas', pt: 'LicitMASA Alertas' },
     contents: { en: 'Teste de Notificação Real', pt: 'Teste de Notificação Real' },
     priority: 10,
-    android_channel_id: 'push_notifications',
     android_visibility: 1,
+  }
+  const channelId = (process.env.ONESIGNAL_ANDROID_CHANNEL_ID || '').trim()
+  if (channelId) {
+    basePayload.android_channel_id = channelId
   }
   const res = await fetch('https://api.onesignal.com/notifications', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json; charset=utf-8',
-      'Authorization': `Key ${apiKey}`,
+      'Authorization': `Basic ${apiKey}`,
     },
     body: JSON.stringify(basePayload),
   })
-  return { ok: res.ok, status: res.status }
+  let raw: string | null = null
+  try { raw = await res.text() } catch {}
+  let parsed: any = null
+  try { parsed = raw ? JSON.parse(raw) : null } catch {}
+  return { ok: res.ok, status: res.status, data: parsed ?? (raw ? { raw } : null) }
 }
 
 async function resolveTokenByEmailOrUserId(email?: string, userId?: string): Promise<string | null> {
@@ -76,12 +83,12 @@ export async function POST(req: Request) {
     if (!adminToken || adminToken !== expected) return NextResponse.json({ ok: false, error: 'UNAUTHORIZED' }, { status: 401 })
     if (tokenDirect) {
       const r = await sendOneSignal(tokenDirect)
-      return NextResponse.json({ ok: r.ok }, { status: r.status })
+      return NextResponse.json({ ok: r.ok, data: r.data }, { status: r.status })
     }
     const resolved = await resolveTokenByEmailOrUserId(email, userId)
     if (!resolved) return NextResponse.json({ ok: false, error: 'SUBSCRIPTION_NOT_FOUND' }, { status: 404 })
     const r = await sendOneSignal(resolved)
-    return NextResponse.json({ ok: r.ok }, { status: r.status })
+    return NextResponse.json({ ok: r.ok, data: r.data }, { status: r.status })
   } catch {
     return NextResponse.json({ ok: false }, { status: 500 })
   }
@@ -98,12 +105,12 @@ export async function GET(req: Request) {
     if (!adminToken || adminToken !== expected) return NextResponse.json({ ok: false, error: 'UNAUTHORIZED' }, { status: 401 })
     if (tokenDirect) {
       const r = await sendOneSignal(tokenDirect)
-      return NextResponse.json({ ok: r.ok }, { status: r.status })
+      return NextResponse.json({ ok: r.ok, data: r.data }, { status: r.status })
     }
     const resolved = await resolveTokenByEmailOrUserId(email, userId)
     if (!resolved) return NextResponse.json({ ok: false, error: 'SUBSCRIPTION_NOT_FOUND' }, { status: 404 })
     const r = await sendOneSignal(resolved)
-    return NextResponse.json({ ok: r.ok }, { status: r.status })
+    return NextResponse.json({ ok: r.ok, data: r.data }, { status: r.status })
   } catch {
     return NextResponse.json({ ok: false }, { status: 500 })
   }

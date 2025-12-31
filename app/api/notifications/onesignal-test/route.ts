@@ -31,11 +31,14 @@ export async function POST(req: Request) {
       priority: 10,
       android_visibility: 1,
       android_accent_color: 'FF0000',
-      android_channel_id: 'push_notifications',
       android_sound: 'default',
       vibrate: true,
       android_vibration_pattern: '200,100,200,100,200',
     } as any
+    {
+      const channelId = (process.env.ONESIGNAL_ANDROID_CHANNEL_ID || '').trim()
+      if (channelId) (basePayload as any).android_channel_id = channelId
+    }
     const requestBody = usingAliases
       ? {
           ...basePayload,
@@ -49,7 +52,7 @@ export async function POST(req: Request) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json; charset=utf-8',
-        'Authorization': `Key ${apiKey}`,
+        'Authorization': `Basic ${apiKey}`,
       },
       body: JSON.stringify(requestBody),
     })
