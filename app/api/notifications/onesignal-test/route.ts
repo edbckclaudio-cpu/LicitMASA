@@ -8,7 +8,7 @@ export async function POST(req: Request) {
     const playerId = String(body.playerId || '').trim()
     const title = String(body.title || 'Teste de Alerta').trim()
     const message = String(body.body || 'Notificação de teste via OneSignal').trim()
-    const appId = process.env.ONESIGNAL_APP_ID || ''
+    const appId = process.env.ONESIGNAL_APP_ID || process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || ''
     const apiKey = process.env.ONESIGNAL_REST_API_KEY || process.env.ONESIGNAL_API_KEY || ''
     const keyNameUsed = process.env.ONESIGNAL_REST_API_KEY ? 'ONESIGNAL_REST_API_KEY' : (process.env.ONESIGNAL_API_KEY ? 'ONESIGNAL_API_KEY' : 'NONE')
     if (!appId || !apiKey || (!externalId && !userId && !playerId)) {
@@ -17,22 +17,31 @@ export async function POST(req: Request) {
     const target = externalId ? { external_user_id: externalId }
       : (userId ? { external_user_id: userId } : { subscription_id: playerId })
     try {
-      console.log('[OneSignal Test] endpoint https://api.onesignal.com/notifications')
+      console.log('[OneSignal Test] endpoint https://api.onesignal.com/notifications?c=push')
       console.log('[OneSignal Test] using key env:', keyNameUsed)
       console.log('[OneSignal Test] app_id:', appId ? '[present]' : '[missing]')
       console.log('[OneSignal Test] target', target)
     } catch {}
-    const requestBody = {
-      app_id: appId,
-      ...(externalId ? { include_external_user_ids: [externalId] }
-        : (userId ? { include_external_user_ids: [userId] } : { include_subscription_ids: [playerId] })),
-      headings: { en: title },
-      contents: { en: message },
-    }
-    const res = await fetch('https://api.onesignal.com/notifications', {
+    const usingAliases = !!(externalId || userId)
+    const requestBody = usingAliases
+      ? {
+          app_id: appId,
+          include_aliases: { external_id: [externalId || userId] },
+          target_channel: 'push',
+          headings: { en: title },
+          contents: { en: message },
+        }
+      : {
+          app_id: appId,
+          include_subscription_ids: [playerId],
+          target_channel: 'push',
+          headings: { en: title },
+          contents: { en: message },
+        }
+    const res = await fetch('https://api.onesignal.com/notifications?c=push', {
       method: 'POST',
       headers: {
-        'Authorization': `Basic ${apiKey}`,
+        'Authorization': `key ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(requestBody),
