@@ -8,26 +8,48 @@ function admin() {
   return createClient(url, key)
 }
 
-async function sendFCM(token: string, title?: string, body?: string, priority?: number, ttl?: number) {
-  const key = process.env.FIREBASE_SERVER_KEY || ''
-  if (!token || !key) return { ok: false }
-  const res = await fetch('https://fcm.googleapis.com/fcm/send', {
+async function sendOneSignal({
+  externalId,
+  subscriptionId,
+  title,
+  message,
+  priority,
+  channelId,
+  visibility,
+}: {
+  externalId?: string
+  subscriptionId?: string
+  title?: string
+  message?: string
+  priority?: number
+  channelId?: string
+  visibility?: number
+}) {
+  const appId = process.env.ONESIGNAL_APP_ID || process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || '43f9ce9c-8d86-4076-a8b6-30dac8429149'
+  const apiKeyRaw = (process.env.ONESIGNAL_REST_API_KEY || process.env.ONESIGNAL_API_KEY || '').trim()
+  const apiKey = apiKeyRaw.replace(/^(?:Key|Basic)\\s+/i, '').trim()
+  if (!appId || !apiKey) return { ok: false }
+  const basePayload: any = {
+    app_id: appId,
+    contents: { en: message || 'Encontramos uma oportunidade baseada no seu perfil Premium.' },
+    headings: { en: title || 'Nova Licitação Encontrada! 🏛️' },
+    priority: typeof priority === 'number' ? priority : 10,
+    android_channel_id: channelId || 'high_importance',
+    android_visibility: typeof visibility === 'number' ? visibility : 1,
+  }
+  const usingExternal = !!externalId
+  const requestBody = usingExternal
+    ? { ...basePayload, include_external_user_ids: [String(externalId)] }
+    : { ...basePayload, include_subscription_ids: [String(subscriptionId || '')].filter(Boolean) }
+  const res = await fetch('https://api.onesignal.com/notifications', {
     method: 'POST',
     headers: {
-      'Authorization': `key=${key}`,
-      'Content-Type': 'application/json',
+      'Content-Type': 'application/json; charset=utf-8',
+      'Authorization': `Key ${apiKey}`,
     },
-    body: JSON.stringify({
-      to: token,
-      priority: (priority && priority >= 10) ? 'high' : 'normal',
-      time_to_live: typeof ttl === 'number' ? ttl : undefined,
-      notification: {
-        title: title || 'Nova Licitação Encontrada! 🏛️',
-        body: body || 'Encontramos uma oportunidade baseada no seu perfil Premium.',
-      },
-    }),
+    body: JSON.stringify(requestBody),
   })
-  return { ok: res.ok }
+  return { ok: res.ok, status: res.status }
 }
 
 async function resolveTokenByEmailOrUserId(email?: string, userId?: string): Promise<string | null> {
@@ -61,20 +83,33 @@ export async function POST(req: Request) {
     const title = String(body.title || '')
     const message = String(body.body || '')
     const priority = typeof body.priority === 'number' ? body.priority : undefined
-    const ttl = typeof body.ttl === 'number' ? body.ttl : undefined
-    if (tokenDirect) {
-      const r = await sendFCM(tokenDirect, title || undefined, message || undefined, priority, ttl)
-      return NextResponse.json({ ok: r.ok })
-    }
     const email = String(body.email || '')
     const userId = String(body.userId || '')
     const adminToken = (req.headers.get('x-admin-token') || '').trim()
     const expected = (process.env.ADMIN_TOKEN || 'DEV').trim()
     if (!adminToken || adminToken !== expected) return NextResponse.json({ ok: false, error: 'UNAUTHORIZED' }, { status: 401 })
+    if (tokenDirect) {
+      const r = await sendOneSignal({
+        subscriptionId: tokenDirect,
+        title: title || undefined,
+        message: message || undefined,
+        priority,
+        channelId: 'high_importance',
+        visibility: 1,
+      })
+      return NextResponse.json({ ok: r.ok }, { status: r.status })
+    }
     const resolved = await resolveTokenByEmailOrUserId(email, userId)
-    if (!resolved) return NextResponse.json({ ok: false, error: 'TOKEN_NOT_FOUND' }, { status: 404 })
-    const r = await sendFCM(resolved, title || undefined, message || undefined, priority, ttl)
-    return NextResponse.json({ ok: r.ok })
+    const r = await sendOneSignal({
+      externalId: userId || undefined,
+      subscriptionId: resolved || undefined,
+      title: title || undefined,
+      message: message || undefined,
+      priority,
+      channelId: 'high_importance',
+      visibility: 1,
+    })
+    return NextResponse.json({ ok: r.ok }, { status: r.status })
   } catch {
     return NextResponse.json({ ok: false }, { status: 500 })
   }
@@ -87,22 +122,34 @@ export async function GET(req: Request) {
     const title = String(u.searchParams.get('title') || '')
     const message = String(u.searchParams.get('body') || '')
     const priority = Number(u.searchParams.get('priority') || '')
-    const ttl = Number(u.searchParams.get('ttl') || '')
     const pr = isFinite(priority) ? priority : undefined
-    const tv = isFinite(ttl) ? ttl : undefined
-    if (tokenDirect) {
-      const r = await sendFCM(tokenDirect, title || undefined, message || undefined, pr, tv)
-      return NextResponse.json({ ok: r.ok })
-    }
     const email = String(u.searchParams.get('email') || '')
     const userId = String(u.searchParams.get('userId') || '')
     const adminToken = (req.headers.get('x-admin-token') || '').trim()
     const expected = (process.env.ADMIN_TOKEN || 'DEV').trim()
     if (!adminToken || adminToken !== expected) return NextResponse.json({ ok: false, error: 'UNAUTHORIZED' }, { status: 401 })
+    if (tokenDirect) {
+      const r = await sendOneSignal({
+        subscriptionId: tokenDirect,
+        title: title || undefined,
+        message: message || undefined,
+        priority: pr,
+        channelId: 'high_importance',
+        visibility: 1,
+      })
+      return NextResponse.json({ ok: r.ok }, { status: r.status })
+    }
     const resolved = await resolveTokenByEmailOrUserId(email, userId)
-    if (!resolved) return NextResponse.json({ ok: false, error: 'TOKEN_NOT_FOUND' }, { status: 404 })
-    const r = await sendFCM(resolved, title || undefined, message || undefined, pr, tv)
-    return NextResponse.json({ ok: r.ok })
+    const r = await sendOneSignal({
+      externalId: userId || undefined,
+      subscriptionId: resolved || undefined,
+      title: title || undefined,
+      message: message || undefined,
+      priority: pr,
+      channelId: 'high_importance',
+      visibility: 1,
+    })
+    return NextResponse.json({ ok: r.ok }, { status: r.status })
   } catch {
     return NextResponse.json({ ok: false }, { status: 500 })
   }

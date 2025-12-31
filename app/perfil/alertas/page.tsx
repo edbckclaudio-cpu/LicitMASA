@@ -281,7 +281,7 @@ export default function AlertasPage() {
   }
   async function sendTestNotificationDelayed() {
     try {
-      alert('Iniciando contagem de 10 segundos. BLOQUEIE A TELA AGORA!')
+      alert('Bloqueie a tela!')
       setUiMsg(null)
       setError(null)
       setTimeout(async () => {
