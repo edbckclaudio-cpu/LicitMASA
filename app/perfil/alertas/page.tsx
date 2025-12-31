@@ -30,10 +30,13 @@ export default function AlertasPage() {
   const [uiMsg, setUiMsg] = useState<string | null>(null)
   const [permWeb, setPermWeb] = useState<string | null>(null)
   const [permOS, setPermOS] = useState<string | null>(null)
+  const [statusDelayOk, setStatusDelayOk] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
   const isGranted = useMemo(() => (permOS === 'granted' || permWeb === 'granted'), [permOS, permWeb])
   const [osExternalId, setOsExternalId] = useState<string | null>(null)
   const [osPlayerId, setOsPlayerId] = useState<string | null>(null)
+  const [dbPlayerId, setDbPlayerId] = useState<string | null>(null)
+  const [profileOnesignalId, setProfileOnesignalId] = useState<string | null>(null)
   const [initErrorTop, setInitErrorTop] = useState<string | null>(null)
   
 
@@ -46,11 +49,18 @@ export default function AlertasPage() {
       const user = userData?.user
       if (!user) { router.push('/login'); return }
       setUserId(user.id)
-      const { data: prof, error: profErr } = await supabase.from('profiles').select('is_premium, plan').eq('id', user.id).single()
+      const { data: prof, error: profErr } = await supabase.from('profiles').select('is_premium, plan, onesignal_id').eq('id', user.id).single()
       const allow = String(process.env.NEXT_PUBLIC_PREMIUM_EMAILS || '').toLowerCase().split(',').map((s) => s.trim()).filter(Boolean)
       const email = String(user.email || '').toLowerCase()
       const premium = Boolean(prof?.is_premium) || String(prof?.plan || '').toLowerCase() === 'premium' || allow.includes(email)
       setIsPremium(premium)
+      try {
+        const pidFromProfile = String((prof as any)?.onesignal_id || '')
+        if (pidFromProfile) {
+          setProfileOnesignalId(pidFromProfile)
+          setDbPlayerId(pidFromProfile)
+        }
+      } catch {}
       try {
         const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
         if (OneSignal) {
@@ -78,7 +88,10 @@ export default function AlertasPage() {
           if (supabase) {
             const { data: tok } = await supabase.from('user_alerts').select('fcm_token').eq('user_id', user.id).limit(1).maybeSingle()
             const t = String((tok as any)?.fcm_token || '')
-            if (t) setOsPlayerId(t)
+            if (t) {
+              setOsPlayerId(t)
+              setDbPlayerId(t)
+            }
           }
         } catch {}
       } else if (typeof window !== 'undefined') {
@@ -105,12 +118,20 @@ export default function AlertasPage() {
           try {
             await supabase.from('profiles').update({ onesignal_id: String(osPlayerId) }).eq('id', userId)
           } catch {}
+          try {
+            await supabase.from('user_alerts').upsert({ user_id: userId, fcm_token: String(osPlayerId) }, { onConflict: 'user_id' })
+          } catch {}
+          try { setDbPlayerId(String(osPlayerId)) } catch {}
         }
       }
       run()
     } catch {}
   }, [userId, osPlayerId])
   useEffect(() => {
+    try {
+      const t = setTimeout(() => { try { setStatusDelayOk(true) } catch {} }, 3000)
+      return () => { try { clearTimeout(t) } catch {} }
+    } catch {}
     try {
       const msg = typeof window !== 'undefined' ? (window as any).__ONE_SIGNAL_INIT_ERROR : null
       setInitErrorTop(msg ? String(msg) : null)
@@ -130,6 +151,19 @@ export default function AlertasPage() {
     } catch {
       setPermOS(null)
     }
+    try {
+      const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
+      const handler = () => {
+        try {
+          const p = OneSignal?.Notifications?.permission
+          setPermOS(p || null)
+        } catch {}
+      }
+      OneSignal?.Notifications?.addEventListener?.('permissionChange', handler)
+      return () => {
+        try { OneSignal?.Notifications?.removeEventListener?.('permissionChange', handler) } catch {}
+      }
+    } catch {}
     async function loadOneSignalInfo() {
     try {
       const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
@@ -398,7 +432,7 @@ export default function AlertasPage() {
                       <div className="flex flex-col gap-1">
                         <div>Ative as notificações no navegador</div>
                         <div className="text-xs text-red-700">Status Web: {String(permWeb || 'indisponível')}</div>
-                        <div className="text-xs text-red-700">Status OneSignal: {String(permOS || 'indisponível')}</div>
+                        <div className="text-xs text-red-700">Status OneSignal: {statusDelayOk ? String(permOS || 'indisponível') : String(permOS || 'carregando...')}</div>
                       </div>
                       <div className="flex items-center gap-2">
                         <Button onClick={() => { activateOneSignal(); updatePermStatus() }} className="bg-red-600 text-white hover:bg-red-700">
@@ -417,7 +451,7 @@ export default function AlertasPage() {
                       <div className="flex flex-col gap-1">
                         <div>Notificações permitidas</div>
                         <div className="text-xs text-green-700">Status Web: {String(permWeb || 'indisponível')}</div>
-                        <div className="text-xs text-green-700">Status OneSignal: {String(permOS || 'indisponível')}</div>
+                        <div className="text-xs text-green-700">Status OneSignal: {statusDelayOk ? String(permOS || 'indisponível') : String(permOS || 'carregando...')}</div>
                       </div>
                       <div className="flex items-center gap-2">
                         <Button onClick={() => { activateOneSignal(); updatePermStatus() }} className="bg-green-600 text-white hover:bg-green-700">
@@ -427,6 +461,14 @@ export default function AlertasPage() {
                     </div>
                   </div>
                 )}
+                <div className="rounded-md border border-gray-200 bg-white p-3 text-sm text-gray-800">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex flex-col gap-1">
+                      <div>ID salvo no banco (Alertas): {String(dbPlayerId || profileOnesignalId || '—')}</div>
+                    </div>
+                    <div className="text-xs text-gray-600">Fonte: Supabase</div>
+                  </div>
+                </div>
                 {showHelp && (
                   <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
                     <div className="font-medium mb-2">Como permitir notificações</div>
