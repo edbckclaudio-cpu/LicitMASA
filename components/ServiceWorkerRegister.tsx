@@ -40,7 +40,7 @@ export default function ServiceWorkerRegister() {
         await OneSignal.init({
           appId: APP_ID,
           allowLocalhostAsSecureOrigin: true,
-          serviceWorkerPath: 'OneSignalSDKWorker.js',
+          serviceWorkerPath: '/OneSignalSDKWorker.js',
           serviceWorkerUpdaterPath: '/OneSignalSDKUpdaterWorker.js'
         })
         try {

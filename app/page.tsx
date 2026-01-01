@@ -570,20 +570,7 @@ export default function HomePage() {
         ))}
       </div>
 
-      <header className="border-b bg-white">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-          <div className="text-sm font-medium text-slate-900">Buscar Publicações</div>
-          <div className="flex items-center gap-3">
-            {loading && (
-              <div className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs text-blue-800">
-                <Search className="h-4 w-4 animate-spin" />
-                Buscando...
-              </div>
-            )}
-            <SidebarAlerts />
-          </div>
-        </div>
-      </header>
+      
       {!isPremium && showPremiumBanner && (
         <div className="mx-auto max-w-5xl px-6 pt-2">
           <div className="flex items-center justify-between rounded-md border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
