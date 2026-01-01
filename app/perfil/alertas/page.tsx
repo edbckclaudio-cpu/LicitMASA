@@ -781,7 +781,7 @@ export default function AlertasPage() {
                       </div>
                     <div className="flex items-center gap-2">
                       <Button onClick={() => { activateOneSignal(); updatePermStatus() }} className="bg-red-600 text-white hover:bg-red-700">
-                        Ativar Alertas de Licitação
+                        Ativar Alertas de Publicação
                       </Button>
                       <Button onClick={openSiteSettings} className="bg-gray-100 text-gray-800 hover:bg-gray-200">
                         Abrir configurações do site

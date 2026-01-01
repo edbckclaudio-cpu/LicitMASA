@@ -69,7 +69,7 @@ export default function FavoritosPage() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = 'licitacoes_favoritas.csv'
+    a.download = 'publicacoes_favoritas.csv'
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
@@ -82,7 +82,7 @@ export default function FavoritosPage() {
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-2">
             <Heart className="h-5 w-5 text-pink-600" />
-            <h1 className="text-xl font-semibold text-blue-900">Minhas Licitações</h1>
+            <h1 className="text-xl font-semibold text-blue-900">Minhas Publicações</h1>
           </div>
           {userId && items.length > 0 && (
             <Button onClick={exportCSV} className="bg-blue-800 text-white hover:bg-blue-700 text-xs">Exportar CSV</Button>
@@ -92,7 +92,7 @@ export default function FavoritosPage() {
       <main className="mx-auto max-w-5xl px-6 py-8">
         {!userId && (
           <div className="rounded-lg border bg-white p-12 text-center text-sm text-gray-700">
-            Faça login para salvar e visualizar suas licitações favoritas
+            Faça login para salvar e visualizar suas publicações favoritas
           </div>
         )}
         {userId && loading && (
@@ -102,7 +102,7 @@ export default function FavoritosPage() {
         )}
         {userId && !loading && items.length === 0 && (
           <div className="rounded-lg border bg-white p-12 text-center text-sm text-gray-700">
-            Você ainda não favoritou nenhuma licitação
+            Você ainda não favoritou nenhuma publicação
           </div>
         )}
         {userId && !loading && items.length > 0 && (

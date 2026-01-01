@@ -145,7 +145,7 @@ export function AlertsManager() {
           <Bell className="h-5 w-5 text-blue-600" />
           <CardTitle className="text-lg">Meus Alertas Automáticos</CardTitle>
         </div>
-        <CardDescription>Receba avisos de novas licitações por palavra-chave.</CardDescription>
+        <CardDescription>Receba avisos de novas publicações por palavra-chave.</CardDescription>
       </CardHeader>
 
       <CardContent className="pt-6 space-y-6">

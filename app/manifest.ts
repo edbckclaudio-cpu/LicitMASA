@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'LicitMASA',
     short_name: 'LicitMASA',
-    description: 'Pesquise licitações no PNCP, salve favoritos e receba alertas.',
+    description: 'Pesquise publicações no PNCP, salve favoritos e receba alertas.',
     start_url: '/',
     scope: '/',
     display: 'standalone',

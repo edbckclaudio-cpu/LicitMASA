@@ -49,11 +49,11 @@ export default function AssinarPage() {
                   </div>
                   <div className="flex items-center gap-2 text-sm text-slate-800">
                     <MessageCircle className="h-4 w-4 text-yellow-600" />
-                    Compartilhamento Profissional: envie licitações formatadas via WhatsApp.
+                    Compartilhamento Profissional: envie publicações formatadas via WhatsApp.
                   </div>
                   <div className="flex items-center gap-2 text-sm text-slate-800">
                     <SearchCheck className="h-4 w-4 text-yellow-600" />
-                    Raio-X da Oportunidade: análise profunda e inteligente de cada licitação.
+                    Raio-X da Oportunidade: análise profunda e inteligente de cada publicação.
                   </div>
                   <div className="flex items-center gap-2 text-sm text-slate-800">
                     <Bookmark className="h-4 w-4 text-yellow-600" />
@@ -67,7 +67,7 @@ export default function AssinarPage() {
                   Regras de Acesso
                 </div>
                 <div className="mt-2 text-sm text-slate-800">
-                  Usuários do plano gratuito podem buscar licitações. Recursos avançados como Ver Edital, WhatsApp, Raio‑X e Alertas Automáticos são exclusivos do Premium.
+                  Usuários do plano gratuito podem buscar publicações. Recursos avançados como Ver Edital, WhatsApp, Raio‑X e Alertas Automáticos são exclusivos do Premium.
                 </div>
               </div>
             </CardContent>
