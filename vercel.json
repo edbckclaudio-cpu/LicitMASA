@@ -1,7 +1,8 @@
 {
   "version": 2,
   "rewrites": [
-    { "source": "/.well-known/assetlinks.json", "destination": "/api/assetlinks" }
+    { "source": "/.well-known/assetlinks.json", "destination": "/api/assetlinks" },
+    { "source": "/OneSignalSDKWorker.js", "destination": "/OneSignalSDKWorker.js" }
   ],
   "crons": [
     {
