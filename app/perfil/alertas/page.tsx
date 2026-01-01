@@ -55,6 +55,28 @@ export default function AlertasPage() {
   const isGranted = useMemo(() => (permOS === 'granted' || permWeb === 'granted'), [permOS, permWeb])
 
   useEffect(() => {
+    try {
+      if (typeof window === 'undefined') return
+      const w: any = window as any
+      const OS = w.OneSignal
+      const hasUser = !!(OS?.User)
+      if (OS && !hasUser && !w.__ONESIGNAL_INIT_FALLBACK) {
+        w.__ONESIGNAL_INIT_FALLBACK = true
+        OS.push(async function() {
+          try {
+            await OS.init({
+              appId: '43f9ce9c-8d86-4076-a8b6-30dac8429149',
+              allowLocalhostAsSecureOrigin: true,
+              serviceWorkerPath: '/OneSignalSDKWorker.js',
+              serviceWorkerUpdaterPath: '/OneSignalSDKUpdaterWorker.js'
+            })
+          } catch {}
+        })
+      }
+    } catch {}
+  }, [])
+
+  useEffect(() => {
     async function init() {
       setLoading(true)
       setError(null)
@@ -122,6 +144,7 @@ export default function AlertasPage() {
         } catch {}
       }
       setLoading(false)
+      try { await refreshOneSignalInfo() } catch {}
     }
     init()
   }, [router])

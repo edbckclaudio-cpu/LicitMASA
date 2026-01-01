@@ -17,8 +17,8 @@ async function sendOneSignal(subscriptionId: string) {
   const basePayload: any = {
     app_id: appId,
     include_subscription_ids: [String(subscriptionId)],
-    headings: { en: 'LicitMASA Alertas', pt: 'LicitMASA Alertas' },
-    contents: { en: 'Teste de Notificação Real', pt: 'Teste de Notificação Real' },
+    headings: { pt: 'Teste de Alerta' },
+    contents: { pt: 'Notificação de teste via OneSignal' },
     priority: 10,
     android_visibility: 1,
     android_sound: 'default',
