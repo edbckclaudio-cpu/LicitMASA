@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-
+export const dynamic = 'force-static'
 export async function GET() {
   const packageId = process.env.ANDROID_PACKAGE_ID || 'br.com.licitmasa'
   const fingerprintEnv = (process.env.ANDROID_SHA256_CERT || '').trim()

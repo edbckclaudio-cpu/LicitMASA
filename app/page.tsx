@@ -615,7 +615,7 @@ export default function HomePage() {
             </div>
           </div>
           <div className="mt-2 text-xs text-gray-500">
-            Dica: Se não preencher palavra-chave nem filtro, o quadro abaixo listará todas as publicações.
+            Dica: Se não preencher palavra-chave nem filtro, listaremos todas as publicações abaixo.
           </div>
           <div className="mt-3 hidden grid-cols-1 gap-4 md:grid md:grid-cols-[160px,120px,160px,160px,1fr]">
             <Select value={uf || ''} onChange={(e) => setUf(e.target.value || undefined)}>

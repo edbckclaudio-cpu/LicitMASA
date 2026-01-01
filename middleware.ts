@@ -7,6 +7,6 @@ export function middleware(_req: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!OneSignalSDKWorker\\.js|\\.well-known/assetlinks\\.json|_next/static|_next/image|favicon\\.ico|robots\\.txt).*)',
+    '/((?!OneSignalSDKWorker\\.js|OneSignalSDKUpdaterWorker\\.js|\\.well-known/assetlinks\\.json|_next/static|_next/image|favicon\\.ico|robots\\.txt).*)',
   ],
 }
