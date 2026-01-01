@@ -287,16 +287,13 @@ export default function AlertasPage() {
           }
         } catch {}
       }
-      const res = await fetch('/api/notifications/onesignal-test', {
+      const res = await fetch('/api/notifications/test', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-admin-token': 'DEV' },
         body: (() => {
           const payload = {
-            externalId: externalIdToUse || '',
             userId,
-            playerId: playerIdToUse,
-            title: 'Teste de Alerta',
-            body: 'Notificação de teste via OneSignal',
+            priority: 10,
           }
           try { setLastPayloadSent(payload) } catch {}
           try {
