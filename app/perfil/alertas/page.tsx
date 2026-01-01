@@ -438,6 +438,21 @@ export default function AlertasPage() {
             if (ext) setOsExternalId(String(ext))
           } catch {}
           try {
+            try {
+              if ('serviceWorker' in navigator) {
+                const regs = await navigator.serviceWorker.getRegistrations().catch(() => [])
+                const found = Array.isArray(regs) && regs.some((r: any) => {
+                  const s1 = (r.active && (r.active as any).scriptURL) || ''
+                  const s2 = (r.installing && (r.installing as any).scriptURL) || ''
+                  const s3 = (r.waiting && (r.waiting as any).scriptURL) || ''
+                  return [s1, s2, s3].some((u) => typeof u === 'string' && /OneSignalSDKWorker\.js/i.test(u))
+                })
+                if (found) {
+                  await OneSignal?.User?.pushSubscription?.optOut?.()
+                  await OneSignal?.User?.pushSubscription?.optIn?.()
+                }
+              }
+            } catch {}
             const liveId = (OneSignal as any)?.User?.pushSubscriptionId
             if (!liveId) {
               await OneSignal?.User?.pushSubscription?.optIn?.()
@@ -485,6 +500,21 @@ export default function AlertasPage() {
             if (ext) setOsExternalId(String(ext))
           } catch {}
           try {
+            try {
+              if ('serviceWorker' in navigator) {
+                const regs = await navigator.serviceWorker.getRegistrations().catch(() => [])
+                const found = Array.isArray(regs) && regs.some((r: any) => {
+                  const s1 = (r.active && (r.active as any).scriptURL) || ''
+                  const s2 = (r.installing && (r.installing as any).scriptURL) || ''
+                  const s3 = (r.waiting && (r.waiting as any).scriptURL) || ''
+                  return [s1, s2, s3].some((u) => typeof u === 'string' && /OneSignalSDKWorker\.js/i.test(u))
+                })
+                if (found) {
+                  await OneSignal?.User?.pushSubscription?.optOut?.()
+                  await OneSignal?.User?.pushSubscription?.optIn?.()
+                }
+              }
+            } catch {}
             const liveId = (OneSignal as any)?.User?.pushSubscriptionId
             if (!liveId) {
               await OneSignal?.User?.pushSubscription?.optIn?.()

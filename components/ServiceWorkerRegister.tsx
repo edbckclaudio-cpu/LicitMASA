@@ -40,7 +40,7 @@ export default function ServiceWorkerRegister() {
         await OneSignal.init({
           appId: APP_ID,
           allowLocalhostAsSecureOrigin: true,
-          serviceWorkerPath: '/OneSignalSDKWorker.js',
+          serviceWorkerPath: 'OneSignalSDKWorker.js',
           serviceWorkerUpdaterPath: '/OneSignalSDKUpdaterWorker.js'
         })
         try {
@@ -53,6 +53,7 @@ export default function ServiceWorkerRegister() {
               return [s1, s2, s3].some((u) => typeof u === 'string' && /OneSignalSDKWorker\.js/i.test(u))
             })
             if (!found) {
+              try { console.log('Tentando registrar SW em /OneSignalSDKWorker.js') } catch {}
               await navigator.serviceWorker.register('/OneSignalSDKWorker.js').catch(() => {})
             }
           }
