@@ -316,6 +316,8 @@ export default function AlertasPage() {
         body: (() => {
           const payload = {
             userId,
+            externalId: externalIdToUse || undefined,
+            subscriptionId: playerIdToUse || undefined,
             priority: 10,
           }
           try { setLastPayloadSent(payload) } catch {}
@@ -395,6 +397,8 @@ export default function AlertasPage() {
             body: (() => {
               const payload = {
                 userId: uid,
+                subscriptionId: subscriptionId || undefined,
+                externalId: (typeof window !== 'undefined' ? (window as any).OneSignal?.User?.externalId : null) || undefined,
                 priority: 10,
               }
               try { setLastPayloadSent(payload) } catch {}
@@ -410,6 +414,18 @@ export default function AlertasPage() {
       setUiMsg('Falha ao agendar envio')
     }
   }
+  useEffect(() => {
+    const run = async () => {
+      try { await checkWorkerReachability() } catch {}
+      try {
+        const r = await fetch('/.well-known/assetlinks.json', { method: 'GET' })
+        setAssetLinksStatus(r.ok ? 'ok' : `erro ${r.status}`)
+      } catch (e: any) {
+        setAssetLinksStatus(`falha ${e?.message || 'UNKNOWN'}`)
+      }
+    }
+    run()
+  }, [])
   const saveSubscriptionIdToProfile = useCallback(async (id: string) => {
     try {
       if (supabase && userId && id) {

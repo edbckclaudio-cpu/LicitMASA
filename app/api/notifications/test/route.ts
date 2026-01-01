@@ -47,6 +47,44 @@ async function sendOneSignal(subscriptionId: string) {
   return { ok: res.ok, status: res.status, data: parsed ?? (raw ? { raw } : null) }
 }
 
+async function sendOneSignalByExternalId(externalId: string) {
+  const appId = '43f9ce9c-8d86-4076-a8b6-30dac8429149'
+  const apiKeyRaw = (process.env.ONESIGNAL_REST_API_KEY || process.env.ONESIGNAL_API_KEY || '').trim()
+  const apiKey = apiKeyRaw.replace(/^(?:Key|Basic)\s+/i, '').trim()
+  if (!appId || !apiKey) return { ok: false }
+  const basePayload: any = {
+    app_id: appId,
+    include_external_user_ids: [String(externalId)],
+    headings: { pt: 'Teste de Alerta' },
+    contents: { pt: 'Notificação de teste via OneSignal' },
+    android_channel_id: 'high_importance_channel',
+    priority: 10,
+    android_visibility: 1,
+    android_sound: 'default',
+    vibrate: true,
+    android_vibration_pattern: '200,100,200,100,200',
+    chrome_web_icon: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.licitmasa.com.br'}/icons/icone_L_192.png`,
+    chrome_web_image: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.licitmasa.com.br'}/icons/icone_L_512.png`,
+  }
+  const channelId = (process.env.ONESIGNAL_ANDROID_CHANNEL_ID || '').trim()
+  if (channelId) {
+    basePayload.android_channel_id = 'high_importance_channel'
+  }
+  const res = await fetch('https://api.onesignal.com/notifications', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Authorization': `Basic ${apiKey}`,
+    },
+    body: JSON.stringify(basePayload),
+  })
+  let raw: string | null = null
+  try { raw = await res.text() } catch {}
+  let parsed: any = null
+  try { parsed = raw ? JSON.parse(raw) : null } catch {}
+  return { ok: res.ok, status: res.status, data: parsed ?? (raw ? { raw } : null) }
+}
+
 async function resolveTokenByEmailOrUserId(email?: string, userId?: string): Promise<string | null> {
   const supa = admin()
   if (!supa) return null
@@ -83,6 +121,8 @@ export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}))
     const tokenDirect = String(body.token || '')
+    const subscriptionId = String(body.subscriptionId || body.playerId || '')
+    const externalId = String(body.externalId || '')
     const email = String(body.email || '')
     const userId = String(body.userId || '')
     const adminToken = (req.headers.get('x-admin-token') || '').trim()
@@ -90,6 +130,14 @@ export async function POST(req: Request) {
     if (!adminToken || adminToken !== expected) return NextResponse.json({ ok: false, error: 'UNAUTHORIZED' }, { status: 401 })
     if (tokenDirect) {
       const r = await sendOneSignal(tokenDirect)
+      return NextResponse.json({ ok: r.ok, data: r.data }, { status: r.status })
+    }
+    if (subscriptionId) {
+      const r = await sendOneSignal(subscriptionId)
+      return NextResponse.json({ ok: r.ok, data: r.data }, { status: r.status })
+    }
+    if (externalId) {
+      const r = await sendOneSignalByExternalId(externalId)
       return NextResponse.json({ ok: r.ok, data: r.data }, { status: r.status })
     }
     const resolved = await resolveTokenByEmailOrUserId(email, userId)
@@ -105,6 +153,8 @@ export async function GET(req: Request) {
   try {
     const u = new URL(req.url)
     const tokenDirect = String(u.searchParams.get('token') || '')
+    const subscriptionId = String(u.searchParams.get('subscriptionId') || u.searchParams.get('playerId') || '')
+    const externalId = String(u.searchParams.get('externalId') || '')
     const email = String(u.searchParams.get('email') || '')
     const userId = String(u.searchParams.get('userId') || '')
     const adminToken = (req.headers.get('x-admin-token') || '').trim()
@@ -112,6 +162,14 @@ export async function GET(req: Request) {
     if (!adminToken || adminToken !== expected) return NextResponse.json({ ok: false, error: 'UNAUTHORIZED' }, { status: 401 })
     if (tokenDirect) {
       const r = await sendOneSignal(tokenDirect)
+      return NextResponse.json({ ok: r.ok, data: r.data }, { status: r.status })
+    }
+    if (subscriptionId) {
+      const r = await sendOneSignal(subscriptionId)
+      return NextResponse.json({ ok: r.ok, data: r.data }, { status: r.status })
+    }
+    if (externalId) {
+      const r = await sendOneSignalByExternalId(externalId)
       return NextResponse.json({ ok: r.ok, data: r.data }, { status: r.status })
     }
     const resolved = await resolveTokenByEmailOrUserId(email, userId)
