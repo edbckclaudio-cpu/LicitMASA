@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -47,6 +47,8 @@ export default function AlertasPage() {
   const [lastSentRecipients, setLastSentRecipients] = useState<number | null>(null)
   const [lastSentStatus, setLastSentStatus] = useState<number | null>(null)
   const [originSecure, setOriginSecure] = useState<boolean>(true)
+  const [isSecureCtx, setIsSecureCtx] = useState<boolean>(true)
+  const [originInfo, setOriginInfo] = useState<string>('—')
   
   const isGranted = useMemo(() => (permOS === 'granted' || permWeb === 'granted'), [permOS, permWeb])
 
@@ -143,7 +145,7 @@ export default function AlertasPage() {
       }
     }
     check()
-  }, [])
+  }, [saveSubscriptionIdToProfile])
   useEffect(() => {
     try {
       const run = async () => {
@@ -193,6 +195,14 @@ export default function AlertasPage() {
         } catch {}
       }
       OneSignal?.Notifications?.addEventListener?.('permissionChange', handler)
+      OneSignal?.User?.addEventListener?.('subscriptionChange', () => {
+        try {
+          const pid = OneSignal?.User?.PushSubscription?.id
+          if (pid) {
+            setOsPlayerId(String(pid))
+          }
+        } catch {}
+      })
       return () => {
         try { OneSignal?.Notifications?.removeEventListener?.('permissionChange', handler) } catch {}
       }
@@ -202,6 +212,8 @@ export default function AlertasPage() {
       const host = typeof location !== 'undefined' ? location.hostname : ''
       const isLocalhost = /^(localhost|127\.0\.0\.1)$/i.test(host)
       setOriginSecure(Boolean(isHttps || isLocalhost))
+      try { setIsSecureCtx(Boolean(typeof window !== 'undefined' ? (window as any).isSecureContext : true)) } catch { setIsSecureCtx(true) }
+      try { setOriginInfo(String(typeof location !== 'undefined' ? (location.protocol + '//' + location.host) : '—')) } catch { setOriginInfo('—') }
     } catch {
       setOriginSecure(true)
     }
@@ -376,9 +388,9 @@ export default function AlertasPage() {
       setUiMsg('Falha ao agendar envio')
     }
   }
-  async function saveSubscriptionIdToProfile(id: string) {
+  const saveSubscriptionIdToProfile = useCallback(async (id: string) => {
     try { if (supabase && userId && id) await supabase.from('profiles').update({ onesignal_id: String(id) }).eq('id', userId) } catch {}
-  }
+  }, [userId])
   async function activateOneSignal() {
     try {
       setUiMsg(null)
@@ -408,6 +420,10 @@ export default function AlertasPage() {
         } catch {}
         return
       }
+      try {
+        const webRes = await (typeof Notification !== 'undefined' ? Notification.requestPermission() : Promise.resolve(undefined as any))
+        try { setPermWeb(webRes || null) } catch {}
+      } catch {}
       try {
         await OneSignal?.Notifications?.requestPermission()
       } catch {}
@@ -454,6 +470,17 @@ export default function AlertasPage() {
       }
     } catch {
       setError('Falha ao ativar notificações')
+    }
+  }
+  async function forceBrowserPermission() {
+    try {
+      const res = await (typeof Notification !== 'undefined' ? Notification.requestPermission() : Promise.resolve(undefined as any))
+      try { setPermWeb(res || null) } catch {}
+      try { updatePermStatus() } catch {}
+      try { await refreshOneSignalInfo() } catch {}
+      setUiMsg(res === 'granted' ? 'Permissão do navegador: concedida' : 'Permissão do navegador não concedida')
+    } catch {
+      setUiMsg('Falha ao solicitar permissão do navegador')
     }
   }
   async function resetAndReinstallNotifications() {
@@ -666,17 +693,20 @@ export default function AlertasPage() {
                         <div className="text-xs text-red-700">Status OneSignal: {statusDelayOk ? String(permOS || 'indisponível') : String(permOS || 'carregando...')}</div>
                         {!originSecure && <div className="text-xs text-red-700">Origem não segura (HTTP ou IP). Acesse via HTTPS: {String(process.env.NEXT_PUBLIC_SITE_URL || 'https://www.licitmasa.com.br')}</div>}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Button onClick={() => { activateOneSignal(); updatePermStatus() }} className="bg-red-600 text-white hover:bg-red-700">
-                          Ativar Alertas de Licitação
-                        </Button>
-                        <Button onClick={openSiteSettings} className="bg-gray-100 text-gray-800 hover:bg-gray-200">
-                          Abrir configurações do site
-                        </Button>
-                      </div>
+                    <div className="flex items-center gap-2">
+                      <Button onClick={() => { activateOneSignal(); updatePermStatus() }} className="bg-red-600 text-white hover:bg-red-700">
+                        Ativar Alertas de Licitação
+                      </Button>
+                      <Button onClick={openSiteSettings} className="bg-gray-100 text-gray-800 hover:bg-gray-200">
+                        Abrir configurações do site
+                      </Button>
+                      <Button onClick={forceBrowserPermission} className="bg-gray-100 text-gray-800 hover:bg-gray-200">
+                        Forçar permissão do navegador
+                      </Button>
                     </div>
                   </div>
-                )}
+                </div>
+              )}
                 {isGranted && (
                   <div className="rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-800">
                     <div className="flex items-center justify-between gap-3">
@@ -729,6 +759,14 @@ export default function AlertasPage() {
                       <div className="rounded-md border bg-white p-3">
                         <div className="text-xs text-gray-500">Origem segura (HTTPS/localhost)</div>
                         <div className="text-sm text-gray-800">{originSecure ? 'sim' : 'não'}</div>
+                      </div>
+                      <div className="rounded-md border bg-white p-3">
+                        <div className="text-xs text-gray-500">isSecureContext</div>
+                        <div className="text-sm text-gray-800">{isSecureCtx ? 'sim' : 'não'}</div>
+                      </div>
+                      <div className="rounded-md border bg-white p-3">
+                        <div className="text-xs text-gray-500">Origin</div>
+                        <div className="text-sm text-gray-800">{originInfo}</div>
                       </div>
                       <div className="rounded-md border bg-white p-3">
                         <div className="text-xs text-gray-500">Scope do Service Worker</div>
