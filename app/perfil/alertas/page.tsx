@@ -727,6 +727,10 @@ export default function AlertasPage() {
                         <div className="text-sm text-gray-800">{swRegistered ? 'sim' : 'não'}</div>
                       </div>
                       <div className="rounded-md border bg-white p-3">
+                        <div className="text-xs text-gray-500">Origem segura (HTTPS/localhost)</div>
+                        <div className="text-sm text-gray-800">{originSecure ? 'sim' : 'não'}</div>
+                      </div>
+                      <div className="rounded-md border bg-white p-3">
                         <div className="text-xs text-gray-500">Scope do Service Worker</div>
                         <div className="text-sm text-gray-800">{String(swScope || '—')}</div>
                       </div>
