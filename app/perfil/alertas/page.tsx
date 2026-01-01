@@ -678,6 +678,21 @@ export default function AlertasPage() {
       setSwManualRegMsg(`Falha ao registrar SW: ${e?.message || 'UNKNOWN'}`)
     }
   }
+  async function forceOptReset() {
+    try {
+      const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
+      if (!OneSignal) return
+      await OneSignal?.User?.pushSubscription?.optOut?.()
+      await OneSignal?.User?.pushSubscription?.optIn?.()
+      try {
+        const pid = (OneSignal as any)?.User?.pushSubscriptionId
+        if (pid) {
+          setOsPlayerId(String(pid))
+          await saveSubscriptionIdToProfile(String(pid))
+        }
+      } catch {}
+    } catch {}
+  }
   async function resetFactory() {
     try {
       try {
@@ -823,6 +838,9 @@ export default function AlertasPage() {
                       </Button>
                       <Button onClick={manualRegisterOneSignalSW} className="bg-teal-600 text-white hover:bg-teal-700">
                         Registrar SW (OneSignal)
+                      </Button>
+                      <Button onClick={forceOptReset} disabled={!swRegistered} className="bg-orange-600 text-white hover:bg-orange-700">
+                        Gerar novo ID (optOut/optIn)
                       </Button>
                     </div>
                     <div className="text-xs text-gray-600">Diagnóstico OneSignal</div>
