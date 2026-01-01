@@ -53,7 +53,7 @@ export default function AlertasPage() {
   const [swManualRegMsg, setSwManualRegMsg] = useState<string | null>(null)
   const [assetLinksStatus, setAssetLinksStatus] = useState<string>('desconhecido')
   
-  const isGranted = useMemo(() => (permOS === 'granted' || permWeb === 'granted'), [permOS, permWeb])
+  const isGranted = useMemo(() => (permOS === 'granted' || permWeb === 'granted' || !!osPlayerId), [permOS, permWeb, osPlayerId])
 
   
 
