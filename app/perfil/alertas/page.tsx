@@ -145,7 +145,7 @@ export default function AlertasPage() {
       }
     }
     check()
-  }, [saveSubscriptionIdToProfile])
+  }, [])
   useEffect(() => {
     try {
       const run = async () => {
