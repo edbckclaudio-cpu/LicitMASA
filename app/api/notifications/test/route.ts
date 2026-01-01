@@ -20,6 +20,11 @@ async function sendOneSignal(subscriptionId: string) {
     contents: { en: 'Teste de Notificação Real', pt: 'Teste de Notificação Real' },
     priority: 10,
     android_visibility: 1,
+    android_sound: 'default',
+    vibrate: true,
+    android_vibration_pattern: '200,100,200,100,200',
+    chrome_web_icon: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.licitmasa.com.br'}/icons/icone_L_192.png`,
+    chrome_web_image: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.licitmasa.com.br'}/icons/icone_L_512.png`,
   }
   const channelId = (process.env.ONESIGNAL_ANDROID_CHANNEL_ID || '').trim()
   if (channelId) {

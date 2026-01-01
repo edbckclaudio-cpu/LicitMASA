@@ -152,7 +152,7 @@ export default function HomePage() {
     return formatDateYYYYMMDD(d)
   }, [somenteHoje])
   useEffect(() => {
-    document.title = 'LicitMASA'
+    document.title = 'Buscar Publicações'
   }, [])
   useEffect(() => {
     async function loadUserPlan() {
@@ -266,6 +266,31 @@ export default function HomePage() {
     const mm = String(d.getMinutes()).padStart(2, '0')
     return `${date} ${hh}:${mm}`
   }
+  function formatYYYYMMDDToBR(s: string): string {
+    const t = String(s || '').trim()
+    if (!/^\d{8}$/.test(t)) return t
+    const dd = t.slice(6, 8)
+    const mm = t.slice(4, 6)
+    const yyyy = t.slice(0, 4)
+    return `${dd}/${mm}/${yyyy}`
+  }
+  function formatISODateToBR(iso?: string): string {
+    const raw = String(iso || '')
+    if (!raw) return ''
+    const d = new Date(raw)
+    if (Number.isNaN(d.getTime())) return raw.slice(0, 10)
+    return d.toLocaleDateString('pt-BR')
+  }
+  function limpar() {
+    setTermo('')
+    setUf(undefined)
+    setModalidade('')
+    setMunicipioIbge('')
+    setCnpj('')
+    setCodigoUA('')
+    setSomenteHoje(false)
+    setPagina(1)
+  }
 
   async function carregarIniciais() {
     setLoading(true)
@@ -281,9 +306,9 @@ export default function HomePage() {
       setResultados(sortResultados(base))
       setTotalPages(Number(page.totalPages || 1))
       setLoaded(true)
-      addToast('Licitações de hoje carregadas', 'info')
+      addToast('Publicações de hoje carregadas', 'info')
     } catch (e: any) {
-      setError('Falha ao carregar licitações de hoje')
+      setError('Falha ao carregar publicações de hoje')
       setResultados([])
     } finally {
       setLoading(false)
@@ -543,10 +568,7 @@ export default function HomePage() {
 
       <header className="border-b bg-white">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-slate-900">LicitMASA</h1>
-            <p className="mt-1 text-sm text-gray-600">O radar de oportunidades para sua empresa</p>
-          </div>
+          <div className="text-sm font-medium text-slate-900">Buscar Publicações</div>
           <div className="flex items-center gap-3">
             {loading && (
               <div className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs text-blue-800">
@@ -595,11 +617,14 @@ export default function HomePage() {
               <Button onClick={() => setFiltersOpen(true)} className="bg-gray-100 text-gray-800 hover:bg-gray-200 md:hidden">
                 Filtros
               </Button>
-              <Button onClick={buscar} disabled={loading} className="bg-blue-800 hover:bg-blue-700 text-white">
+              <Button onClick={buscar} disabled={loading} className="bg-blue-800 hover:bg-blue-700 text-white w-full md:w-auto">
                 {loading ? <Search className="mr-2 h-4 w-4 animate-spin" /> : null}
-                {loading ? 'Buscando...' : 'Buscar'}
+                {loading ? 'Buscando...' : 'Filtrar'}
               </Button>
             </div>
+          </div>
+          <div className="mt-2 text-xs text-gray-500">
+            Dica: Se não preencher palavras-chave ou filtros, todas as publicações disponíveis serão listadas abaixo.
           </div>
           <div className="mt-3 hidden grid-cols-1 gap-4 md:grid md:grid-cols-[160px,120px,160px,160px,1fr]">
             <Select value={uf || ''} onChange={(e) => setUf(e.target.value || undefined)}>
@@ -638,10 +663,15 @@ export default function HomePage() {
               {somenteHoje ? "Somente hoje" : "Últimos 3 dias"}
             </Button>
           </div>
-          <div className="mt-3 text-xs text-gray-500">Exibindo publicações de {inicio} a {hoje}</div>
+          <div className="mt-2 flex items-center justify-end">
+            <Button onClick={limpar} className="bg-transparent text-slate-700 hover:bg-gray-100 px-2 py-1 text-xs">
+              Limpar
+            </Button>
+          </div>
+          <div className="mt-3 text-xs text-gray-500">Exibindo publicações de {formatYYYYMMDDToBR(inicio)} a {formatYYYYMMDDToBR(hoje)}</div>
           <div className="mt-3 flex items-center justify-between rounded-md border-2 border-slate-300 bg-white px-3 py-2 shadow-md">
             <div className="text-sm text-slate-700">
-              {`Encontramos ${resumo.total} licitações`}
+              {`Encontramos ${resumo.total} publicações`}
               {resumo.topUFs.length > 0 ? ` • Principais UFs: ${resumo.topUFs.map(([u, c]) => `${u} (${c})`).join(', ')}` : ''}
             </div>
             <div className="flex items-center gap-3">
@@ -898,19 +928,24 @@ export default function HomePage() {
                               <div className="rounded-lg border border-slate-200 bg-blue-50 p-3 text-xs text-gray-800 lowercase line-clamp-3">
                                 {String(objetoDisplay || 'Descrição não disponível').toLowerCase()}
                               </div>
-                              <div className="grid grid-cols-2 gap-2 text-xs">
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
                                 <div className="flex items-center gap-2 rounded-md border px-2 py-2 text-blue-800 font-semibold">
                                   <Banknote className="h-4 w-4 text-blue-700" />
                                   {formatCurrencyBRL(getField(item, ['valorEstimado','valorTotalEstimado','valor','valorContratacao'], 0))}
                                 </div>
                                 <div className="flex items-center gap-2 rounded-md border px-2 py-2 text-gray-700">
                                   <Calendar className="h-4 w-4 text-blue-700" />
-                                  {String(getField(item, ['dataPublicacao','dataInclusao','data'], '') || '').slice(0, 10)}
+                                  {formatISODateToBR(String(getField(item, ['dataPublicacao','dataInclusao','data'], '')))}
+                                </div>
+                                <div className="flex items-center gap-1 rounded-md border px-2 py-2 text-gray-700">
+                                  <MapPin className="h-3 w-3 text-blue-700" />
+                                  {String(ufItem || '-')}
+                                </div>
+                                <div className="flex items-center gap-1 rounded-md border px-2 py-2 text-gray-700">
+                                  {municipio ? municipio : '-'}
                                 </div>
                               </div>
-                              <div className="flex flex-wrap items-center gap-2 text-xs text-gray-700">
-                                <span className="inline-flex items-center gap-1 rounded-md border px-2 py-1"><MapPin className="h-3 w-3 text-blue-700" />{String(ufItem || '-')}</span>
-                                <span className="inline-flex items-center gap-1 rounded-md border px-2 py-1">{municipio ? municipio : '-'}</span>
+                              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-gray-700">
                                 <span className="inline-flex items-center gap-1 rounded-md border px-2 py-1">{cnpj ? `CNPJ ${cnpj}` : '-'}</span>
                                 <span className="inline-flex items-center gap-1 rounded-md border px-2 py-1">{uaCodigo ? `UA ${String(uaCodigo)}` : '-'}</span>
                               </div>
@@ -1054,14 +1089,21 @@ export default function HomePage() {
                       </div>
                     </div>
                     <div className="w-full md:w-auto flex md:flex-col items-center md:items-end gap-3">
-                      <div className="flex items-center gap-3">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 w-full">
                         <div className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs text-gray-700">
                           <Banknote className="h-4 w-4 text-blue-700" />
                           {formatCurrencyBRL(valor)}
                         </div>
                         <div className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs text-gray-700">
                           <Calendar className="h-4 w-4 text-blue-700" />
-                          {String(dataPub || '').slice(0, 10)}
+                          {formatISODateToBR(String(dataPub || ''))}
+                        </div>
+                        <div className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs text-gray-700">
+                          <MapPin className="h-4 w-4 text-blue-700" />
+                          {String(ufItem || '-')}
+                        </div>
+                        <div className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs text-gray-700">
+                          {municipio ? municipio : '-'}
                         </div>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
@@ -1173,6 +1215,9 @@ export default function HomePage() {
                             {dataEnc ? countdownLabel(dataEnc) : (
                               <a href={editUrl} target="_blank" rel="noreferrer" className="underline text-blue-700">Consultar no Edital</a>
                             )}
+                          </div>
+                          <div className="mt-1 text-xs text-gray-600">
+                            {dataEnc ? `Encerramento: ${formatDateTimeBR(dataEnc)}` : ''}
                           </div>
                         </div>
                       </div>
@@ -1299,25 +1344,25 @@ export default function HomePage() {
                       {formatCurrencyBRL(getField(detailsItem, ['valorEstimado','valorTotalEstimado','valor','valorContratacao'], 0))}
                     </div>
                   </div>
-                  <div>
-                    <div className="text-xs text-gray-500">Data</div>
-                    <div className="font-medium">
-                      {String(getField(detailsItem, ['dataPublicacao','dataInclusao','data'], '') || '').slice(0, 10)}
+                    <div>
+                      <div className="text-xs text-gray-500">Data</div>
+                      <div className="font-medium">
+                      {formatISODateToBR(String(getField(detailsItem, ['dataPublicacao','dataInclusao','data'], '') || ''))}
+                      </div>
                     </div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-gray-500">UF</div>
-                    <div className="font-medium">
-                      {String(getField(getField(detailsItem, ['unidadeOrgao'], {}), ['ufSigla'], uf || '-'))}
+                    <div>
+                      <div className="text-xs text-gray-500">UF</div>
+                      <div className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs text-gray-700">
+                        {String(getField(getField(detailsItem, ['unidadeOrgao'], {}), ['ufSigla'], uf || '-'))}
+                      </div>
                     </div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-gray-500">Município</div>
-                    <div className="font-medium">
-                      {asText(getField(getField(detailsItem, ['unidadeOrgao'], {}), ['municipioNome'], '')) ||
-                        (getField(detailsItem, ['codigoMunicipioIbge'], '') ? `IBGE ${String(getField(detailsItem, ['codigoMunicipioIbge'], ''))}` : '-')}
+                    <div>
+                      <div className="text-xs text-gray-500">Município</div>
+                      <div className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs text-gray-700">
+                        {asText(getField(getField(detailsItem, ['unidadeOrgao'], {}), ['municipioNome'], '')) ||
+                          (getField(detailsItem, ['codigoMunicipioIbge'], '') ? `IBGE ${String(getField(detailsItem, ['codigoMunicipioIbge'], ''))}` : '-')}
+                      </div>
                     </div>
-                  </div>
                   <div>
                     <div className="text-xs text-gray-500">CNPJ do Órgão</div>
                     <div className="font-medium">

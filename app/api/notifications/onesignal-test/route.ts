@@ -34,6 +34,9 @@ export async function POST(req: Request) {
       android_sound: 'default',
       vibrate: true,
       android_vibration_pattern: '200,100,200,100,200',
+      chrome_web_icon: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.licitmasa.com.br'}/icons/icone_L_192.png`,
+      chrome_web_image: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.licitmasa.com.br'}/icons/icone_L_512.png`,
+      url: process.env.NEXT_PUBLIC_SITE_URL || 'https://www.licitmasa.com.br/',
     } as any
     {
       const channelId = (process.env.ONESIGNAL_ANDROID_CHANNEL_ID || '').trim()

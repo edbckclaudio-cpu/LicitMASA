@@ -1,5 +1,8 @@
 {
   "version": 2,
+  "rewrites": [
+    { "source": "/.well-known/assetlinks.json", "destination": "/api/assetlinks" }
+  ],
   "crons": [
     {
       "path": "/api/cron/run-check-alerts",
