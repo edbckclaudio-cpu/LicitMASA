@@ -478,7 +478,7 @@ export default function HomePage() {
     const valor = formatCurrencyBRL(getField(currentItem, ['valorTotalEstimado','valorEstimado','valor','valorContratacao'], 0))
     const data = String(getField(currentItem, ['dataEncerramentoProposta'], '')) || ''
     const linkPNCP = buildEditalUrl(currentItem)
-    const msg = `📢 *Oportunidade de Licitação - LicitMASA*%0A%0A📦 *Objeto:* ${objetoCompra}%0A🏛️ *Órgão:* ${razaoSocial}%0A💰 *Valor:* ${valor}%%0A⏳ *Prazo Final:* ${formatDateTimeBR(data)}%0A%0A🔗 *Ver detalhes no Portal:* ${linkPNCP}%0A%0A_Enviado via LicitMASA_`
+    const msg = `📢 *Publicação - LicitMASA*%0A%0A📦 *Objeto:* ${objetoCompra}%0A🏛️ *Órgão:* ${razaoSocial}%0A💰 *Valor:* ${valor}%%0A⏳ *Prazo Final:* ${formatDateTimeBR(data)}%0A%0A🔗 *Ver detalhes no Portal:* ${linkPNCP}%0A%0A_Enviado via LicitMASA_`
     const url = `https://wa.me/?text=${msg}`
     if (typeof window !== 'undefined') {
       window.open(url, '_blank')
@@ -654,8 +654,8 @@ export default function HomePage() {
               {somenteHoje ? "Somente hoje" : "Últimos 3 dias"}
             </Button>
           </div>
-          <div className="mt-2 flex items-center justify-end">
-            <Button onClick={limpar} className="bg-transparent text-slate-700 hover:bg-gray-100 px-2 py-1 text-xs border border-slate-300">
+          <div className="mt-2">
+            <Button onClick={limpar} className="bg-transparent text-slate-700 hover:underline px-0 py-0 text-xs">
               Limpar
             </Button>
           </div>

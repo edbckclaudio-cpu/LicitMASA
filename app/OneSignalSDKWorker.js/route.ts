@@ -4,7 +4,7 @@ export async function GET() {
   return new Response(script, {
     headers: {
       'Content-Type': 'application/javascript',
-      'Cache-Control': 'public, max-age=3600',
+      'Service-Worker-Allowed': '/',
     },
   })
 }
