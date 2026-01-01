@@ -1,3 +1,4 @@
+import { NextResponse } from 'next/server'
 export const dynamic = 'force-static'
 export async function GET() {
   const script = "importScripts('https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js');"
