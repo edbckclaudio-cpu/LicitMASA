@@ -621,7 +621,7 @@ export default function HomePage() {
               <Button onClick={() => setFiltersOpen(true)} className="bg-gray-100 text-gray-800 hover:bg-gray-200 md:hidden">
                 Filtros
               </Button>
-              <Button onClick={buscar} disabled={loading} className="bg-blue-800 hover:bg-blue-700 text-white w-full md:w-auto">
+              <Button onClick={buscar} disabled={loading} className="bg-blue-800 hover:bg-blue-700 text-white w-full">
                 {loading ? <Search className="mr-2 h-4 w-4 animate-spin" /> : null}
                 {loading ? 'Buscando...' : 'Filtrar'}
               </Button>
@@ -668,7 +668,7 @@ export default function HomePage() {
             </Button>
           </div>
           <div className="mt-2 flex items-center justify-end">
-            <Button onClick={limpar} className="bg-transparent text-slate-700 hover:bg-gray-100 px-2 py-1 text-xs">
+            <Button onClick={limpar} className="bg-transparent text-slate-700 hover:bg-gray-100 px-2 py-1 text-xs border border-slate-300">
               Limpar
             </Button>
           </div>

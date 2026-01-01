@@ -19,6 +19,7 @@ async function sendOneSignal(subscriptionId: string) {
     include_subscription_ids: [String(subscriptionId)],
     headings: { pt: 'Teste de Alerta' },
     contents: { pt: 'Notificação de teste via OneSignal' },
+    android_channel_id: 'high_importance_channel',
     priority: 10,
     android_visibility: 1,
     android_sound: 'default',
@@ -29,7 +30,7 @@ async function sendOneSignal(subscriptionId: string) {
   }
   const channelId = (process.env.ONESIGNAL_ANDROID_CHANNEL_ID || '').trim()
   if (channelId) {
-    basePayload.android_channel_id = channelId
+    basePayload.android_channel_id = 'high_importance_channel'
   }
   const res = await fetch('https://api.onesignal.com/notifications', {
     method: 'POST',
