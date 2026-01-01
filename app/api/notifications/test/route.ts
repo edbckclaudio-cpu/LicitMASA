@@ -17,8 +17,8 @@ async function sendOneSignal(subscriptionId: string) {
   const basePayload: any = {
     app_id: appId,
     include_subscription_ids: [String(subscriptionId)],
-    headings: { pt: 'Teste de Alerta' },
-    contents: { pt: 'Notificação de teste via OneSignal' },
+    headings: { pt: 'Teste de Alerta', en: 'Alert Test' },
+    contents: { pt: 'Notificação de teste via OneSignal', en: 'Test notification via OneSignal' },
     priority: 10,
     android_visibility: 1,
     android_sound: 'default',
@@ -26,6 +26,7 @@ async function sendOneSignal(subscriptionId: string) {
     android_vibration_pattern: '200,100,200,100,200',
     chrome_web_icon: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.licitmasa.com.br'}/icons/icone_L_192.png`,
     chrome_web_image: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.licitmasa.com.br'}/icons/icone_L_512.png`,
+    url: process.env.NEXT_PUBLIC_SITE_URL || 'https://www.licitmasa.com.br/',
   }
   const channelId = (process.env.ONESIGNAL_ANDROID_CHANNEL_ID || '').trim()
   if (channelId) {
@@ -54,8 +55,8 @@ async function sendOneSignalByExternalId(externalId: string) {
   const basePayload: any = {
     app_id: appId,
     include_external_user_ids: [String(externalId)],
-    headings: { pt: 'Teste de Alerta' },
-    contents: { pt: 'Notificação de teste via OneSignal' },
+    headings: { pt: 'Teste de Alerta', en: 'Alert Test' },
+    contents: { pt: 'Notificação de teste via OneSignal', en: 'Test notification via OneSignal' },
     priority: 10,
     android_visibility: 1,
     android_sound: 'default',
@@ -63,6 +64,7 @@ async function sendOneSignalByExternalId(externalId: string) {
     android_vibration_pattern: '200,100,200,100,200',
     chrome_web_icon: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.licitmasa.com.br'}/icons/icone_L_192.png`,
     chrome_web_image: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.licitmasa.com.br'}/icons/icone_L_512.png`,
+    url: process.env.NEXT_PUBLIC_SITE_URL || 'https://www.licitmasa.com.br/',
   }
   const channelId = (process.env.ONESIGNAL_ANDROID_CHANNEL_ID || '').trim()
   if (channelId) {

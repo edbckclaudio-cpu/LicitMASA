@@ -314,6 +314,9 @@ export default function AlertasPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-admin-token': 'DEV' },
         body: (() => {
+          if (!playerIdToUse) {
+            try { OneSignal?.User?.pushSubscription?.optIn?.() } catch {}
+          }
           const payload = {
             userId,
             externalId: externalIdToUse || undefined,
