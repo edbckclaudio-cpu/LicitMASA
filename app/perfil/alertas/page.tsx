@@ -32,7 +32,6 @@ export default function AlertasPage() {
   const [permOS, setPermOS] = useState<string | null>(null)
   const [statusDelayOk, setStatusDelayOk] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
-  const isGranted = useMemo(() => (permOS === 'granted' || permWeb === 'granted'), [permOS, permWeb])
   const [osExternalId, setOsExternalId] = useState<string | null>(null)
   const [osPlayerId, setOsPlayerId] = useState<string | null>(null)
   const [dbPlayerId, setDbPlayerId] = useState<string | null>(null)
@@ -42,6 +41,7 @@ export default function AlertasPage() {
   const [swScope, setSwScope] = useState<string | null>(null)
   const [lastPayloadSent, setLastPayloadSent] = useState<any>(null)
   
+  const isGranted = useMemo(() => (permOS === 'granted' || permWeb === 'granted' || !!osPlayerId), [permOS, permWeb, osPlayerId])
 
   useEffect(() => {
     async function init() {
