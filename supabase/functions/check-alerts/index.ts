@@ -135,7 +135,7 @@ serve(async (req: Request) => {
     if (newItems.length === 0) continue
     const to = alert.profiles?.email || ""
     if (to) {
-      const subject = `Novas licitações: ${alert.keyword}${alert.uf ? ` • ${alert.uf}` : ""}`
+      const subject = `Novas publicações: ${alert.keyword}${alert.uf ? ` • ${alert.uf}` : ""}`
       const listHtml = newItems.slice(0, 10).map((it: any) => {
         const modalidade = String(pick(it, ["modalidade","modalidadeContratacao","modalidadeCompra","descricaoModalidade"], "Modalidade"))
         const orgao = String(pick(it, ["orgao","orgaoPublico","nomeUnidadeAdministrativa","uasgNome","entidade"], "Órgão"))
@@ -156,14 +156,14 @@ serve(async (req: Request) => {
       const html = `
         <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Helvetica,Arial,sans-serif;max-width:640px;margin:0 auto;padding:16px">
           <h2 style="margin:0 0 8px;color:#0f1e45">Alertas PNCP</h2>
-          <p style="margin:0 0 12px;color:#333">Encontramos ${newItems.length} novas licitações nos últimos 3 dias para "<strong>${alert.keyword}</strong>" ${alert.uf ? `em <strong>${alert.uf}</strong>` : ""}.</p>
+          <p style="margin:0 0 12px;color:#333">Encontramos ${newItems.length} novas publicações nos últimos 3 dias para "<strong>${alert.keyword}</strong>" ${alert.uf ? `em <strong>${alert.uf}</strong>` : ""}.</p>
           <ul style="padding-left:16px;list-style:disc">${listHtml}</ul>
           <p style="margin-top:16px;color:#666;font-size:12px">Você está recebendo este alerta porque ativou monitoramento no LicitAção.</p>
         </div>
       `
       let channel: "email" | "push" | "none" = "none"
       let err: string | null = null
-      const pr = await sendPush(String(alert.user_id), subject, `Encontradas ${newItems.length} licitações para "${alert.keyword}"`, undefined)
+      const pr = await sendPush(String(alert.user_id), subject, `Encontradas ${newItems.length} publicações para "${alert.keyword}"`, undefined)
       if (pr.ok) {
         channel = "push"
         notified++

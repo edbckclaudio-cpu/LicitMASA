@@ -16,8 +16,8 @@ async function sendOneSignalBySubscriptionId(subscriptionId: string, count: numb
   if (!appId || !apiKey || !subscriptionId) return { ok: false, status: 400 }
   const title = 'LicitMASA Alertas'
   const message = count > 1
-    ? `Encontramos ${count} licitações hoje para suas preferências`
-    : `Encontramos 1 licitação hoje para suas preferências`
+    ? `Encontramos ${count} publicações hoje para suas preferências`
+    : `Encontramos 1 publicação hoje para suas preferências`
   const payload: any = {
     app_id: appId,
     include_subscription_ids: [String(subscriptionId)],
@@ -52,8 +52,8 @@ async function sendOneSignalByExternalId(externalId: string, count: number) {
   if (!appId || !apiKey || !externalId) return { ok: false, status: 400 }
   const title = 'LicitMASA Alertas'
   const message = count > 1
-    ? `Encontramos ${count} licitações hoje para suas preferências`
-    : `Encontramos 1 licitação hoje para suas preferências`
+    ? `Encontramos ${count} publicações hoje para suas preferências`
+    : `Encontramos 1 publicação hoje para suas preferências`
   const payload: any = {
     app_id: appId,
     include_external_user_ids: [String(externalId)],

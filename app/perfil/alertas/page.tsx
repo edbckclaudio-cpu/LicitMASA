@@ -425,6 +425,8 @@ export default function AlertasPage() {
       if (typeof window === 'undefined') { setError('OneSignal indisponível'); return }
       const OneSignal = (window as any).OneSignal
       if (!OneSignal) { setError('OneSignal não carregado'); return }
+      let beforePerm: any = undefined
+      try { beforePerm = OneSignal?.Notifications?.permission } catch {}
       let perm: string | undefined
       try { perm = OneSignal?.Notifications?.permission } catch {}
       if (perm === 'granted') {
@@ -464,6 +466,7 @@ export default function AlertasPage() {
             }
           } catch {}
         } catch {}
+        try { console.log('[PermLog] Antes=', beforePerm, 'Depois=', OneSignal?.Notifications?.permission) } catch {}
         return
       }
       try {
@@ -529,6 +532,7 @@ export default function AlertasPage() {
       } else {
         setError('Permissão negada ou não concedida')
       }
+      try { console.log('[PermLog] Antes=', beforePerm, 'Depois=', OneSignal?.Notifications?.permission) } catch {}
     } catch {
       setError('Falha ao ativar notificações')
     }
