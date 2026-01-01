@@ -41,7 +41,7 @@ export default function AlertasPage() {
   const [swScope, setSwScope] = useState<string | null>(null)
   const [lastPayloadSent, setLastPayloadSent] = useState<any>(null)
   
-  const isGranted = useMemo(() => (permOS === 'granted' || permWeb === 'granted' || !!osPlayerId), [permOS, permWeb, osPlayerId])
+  const isGranted = useMemo(() => (permOS === 'granted' || permWeb === 'granted'), [permOS, permWeb])
 
   useEffect(() => {
     async function init() {
@@ -544,17 +544,17 @@ export default function AlertasPage() {
       <header className="border-b bg-white">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
           <h1 className="text-xl font-semibold text-blue-900">Meus Alertas</h1>
-          <div className="flex items-center gap-2 flex-wrap">
-            <Button onClick={sendTestNotification} disabled={testLoading} className="inline-flex items-center rounded-md bg-blue-600 px-2 py-1 text-[12px] leading-tight font-medium text-white hover:bg-blue-700 whitespace-normal break-words">
+          <div className="flex items-center gap-2">
+            <Button onClick={sendTestNotification} disabled={testLoading} className="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-xs font-medium text-white hover:bg-blue-700">
               {testLoading ? '...' : 'Enviar Teste'}
             </Button>
-            <Button onClick={sendTestNotificationDelayed} disabled={testLoading} className="inline-flex items-center rounded-md bg-indigo-600 px-2 py-1 text-[12px] leading-tight font-medium text-white hover:bg-indigo-700 whitespace-normal break-words">
+            <Button onClick={sendTestNotificationDelayed} disabled={testLoading} className="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-xs font-medium text-white hover:bg-indigo-700">
               {testLoading ? '...' : 'Teste (10 segundos)'}
             </Button>
-            <Button onClick={resetAndReinstallNotifications} className="inline-flex items-center rounded-md bg-red-600 px-2 py-1 text-[12px] leading-tight font-medium text-white hover:bg-red-700 whitespace-normal break-words">
+            <Button onClick={resetAndReinstallNotifications} className="inline-flex items-center rounded-md bg-red-600 px-3 py-2 text-xs font-medium text-white hover:bg-red-700">
               RESETAR E REINSTALAR NOTIFICAÇÕES
             </Button>
-            <Button onClick={() => router.push('/')} className="inline-flex items-center rounded-md bg-gray-100 px-2 py-1 text-[12px] leading-tight font-medium text-gray-800 hover:bg-gray-200 whitespace-normal break-words">
+            <Button onClick={() => router.push('/')} className="inline-flex items-center rounded-md bg-gray-100 px-3 py-2 text-xs font-medium text-gray-800 hover:bg-gray-200">
               Voltar
             </Button>
           </div>
