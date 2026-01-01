@@ -40,6 +40,7 @@ export default function AlertasPage() {
   const [swRegistered, setSwRegistered] = useState<boolean>(false)
   const [swScope, setSwScope] = useState<string | null>(null)
   const [lastPayloadSent, setLastPayloadSent] = useState<any>(null)
+  const [showDebug, setShowDebug] = useState(true)
   
   const isGranted = useMemo(() => (permOS === 'granted' || permWeb === 'granted'), [permOS, permWeb])
 
@@ -462,6 +463,46 @@ export default function AlertasPage() {
       setPermOS(null)
     }
   }
+  async function refreshOneSignalInfo() {
+    try {
+      const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
+      let ext: any = null
+      let pid: any = null
+      try { ext = OneSignal?.User?.externalId } catch {}
+      if (!ext) { try { ext = await OneSignal?.getExternalUserId?.() } catch {} }
+      setOsExternalId(ext ? String(ext) : null)
+      try { pid = OneSignal?.User?.PushSubscription?.id } catch {}
+      if (!pid) { try { pid = await OneSignal?.getSubscriptionId?.() } catch {} }
+      setOsPlayerId(pid ? String(pid) : null)
+    } catch {}
+    try { updatePermStatus() } catch {}
+    try { await refreshSwInfo() } catch {}
+  }
+  async function copyDebug() {
+    try {
+      const pushSubIdLive = (typeof window !== 'undefined' ? (window as any).OneSignal?.User?.pushSubscriptionId : null) || null
+      const data = {
+        userId,
+        permWeb,
+        permOS,
+        initErrorTop,
+        swRegistered,
+        swScope,
+        osExternalId,
+        osPlayerId,
+        pushSubscriptionIdLive: pushSubIdLive,
+        dbPlayerId: dbPlayerId || profileOnesignalId,
+        lastPayloadSent,
+      }
+      const text = JSON.stringify(data, null, 2)
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text)
+        setUiMsg('Dados de diagnóstico copiados')
+      } else {
+        alert(text)
+      }
+    } catch {}
+  }
   function openSiteSettings() {
     try {
       const ua = typeof navigator !== 'undefined' ? navigator.userAgent.toLowerCase() : ''
@@ -628,6 +669,70 @@ export default function AlertasPage() {
                     </div>
                   </div>
                 )}
+                <div className="rounded-md border border-gray-200 bg-white p-3 text-sm text-gray-800">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <Button onClick={() => setShowDebug((v) => !v)} className="bg-gray-100 text-gray-800 hover:bg-gray-200">
+                        {showDebug ? 'Ocultar Diagnóstico' : 'Mostrar Diagnóstico'}
+                      </Button>
+                      <Button onClick={refreshOneSignalInfo} className="bg-blue-600 text-white hover:bg-blue-700">
+                        Atualizar diagnósticos
+                      </Button>
+                      <Button onClick={copyDebug} className="bg-indigo-600 text-white hover:bg-indigo-700">
+                        Copiar dados
+                      </Button>
+                    </div>
+                    <div className="text-xs text-gray-600">Diagnóstico OneSignal</div>
+                  </div>
+                  {showDebug && (
+                    <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="rounded-md border bg-white p-3">
+                        <div className="text-xs text-gray-500">Status Web</div>
+                        <div className="text-sm text-gray-800">{String(permWeb || 'indisponível')}</div>
+                      </div>
+                      <div className="rounded-md border bg-white p-3">
+                        <div className="text-xs text-gray-500">Status OneSignal</div>
+                        <div className="text-sm text-gray-800">{String(permOS || 'indisponível')}</div>
+                      </div>
+                      <div className="rounded-md border bg-white p-3">
+                        <div className="text-xs text-gray-500">Erro de inicialização</div>
+                        <div className="text-sm text-gray-800">{String(initErrorTop || '—')}</div>
+                      </div>
+                      <div className="rounded-md border bg-white p-3">
+                        <div className="text-xs text-gray-500">Service Worker registrado</div>
+                        <div className="text-sm text-gray-800">{swRegistered ? 'sim' : 'não'}</div>
+                      </div>
+                      <div className="rounded-md border bg-white p-3">
+                        <div className="text-xs text-gray-500">Scope do Service Worker</div>
+                        <div className="text-sm text-gray-800">{String(swScope || '—')}</div>
+                      </div>
+                      <div className="rounded-md border bg-white p-3">
+                        <div className="text-xs text-gray-500">User ID</div>
+                        <div className="text-sm text-gray-800">{String(userId || '—')}</div>
+                      </div>
+                      <div className="rounded-md border bg-white p-3">
+                        <div className="text-xs text-gray-500">External ID</div>
+                        <div className="text-sm text-gray-800">{String(osExternalId || '—')}</div>
+                      </div>
+                      <div className="rounded-md border bg-white p-3">
+                        <div className="text-xs text-gray-500">Subscription ID</div>
+                        <div className="text-sm text-gray-800">{String(osPlayerId || '—')}</div>
+                      </div>
+                      <div className="rounded-md border bg-white p-3">
+                        <div className="text-xs text-gray-500">PushSubscriptionId (live)</div>
+                        <div className="text-sm text-gray-800">{String(typeof window !== 'undefined' ? ((window as any).OneSignal?.User?.pushSubscriptionId || '—') : '—')}</div>
+                      </div>
+                      <div className="rounded-md border bg-white p-3">
+                        <div className="text-xs text-gray-500">ID salvo no banco</div>
+                        <div className="text-sm text-gray-800">{String(dbPlayerId || profileOnesignalId || '—')}</div>
+                      </div>
+                      <div className="rounded-md border bg-white p-3">
+                        <div className="text-xs text-gray-500">Último payload enviado</div>
+                        <div className="text-xs text-gray-700 break-words">{lastPayloadSent ? JSON.stringify(lastPayloadSent) : '—'}</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
                 <div className="rounded-md border border-gray-200 bg-white p-3 text-sm text-gray-800">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex flex-col gap-1">
