@@ -51,6 +51,7 @@ export default function AlertasPage() {
   const [originInfo, setOriginInfo] = useState<string>('—')
   const [swWorkerReachable, setSwWorkerReachable] = useState<string>('desconhecido')
   const [swManualRegMsg, setSwManualRegMsg] = useState<string | null>(null)
+  const [assetLinksStatus, setAssetLinksStatus] = useState<string>('desconhecido')
   
   const isGranted = useMemo(() => (permOS === 'granted' || permWeb === 'granted'), [permOS, permWeb])
 
@@ -197,6 +198,10 @@ export default function AlertasPage() {
         try {
           const p = permission ?? OneSignal?.Notifications?.permission
           setPermOS(p || null)
+          try {
+            const permNative = typeof Notification !== 'undefined' ? Notification.permission : null
+            console.log('[Diag] Permissão navegador=', permNative, 'OneSignal=', p)
+          } catch {}
           const liveId = (OneSignal as any)?.User?.pushSubscriptionId
           if (liveId) {
             setOsPlayerId(String(liveId))
@@ -419,10 +424,14 @@ export default function AlertasPage() {
             if (ext) setOsExternalId(String(ext))
           } catch {}
           try {
-            const pid = OneSignal?.User?.PushSubscription?.id
-            if (pid) {
-              setOsPlayerId(String(pid))
-              saveSubscriptionIdToProfile(String(pid))
+            const liveId = (OneSignal as any)?.User?.pushSubscriptionId
+            if (!liveId) {
+              await OneSignal?.User?.pushSubscription?.optIn?.()
+            }
+            const pidNow = (OneSignal as any)?.User?.pushSubscriptionId
+            if (pidNow) {
+              setOsPlayerId(String(pidNow))
+              saveSubscriptionIdToProfile(String(pidNow))
             }
           } catch {}
         } catch {}
@@ -462,10 +471,14 @@ export default function AlertasPage() {
             if (ext) setOsExternalId(String(ext))
           } catch {}
           try {
-            const pid = OneSignal?.User?.PushSubscription?.id
-            if (pid) {
-              setOsPlayerId(String(pid))
-              saveSubscriptionIdToProfile(String(pid))
+            const liveId = (OneSignal as any)?.User?.pushSubscriptionId
+            if (!liveId) {
+              await OneSignal?.User?.pushSubscription?.optIn?.()
+            }
+            const pidNow = (OneSignal as any)?.User?.pushSubscriptionId
+            if (pidNow) {
+              setOsPlayerId(String(pidNow))
+              saveSubscriptionIdToProfile(String(pidNow))
             }
           } catch {}
         } catch {}
@@ -525,12 +538,18 @@ export default function AlertasPage() {
       try { ext = OneSignal?.User?.externalId } catch {}
       if (!ext) { try { ext = await OneSignal?.getExternalUserId?.() } catch {} }
       setOsExternalId(ext ? String(ext) : null)
-      try { pid = OneSignal?.User?.PushSubscription?.id } catch {}
+      try { pid = (OneSignal as any)?.User?.pushSubscriptionId } catch {}
       if (!pid) { try { pid = await OneSignal?.getSubscriptionId?.() } catch {} }
       setOsPlayerId(pid ? String(pid) : null)
     } catch {}
     try { updatePermStatus() } catch {}
     try { await refreshSwInfo() } catch {}
+    try {
+      const res = await fetch('/.well-known/assetlinks.json', { method: 'GET', cache: 'no-store' })
+      setAssetLinksStatus(res.ok ? 'ok' : `erro ${res.status}`)
+    } catch (e: any) {
+      setAssetLinksStatus(`falha ${e?.message || 'UNKNOWN'}`)
+    }
   }
   async function copyDebug() {
     try {
@@ -785,6 +804,10 @@ export default function AlertasPage() {
                       <div className="rounded-md border bg-white p-3">
                         <div className="text-xs text-gray-500">Worker acessível (/OneSignalSDKWorker.js)</div>
                         <div className="text-sm text-gray-800">{String(swWorkerReachable)}</div>
+                      </div>
+                      <div className="rounded-md border bg-white p-3">
+                        <div className="text-xs text-gray-500">Asset Links (.well-known/assetlinks.json)</div>
+                        <div className="text-sm text-gray-800">{String(assetLinksStatus)}</div>
                       </div>
                       {swManualRegMsg && (
                         <div className="rounded-md border bg-white p-3">
