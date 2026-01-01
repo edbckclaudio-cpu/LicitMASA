@@ -43,6 +43,20 @@ export default function ServiceWorkerRegister() {
           serviceWorkerPath: '/OneSignalSDKWorker.js',
           serviceWorkerUpdaterPath: '/OneSignalSDKUpdaterWorker.js'
         })
+        try {
+          if ('serviceWorker' in navigator) {
+            const regs = await navigator.serviceWorker.getRegistrations().catch(() => [])
+            const found = Array.isArray(regs) && regs.some((r: any) => {
+              const s1 = (r.active && (r.active as any).scriptURL) || ''
+              const s2 = (r.installing && (r.installing as any).scriptURL) || ''
+              const s3 = (r.waiting && (r.waiting as any).scriptURL) || ''
+              return [s1, s2, s3].some((u) => typeof u === 'string' && /OneSignalSDKWorker\.js/i.test(u))
+            })
+            if (!found) {
+              await navigator.serviceWorker.register('/OneSignalSDKWorker.js').catch(() => {})
+            }
+          }
+        } catch {}
         try { (window as any).OneSignalInitialized = true } catch {}
         try { OneSignal?.Debug?.setLogLevel?.('trace') } catch {}
       } catch (e: any) {

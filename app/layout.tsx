@@ -6,11 +6,11 @@ import ServiceWorkerRegister from '@/components/ServiceWorkerRegister'
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.licitmasa.com.br'
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  title: 'LicitMASA — Licitações e Alertas',
+  title: 'LicitMASA — Publicações e Alertas',
   description:
-    'Pesquise licitações no PNCP, salve favoritos e receba alertas personalizados. Painel Premium do LicitMASA.',
+    'Pesquise publicações no PNCP, salve favoritos e receba alertas personalizados. Painel Premium do LicitMASA.',
   keywords: [
-    'licitações',
+    'publicações',
     'PNCP',
     'compras públicas',
     'alertas',
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'LicitMASA',
     description:
-      'Pesquise licitações e receba alertas do Painel Premium LicitMASA.',
+      'Pesquise publicações e receba alertas do Painel Premium LicitMASA.',
     url: siteUrl,
     siteName: 'LicitMASA',
     locale: 'pt_BR',
@@ -38,7 +38,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'LicitMASA',
     description:
-      'Pesquise licitações e receba alertas do Painel Premium LicitMASA.'
+      'Pesquise publicações e receba alertas do Painel Premium LicitMASA.'
   }
 }
 
