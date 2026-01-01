@@ -292,6 +292,24 @@ export default function HomePage() {
     setPagina(1)
   }
 
+  const sortResultados = useCallback((arr: any[]): any[] => {
+    const copy = [...arr]
+    if (ordenar === 'data') {
+      copy.sort((a, b) => {
+        const da = new Date(String(getField(a, ['dataPublicacao','dataInclusao','data'], '')))
+        const db = new Date(String(getField(b, ['dataPublicacao','dataInclusao','data'], '')))
+        return (db.getTime() || 0) - (da.getTime() || 0)
+      })
+    } else if (ordenar === 'valor_desc' || ordenar === 'valor_asc') {
+      copy.sort((a, b) => {
+        const va = Number(getField(a, ['valorEstimado','valorTotalEstimado','valor','valorContratacao'], 0) || 0)
+        const vb = Number(getField(b, ['valorEstimado','valorTotalEstimado','valor','valorContratacao'], 0) || 0)
+        return ordenar === 'valor_desc' ? (vb - va) : (va - vb)
+      })
+    }
+    return copy
+  }, [ordenar])
+
   const carregarIniciais = useCallback(async () => {
     setLoading(true)
     setError(null)
@@ -354,23 +372,6 @@ export default function HomePage() {
     }
   }
 
-  const sortResultados = useCallback((arr: any[]): any[] => {
-    const copy = [...arr]
-    if (ordenar === 'data') {
-      copy.sort((a, b) => {
-        const da = new Date(String(getField(a, ['dataPublicacao','dataInclusao','data'], '')))
-        const db = new Date(String(getField(b, ['dataPublicacao','dataInclusao','data'], '')))
-        return (db.getTime() || 0) - (da.getTime() || 0)
-      })
-    } else if (ordenar === 'valor_desc' || ordenar === 'valor_asc') {
-      copy.sort((a, b) => {
-        const va = Number(getField(a, ['valorEstimado','valorTotalEstimado','valor','valorContratacao'], 0) || 0)
-        const vb = Number(getField(b, ['valorEstimado','valorTotalEstimado','valor','valorContratacao'], 0) || 0)
-        return ordenar === 'valor_desc' ? (vb - va) : (va - vb)
-      })
-    }
-    return copy
-  }, [ordenar])
   const resumo = useMemo(() => {
     const total = resultados.length
     const ufCount: Record<string, number> = {}
