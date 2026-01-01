@@ -33,7 +33,9 @@ export default function ServiceWorkerRegister() {
     ;(window as any).OneSignal = OneSignal
     OneSignal.push(async function() {
       try {
+        try { console.log('1. Iniciando OneSignal...') } catch {}
         const APP_ID = '43f9ce9c-8d86-4076-a8b6-30dac8429149'
+        try { console.log('2. App ID usado:', APP_ID) } catch {}
         await OneSignal.init({
           appId: APP_ID,
           allowLocalhostAsSecureOrigin: true,
@@ -42,15 +44,17 @@ export default function ServiceWorkerRegister() {
         })
         try { OneSignal?.Debug?.setLogLevel?.('trace') } catch {}
       } catch (e: any) {
+        try { console.log('INIT OneSignal falhou:', e?.message || e) } catch {}
         try { ;(window as any).__ONE_SIGNAL_INIT_ERROR = e?.message || 'INIT_FAILED' } catch {}
       }
     })
     supabase?.auth.getUser().then((ud) => {
       const user = ud?.data?.user
+      try { console.log('3. Utilizador Supabase:', user?.id || null) } catch {}
       if (user?.id) {
         OneSignal.push(function() {
-          try { OneSignal.login?.(user.id) } catch {}
-          try { OneSignal.setExternalUserId(user.id) } catch {}
+          try { OneSignal.login?.(user.id); try { console.log('4. OneSignal.login executado:', user.id) } catch {} } catch (e: any) { try { console.log('4. OneSignal.login falhou:', e?.message || e) } catch {} }
+          try { OneSignal.setExternalUserId(user.id); try { console.log('5. setExternalUserId executado:', user.id) } catch {} } catch (e: any) { try { console.log('5. setExternalUserId falhou:', e?.message || e) } catch {} }
         })
       }
     })
@@ -58,8 +62,8 @@ export default function ServiceWorkerRegister() {
       const uid = session?.user?.id
       OneSignal.push(function() {
         if (uid) {
-          try { OneSignal.login?.(uid) } catch {}
-          try { OneSignal.setExternalUserId(uid) } catch {}
+          try { OneSignal.login?.(uid); try { console.log('6. onAuthChange login OK:', uid) } catch {} } catch (e: any) { try { console.log('6. onAuthChange login falhou:', e?.message || e) } catch {} }
+          try { OneSignal.setExternalUserId(uid); try { console.log('7. onAuthChange setExternalUserId OK:', uid) } catch {} } catch (e: any) { try { console.log('7. onAuthChange setExternalUserId falhou:', e?.message || e) } catch {} }
         } else {
           try { OneSignal.removeExternalUserId() } catch {}
         }
