@@ -54,27 +54,7 @@ export default function AlertasPage() {
   
   const isGranted = useMemo(() => (permOS === 'granted' || permWeb === 'granted'), [permOS, permWeb])
 
-  useEffect(() => {
-    try {
-      if (typeof window === 'undefined') return
-      const w: any = window as any
-      const OS = w.OneSignal
-      const hasUser = !!(OS?.User)
-      if (OS && !hasUser && !w.__ONESIGNAL_INIT_FALLBACK) {
-        w.__ONESIGNAL_INIT_FALLBACK = true
-        OS.push(async function() {
-          try {
-            await OS.init({
-              appId: '43f9ce9c-8d86-4076-a8b6-30dac8429149',
-              allowLocalhostAsSecureOrigin: true,
-              serviceWorkerPath: '/OneSignalSDKWorker.js',
-              serviceWorkerUpdaterPath: '/OneSignalSDKUpdaterWorker.js'
-            })
-          } catch {}
-        })
-      }
-    } catch {}
-  }, [])
+  
 
   useEffect(() => {
     async function init() {
@@ -213,18 +193,24 @@ export default function AlertasPage() {
     }
     try {
       const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
-      const handler = () => {
+      const handler = (permission?: any) => {
         try {
-          const p = OneSignal?.Notifications?.permission
+          const p = permission ?? OneSignal?.Notifications?.permission
           setPermOS(p || null)
+          const liveId = (OneSignal as any)?.User?.pushSubscriptionId
+          if (liveId) {
+            setOsPlayerId(String(liveId))
+            saveSubscriptionIdToProfile(String(liveId))
+          }
         } catch {}
       }
       OneSignal?.Notifications?.addEventListener?.('permissionChange', handler)
       OneSignal?.User?.addEventListener?.('subscriptionChange', () => {
         try {
-          const pid = OneSignal?.User?.PushSubscription?.id
+          const pid = (OneSignal as any)?.User?.pushSubscriptionId
           if (pid) {
             setOsPlayerId(String(pid))
+            saveSubscriptionIdToProfile(String(pid))
           }
         } catch {}
       })
@@ -442,10 +428,6 @@ export default function AlertasPage() {
         } catch {}
         return
       }
-      try {
-        const webRes = await (typeof Notification !== 'undefined' ? Notification.requestPermission() : Promise.resolve(undefined as any))
-        try { setPermWeb(webRes || null) } catch {}
-      } catch {}
       try {
         await OneSignal?.Notifications?.requestPermission()
       } catch {}

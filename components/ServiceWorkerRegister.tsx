@@ -31,6 +31,7 @@ export default function ServiceWorkerRegister() {
     if (typeof window === 'undefined') return
     const OneSignal = (window as any).OneSignal || []
     ;(window as any).OneSignal = OneSignal
+    if ((window as any).OneSignalInitialized) return
     OneSignal.push(async function() {
       try {
         try { console.log('1. Iniciando OneSignal...') } catch {}
@@ -42,6 +43,7 @@ export default function ServiceWorkerRegister() {
           serviceWorkerPath: '/OneSignalSDKWorker.js',
           serviceWorkerUpdaterPath: '/OneSignalSDKUpdaterWorker.js'
         })
+        try { (window as any).OneSignalInitialized = true } catch {}
         try { OneSignal?.Debug?.setLogLevel?.('trace') } catch {}
       } catch (e: any) {
         try { console.log('INIT OneSignal falhou:', e?.message || e) } catch {}
