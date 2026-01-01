@@ -39,8 +39,9 @@ export default function ServiceWorkerRegister() {
           serviceWorkerUpdaterPath: '/OneSignalSDKUpdaterWorker.js'
         })
         try { OneSignal?.Debug?.setLogLevel?.('trace') } catch {}
-        try { await OneSignal?.Notifications?.requestPermission?.() } catch {}
-      } catch {}
+      } catch (e: any) {
+        try { ;(window as any).__ONE_SIGNAL_INIT_ERROR = e?.message || 'INIT_FAILED' } catch {}
+      }
     })
     supabase?.auth.getUser().then((ud) => {
       const user = ud?.data?.user

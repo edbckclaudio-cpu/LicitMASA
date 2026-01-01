@@ -368,7 +368,7 @@ export default function AlertasPage() {
         setUiMsg('Você já está recebendo alertas!')
         try {
           if (userId) {
-            OneSignal.push(function() { OneSignal.setExternalUserId(userId) })
+            OneSignal.push(function() { try { OneSignal.login?.(userId) } catch {}; try { OneSignal.setExternalUserId(userId) } catch {} })
           }
           try {
             const ext = OneSignal?.User?.externalId
@@ -388,12 +388,30 @@ export default function AlertasPage() {
         await OneSignal?.Notifications?.requestPermission()
       } catch {}
       try { updatePermStatus() } catch {}
-      try { perm = OneSignal?.Notifications?.permission } catch {}
+      try {
+        const waited = await new Promise<string | undefined>((resolve) => {
+          try {
+            const handler = () => {
+              try { resolve(OneSignal?.Notifications?.permission) } catch { resolve(undefined) }
+            }
+            OneSignal?.Notifications?.addEventListener?.('permissionChange', handler)
+            setTimeout(() => {
+              try { OneSignal?.Notifications?.removeEventListener?.('permissionChange', handler) } catch {}
+              try { resolve(OneSignal?.Notifications?.permission) } catch { resolve(undefined) }
+            }, 1500)
+          } catch {
+            setTimeout(() => { resolve(undefined) }, 1500)
+          }
+        })
+        perm = waited ?? OneSignal?.Notifications?.permission
+      } catch {
+        try { perm = OneSignal?.Notifications?.permission } catch {}
+      }
       if (perm === 'granted') {
         setUiMsg('Alertas ativados! ✅')
         try {
           if (userId) {
-            OneSignal.push(function() { OneSignal.setExternalUserId(userId) })
+            OneSignal.push(function() { try { OneSignal.login?.(userId) } catch {}; try { OneSignal.setExternalUserId(userId) } catch {} })
           }
           try {
             const ext = OneSignal?.User?.externalId
