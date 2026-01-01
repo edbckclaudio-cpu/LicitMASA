@@ -46,6 +46,7 @@ export default function AlertasPage() {
   const [lastSentUserId, setLastSentUserId] = useState<string | null>(null)
   const [lastSentRecipients, setLastSentRecipients] = useState<number | null>(null)
   const [lastSentStatus, setLastSentStatus] = useState<number | null>(null)
+  const [originSecure, setOriginSecure] = useState<boolean>(true)
   
   const isGranted = useMemo(() => (permOS === 'granted' || permWeb === 'granted'), [permOS, permWeb])
 
@@ -196,6 +197,14 @@ export default function AlertasPage() {
         try { OneSignal?.Notifications?.removeEventListener?.('permissionChange', handler) } catch {}
       }
     } catch {}
+    try {
+      const isHttps = typeof location !== 'undefined' ? location.protocol === 'https:' : false
+      const host = typeof location !== 'undefined' ? location.hostname : ''
+      const isLocalhost = /^(localhost|127\.0\.0\.1)$/i.test(host)
+      setOriginSecure(Boolean(isHttps || isLocalhost))
+    } catch {
+      setOriginSecure(true)
+    }
     async function loadOneSignalInfo() {
     try {
       const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
@@ -655,6 +664,7 @@ export default function AlertasPage() {
                         <div>Ative as notificações no navegador</div>
                         <div className="text-xs text-red-700">Status Web: {String(permWeb || 'indisponível')}</div>
                         <div className="text-xs text-red-700">Status OneSignal: {statusDelayOk ? String(permOS || 'indisponível') : String(permOS || 'carregando...')}</div>
+                        {!originSecure && <div className="text-xs text-red-700">Origem não segura (HTTP ou IP). Acesse via HTTPS: {String(process.env.NEXT_PUBLIC_SITE_URL || 'https://www.licitmasa.com.br')}</div>}
                       </div>
                       <div className="flex items-center gap-2">
                         <Button onClick={() => { activateOneSignal(); updatePermStatus() }} className="bg-red-600 text-white hover:bg-red-700">

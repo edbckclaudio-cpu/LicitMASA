@@ -13,7 +13,9 @@ export default function ServiceWorkerRegister() {
     if (typeof window === 'undefined') return
     if ('serviceWorker' in navigator) {
       const isProd = process.env.NODE_ENV === 'production'
-      if (!isProd) {
+      const host = typeof location !== 'undefined' ? location.hostname : ''
+      const isLocalhost = /^(localhost|127\.0\.0\.1)$/i.test(host)
+      if (!isProd && isLocalhost) {
         navigator.serviceWorker.getRegistrations()
           .then((regs) => Promise.all(regs.map((r) => r.unregister())))
           .catch(() => {})
