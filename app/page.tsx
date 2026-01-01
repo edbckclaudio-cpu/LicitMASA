@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Search, Building2, Calendar, FileText, Banknote, X, SearchCheck, Info, MessageCircle, MapPin, RotateCcw, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
@@ -292,7 +292,7 @@ export default function HomePage() {
     setPagina(1)
   }
 
-  async function carregarIniciais() {
+  const carregarIniciais = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
@@ -313,11 +313,14 @@ export default function HomePage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [inicio, hoje, pagina, tamanhoPagina, sortResultados])
 
+  const didInitRef = useRef(false)
   useEffect(() => {
+    if (didInitRef.current) return
+    didInitRef.current = true
     carregarIniciais()
-  }, [])
+  }, [carregarIniciais])
 
   useEffect(() => {
     setCarIndex(0)
@@ -351,7 +354,7 @@ export default function HomePage() {
     }
   }
 
-  function sortResultados(arr: any[]): any[] {
+  const sortResultados = useCallback((arr: any[]): any[] => {
     const copy = [...arr]
     if (ordenar === 'data') {
       copy.sort((a, b) => {
@@ -367,7 +370,7 @@ export default function HomePage() {
       })
     }
     return copy
-  }
+  }, [ordenar])
   const resumo = useMemo(() => {
     const total = resultados.length
     const ufCount: Record<string, number> = {}

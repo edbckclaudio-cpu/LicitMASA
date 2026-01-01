@@ -28,7 +28,7 @@ function PerfilContent() {
       if (v === 'privacidade') setShowPrivacy(true)
     }
     load()
-  }, [])
+  }, [router, sp])
 
   async function logout() {
     if (!supabase) return

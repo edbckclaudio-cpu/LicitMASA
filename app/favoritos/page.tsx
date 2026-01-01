@@ -52,7 +52,7 @@ export default function FavoritosPage() {
       setLoading(false)
     }
     load()
-  }, [])
+  }, [router])
 
   function exportCSV() {
     const headers = ['Órgão','Objeto','Valor','PNCP ID','Link','Data Abertura']

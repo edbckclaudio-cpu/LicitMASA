@@ -20,3 +20,13 @@ build/
 out/
 data/*.json
 tsconfig.tsbuildinfo
+ 
+# TWA Android project build outputs and secrets
+twa-licitmasa/.gradle/
+twa-licitmasa/app-release-*.apk
+twa-licitmasa/*.aab
+twa-licitmasa/app-release-*.aab
+twa-licitmasa/app-release-unsigned-*.apk
+twa-licitmasa/*.idsig
+twa-licitmasa/android.keystore
+twa-licitmasa/release.keystore
