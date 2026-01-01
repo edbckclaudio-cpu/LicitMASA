@@ -41,6 +41,11 @@ export default function AlertasPage() {
   const [swScope, setSwScope] = useState<string | null>(null)
   const [lastPayloadSent, setLastPayloadSent] = useState<any>(null)
   const [showDebug, setShowDebug] = useState(true)
+  const [lastSentExternalId, setLastSentExternalId] = useState<string | null>(null)
+  const [lastSentPlayerId, setLastSentPlayerId] = useState<string | null>(null)
+  const [lastSentUserId, setLastSentUserId] = useState<string | null>(null)
+  const [lastSentRecipients, setLastSentRecipients] = useState<number | null>(null)
+  const [lastSentStatus, setLastSentStatus] = useState<number | null>(null)
   
   const isGranted = useMemo(() => (permOS === 'granted' || permWeb === 'granted'), [permOS, permWeb])
 
@@ -271,6 +276,11 @@ export default function AlertasPage() {
             body: 'Notificação de teste via OneSignal',
           }
           try { setLastPayloadSent(payload) } catch {}
+          try {
+            setLastSentExternalId(externalIdToUse || null)
+            setLastSentPlayerId(playerIdToUse || null)
+            setLastSentUserId(userId || null)
+          } catch {}
           return JSON.stringify(payload)
         })(),
       })
@@ -280,6 +290,10 @@ export default function AlertasPage() {
         try { data = JSON.parse(raw) } catch {}
         const sentExternal = externalIdToUse || userId
         const recipients = typeof data?.recipients === 'number' ? data.recipients : null
+        try {
+          setLastSentRecipients(recipients ?? null)
+          setLastSentStatus(res.status || null)
+        } catch {}
         const payloadToShow = {
           status: res.status,
           recipients,
@@ -725,6 +739,26 @@ export default function AlertasPage() {
                       <div className="rounded-md border bg-white p-3">
                         <div className="text-xs text-gray-500">ID salvo no banco</div>
                         <div className="text-sm text-gray-800">{String(dbPlayerId || profileOnesignalId || '—')}</div>
+                      </div>
+                      <div className="rounded-md border bg-white p-3">
+                        <div className="text-xs text-gray-500">Último envio: External ID</div>
+                        <div className="text-sm text-gray-800">{String(lastSentExternalId || '—')}</div>
+                      </div>
+                      <div className="rounded-md border bg-white p-3">
+                        <div className="text-xs text-gray-500">Último envio: Subscription ID</div>
+                        <div className="text-sm text-gray-800">{String(lastSentPlayerId || '—')}</div>
+                      </div>
+                      <div className="rounded-md border bg-white p-3">
+                        <div className="text-xs text-gray-500">Último envio: User ID</div>
+                        <div className="text-sm text-gray-800">{String(lastSentUserId || '—')}</div>
+                      </div>
+                      <div className="rounded-md border bg-white p-3">
+                        <div className="text-xs text-gray-500">Último envio: Status</div>
+                        <div className="text-sm text-gray-800">{String(lastSentStatus ?? '—')}</div>
+                      </div>
+                      <div className="rounded-md border bg-white p-3">
+                        <div className="text-xs text-gray-500">Último envio: Recipients</div>
+                        <div className="text-sm text-gray-800">{String(lastSentRecipients ?? '—')}</div>
                       </div>
                       <div className="rounded-md border bg-white p-3">
                         <div className="text-xs text-gray-500">Último payload enviado</div>
