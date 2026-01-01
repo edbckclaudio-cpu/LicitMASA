@@ -693,6 +693,15 @@ export default function AlertasPage() {
       } catch {}
     } catch {}
   }
+  async function clearAndReenable() {
+    try {
+      const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
+      if (OneSignal?.User?.pushSubscription?.optOut) {
+        await OneSignal.User.pushSubscription.optOut()
+      }
+    } catch {}
+    try { window.location.reload() } catch {}
+  }
   async function resetFactory() {
     try {
       try {
@@ -841,6 +850,9 @@ export default function AlertasPage() {
                       </Button>
                       <Button onClick={forceOptReset} disabled={!swRegistered} className="bg-orange-600 text-white hover:bg-orange-700">
                         Gerar novo ID (optOut/optIn)
+                      </Button>
+                      <Button onClick={clearAndReenable} className="bg-red-600 text-white hover:bg-red-700">
+                        LIMPAR E REATIVAR
                       </Button>
                     </div>
                     <div className="text-xs text-gray-600">Diagnóstico OneSignal</div>
