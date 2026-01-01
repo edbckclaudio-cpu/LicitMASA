@@ -285,6 +285,15 @@ export default function AlertasPage() {
       }
       if (!playerIdToUse) {
         try {
+          playerIdToUse = (typeof window !== 'undefined' ? (window as any).OneSignal?.User?.pushSubscriptionId : null) || null
+          if (playerIdToUse) {
+            try { setOsPlayerId(String(playerIdToUse)) } catch {}
+            try { await saveSubscriptionIdToProfile(String(playerIdToUse)) } catch {}
+          }
+        } catch {}
+      }
+      if (!playerIdToUse) {
+        try {
           if (supabase) {
             const { data: prof } = await supabase.from('profiles').select('onesignal_id').eq('id', userId).limit(1).maybeSingle()
             const p = String((prof as any)?.onesignal_id || '')
@@ -402,7 +411,12 @@ export default function AlertasPage() {
     }
   }
   const saveSubscriptionIdToProfile = useCallback(async (id: string) => {
-    try { if (supabase && userId && id) await supabase.from('profiles').update({ onesignal_id: String(id) }).eq('id', userId) } catch {}
+    try {
+      if (supabase && userId && id) {
+        await supabase.from('profiles').update({ onesignal_id: String(id) }).eq('id', userId)
+        await supabase.from('user_alerts').upsert({ user_id: userId, fcm_token: String(id) }, { onConflict: 'user_id' })
+      }
+    } catch {}
   }, [userId])
   async function activateOneSignal() {
     try {
