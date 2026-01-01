@@ -49,6 +49,8 @@ export default function AlertasPage() {
   const [originSecure, setOriginSecure] = useState<boolean>(true)
   const [isSecureCtx, setIsSecureCtx] = useState<boolean>(true)
   const [originInfo, setOriginInfo] = useState<string>('—')
+  const [swWorkerReachable, setSwWorkerReachable] = useState<string>('desconhecido')
+  const [swManualRegMsg, setSwManualRegMsg] = useState<string | null>(null)
   
   const isGranted = useMemo(() => (permOS === 'granted' || permWeb === 'granted'), [permOS, permWeb])
 
@@ -592,6 +594,25 @@ export default function AlertasPage() {
       setSwScope(null)
     }
   }
+  async function checkWorkerReachability() {
+    try {
+      const res = await fetch('/OneSignalSDKWorker.js', { method: 'GET' })
+      setSwWorkerReachable(res.ok ? 'ok' : `erro ${res.status}`)
+    } catch (e: any) {
+      setSwWorkerReachable(`falha ${e?.message || 'UNKNOWN'}`)
+    }
+  }
+  async function manualRegisterOneSignalSW() {
+    try {
+      setSwManualRegMsg(null)
+      if (!('serviceWorker' in navigator)) { setSwManualRegMsg('SW não suportado'); return }
+      await navigator.serviceWorker.register('/OneSignalSDKWorker.js')
+      setSwManualRegMsg('Service Worker registrado manualmente')
+      await refreshSwInfo()
+    } catch (e: any) {
+      setSwManualRegMsg(`Falha ao registrar SW: ${e?.message || 'UNKNOWN'}`)
+    }
+  }
   async function resetFactory() {
     try {
       try {
@@ -735,6 +756,9 @@ export default function AlertasPage() {
                       <Button onClick={copyDebug} className="bg-indigo-600 text-white hover:bg-indigo-700">
                         Copiar dados
                       </Button>
+                      <Button onClick={manualRegisterOneSignalSW} className="bg-teal-600 text-white hover:bg-teal-700">
+                        Registrar SW (OneSignal)
+                      </Button>
                     </div>
                     <div className="text-xs text-gray-600">Diagnóstico OneSignal</div>
                   </div>
@@ -756,6 +780,16 @@ export default function AlertasPage() {
                         <div className="text-xs text-gray-500">Service Worker registrado</div>
                         <div className="text-sm text-gray-800">{swRegistered ? 'sim' : 'não'}</div>
                       </div>
+                      <div className="rounded-md border bg-white p-3">
+                        <div className="text-xs text-gray-500">Worker acessível (/OneSignalSDKWorker.js)</div>
+                        <div className="text-sm text-gray-800">{String(swWorkerReachable)}</div>
+                      </div>
+                      {swManualRegMsg && (
+                        <div className="rounded-md border bg-white p-3">
+                          <div className="text-xs text-gray-500">Registro manual</div>
+                          <div className="text-sm text-gray-800">{swManualRegMsg}</div>
+                        </div>
+                      )}
                       <div className="rounded-md border bg-white p-3">
                         <div className="text-xs text-gray-500">Origem segura (HTTPS/localhost)</div>
                         <div className="text-sm text-gray-800">{originSecure ? 'sim' : 'não'}</div>
