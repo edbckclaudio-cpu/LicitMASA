@@ -5,8 +5,11 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
+import { Accordion } from '@/components/ui/accordion'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { Info } from 'lucide-react'
 declare const OneSignal: any
 declare global { interface Window { OneSignal: any } }
 
@@ -787,15 +790,27 @@ export default function AlertasPage() {
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
           <h1 className="text-xl font-semibold text-blue-900">Meus Alertas</h1>
           <div className="flex items-center gap-2">
-            <Button onClick={sendTestNotification} disabled={testLoading} className="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-xs font-medium text-white hover:bg-blue-700">
-              {testLoading ? '...' : 'Enviar Teste'}
-            </Button>
-            <Button onClick={sendTestNotificationDelayed} disabled={testLoading} className="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-xs font-medium text-white hover:bg-indigo-700">
-              {testLoading ? '...' : 'Teste (10 segundos)'}
-            </Button>
-            <Button onClick={resetAndReinstallNotifications} className="inline-flex items-center rounded-md bg-red-600 px-3 py-2 text-xs font-medium text-white hover:bg-red-700">
-              RESETAR E REINSTALAR NOTIFICAÇÕES
-            </Button>
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button className="inline-flex items-center rounded-md bg-gray-100 px-3 py-2 text-xs font-medium text-gray-800 hover:bg-gray-200">
+                  <Info className="mr-1 h-4 w-4 text-blue-700" />
+                  Como funcionam os alertas?
+                </Button>
+              </SheetTrigger>
+              <SheetContent className="w-full sm:max-w-md">
+                <SheetHeader>
+                  <SheetTitle className="flex items-center gap-2">
+                    <Info className="h-5 w-5 text-blue-700" />
+                    Sobre os nossos Alertas
+                  </SheetTitle>
+                </SheetHeader>
+                <div className="mt-4 space-y-4">
+                  <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
+                    Sobre os nossos Alertas: Para sua comodidade e para não interromper seu trabalho, nossas notificações são enviadas diretamente para a sua Central de Notificações. Você ouvirá o sinal sonoro e poderá consultar os detalhes deslizando a barra de status do seu celular para baixo.
+                  </div>
+                </div>
+              </SheetContent>
+            </Sheet>
             <Button onClick={() => router.push('/')} className="inline-flex items-center rounded-md bg-gray-100 px-3 py-2 text-xs font-medium text-gray-800 hover:bg-gray-200">
               Voltar
             </Button>
@@ -856,133 +871,7 @@ export default function AlertasPage() {
                     </div>
                   </div>
                 )}
-                <div className="rounded-md border border-gray-200 bg-white p-3 text-sm text-gray-800">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <Button onClick={() => setShowDebug((v) => !v)} className="bg-gray-100 text-gray-800 hover:bg-gray-200">
-                        {showDebug ? 'Ocultar Diagnóstico' : 'Mostrar Diagnóstico'}
-                      </Button>
-                      <Button onClick={refreshOneSignalInfo} className="bg-blue-600 text-white hover:bg-blue-700">
-                        Atualizar diagnósticos
-                      </Button>
-                      <Button onClick={copyDebug} className="bg-indigo-600 text-white hover:bg-indigo-700">
-                        Copiar dados
-                      </Button>
-                      <Button onClick={manualRegisterOneSignalSW} className="bg-teal-600 text-white hover:bg-teal-700">
-                        Registrar SW (OneSignal)
-                      </Button>
-                      <Button onClick={forceOptReset} disabled={!swRegistered} className="bg-orange-600 text-white hover:bg-orange-700">
-                        Gerar novo ID (optOut/optIn)
-                      </Button>
-                      <Button onClick={clearAndReenable} className="bg-red-600 text-white hover:bg-red-700">
-                        LIMPAR E REATIVAR
-                      </Button>
-                    </div>
-                    <div className="text-xs text-gray-600">Diagnóstico OneSignal</div>
-                  </div>
-                  {showDebug && (
-                    <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div className="rounded-md border bg-white p-3">
-                        <div className="text-xs text-gray-500">Status Web</div>
-                        <div className="text-sm text-gray-800">{String(permWeb || 'indisponível')}</div>
-                      </div>
-                      <div className="rounded-md border bg-white p-3">
-                        <div className="text-xs text-gray-500">Status OneSignal</div>
-                        <div className="text-sm text-gray-800">{String(permOS || 'indisponível')}</div>
-                      </div>
-                      <div className="rounded-md border bg-white p-3">
-                        <div className="text-xs text-gray-500">Erro de inicialização</div>
-                        <div className="text-sm text-gray-800">{String(initErrorTop || '—')}</div>
-                      </div>
-                      <div className="rounded-md border bg-white p-3">
-                        <div className="text-xs text-gray-500">Service Worker registrado</div>
-                        <div className="text-sm text-gray-800">{swRegistered ? 'sim' : 'não'}</div>
-                      </div>
-                      <div className="rounded-md border bg-white p-3">
-                        <div className="text-xs text-gray-500">Worker acessível (/OneSignalSDKWorker.js)</div>
-                        <div className="text-sm text-gray-800">{String(swWorkerReachable)}</div>
-                      </div>
-                      <div className="rounded-md border bg-white p-3">
-                        <div className="text-xs text-gray-500">Asset Links (.well-known/assetlinks.json)</div>
-                        <div className="text-sm text-gray-800">{String(assetLinksStatus)}</div>
-                      </div>
-                      {swManualRegMsg && (
-                        <div className="rounded-md border bg-white p-3">
-                          <div className="text-xs text-gray-500">Registro manual</div>
-                          <div className="text-sm text-gray-800">{swManualRegMsg}</div>
-                        </div>
-                      )}
-                      <div className="rounded-md border bg-white p-3">
-                        <div className="text-xs text-gray-500">Origem segura (HTTPS/localhost)</div>
-                        <div className="text-sm text-gray-800">{originSecure ? 'sim' : 'não'}</div>
-                      </div>
-                      <div className="rounded-md border bg-white p-3">
-                        <div className="text-xs text-gray-500">isSecureContext</div>
-                        <div className="text-sm text-gray-800">{isSecureCtx ? 'sim' : 'não'}</div>
-                      </div>
-                      <div className="rounded-md border bg-white p-3">
-                        <div className="text-xs text-gray-500">Origin</div>
-                        <div className="text-sm text-gray-800">{originInfo}</div>
-                      </div>
-                      <div className="rounded-md border bg-white p-3">
-                        <div className="text-xs text-gray-500">Scope do Service Worker</div>
-                        <div className="text-sm text-gray-800">{String(swScope || '—')}</div>
-                      </div>
-                      <div className="rounded-md border bg-white p-3">
-                        <div className="text-xs text-gray-500">User ID</div>
-                        <div className="text-sm text-gray-800">{String(userId || '—')}</div>
-                      </div>
-                      <div className="rounded-md border bg-white p-3">
-                        <div className="text-xs text-gray-500">External ID</div>
-                        <div className="text-sm text-gray-800">{String(osExternalId || '—')}</div>
-                      </div>
-                      <div className="rounded-md border bg-white p-3">
-                        <div className="text-xs text-gray-500">Subscription ID</div>
-                        <div className="text-sm text-gray-800">{String(osPlayerId || '—')}</div>
-                      </div>
-                      <div className="rounded-md border bg-white p-3">
-                        <div className="text-xs text-gray-500">PushSubscriptionId (live)</div>
-                        <div className="text-sm text-gray-800">{String(typeof window !== 'undefined' ? ((window as any).OneSignal?.User?.pushSubscriptionId || '—') : '—')}</div>
-                      </div>
-                      <div className="rounded-md border bg-white p-3">
-                        <div className="text-xs text-gray-500">ID salvo no banco</div>
-                        <div className="text-sm text-gray-800">{String(dbPlayerId || profileOnesignalId || '—')}</div>
-                      </div>
-                      <div className="rounded-md border bg-white p-3">
-                        <div className="text-xs text-gray-500">Último envio: External ID</div>
-                        <div className="text-sm text-gray-800">{String(lastSentExternalId || '—')}</div>
-                      </div>
-                      <div className="rounded-md border bg-white p-3">
-                        <div className="text-xs text-gray-500">Último envio: Subscription ID</div>
-                        <div className="text-sm text-gray-800">{String(lastSentPlayerId || '—')}</div>
-                      </div>
-                      <div className="rounded-md border bg-white p-3">
-                        <div className="text-xs text-gray-500">Último envio: User ID</div>
-                        <div className="text-sm text-gray-800">{String(lastSentUserId || '—')}</div>
-                      </div>
-                      <div className="rounded-md border bg-white p-3">
-                        <div className="text-xs text-gray-500">Último envio: Status</div>
-                        <div className="text-sm text-gray-800">{String(lastSentStatus ?? '—')}</div>
-                      </div>
-                      <div className="rounded-md border bg-white p-3">
-                        <div className="text-xs text-gray-500">Último envio: Recipients</div>
-                        <div className="text-sm text-gray-800">{String(lastSentRecipients ?? '—')}</div>
-                      </div>
-                      <div className="rounded-md border bg-white p-3">
-                        <div className="text-xs text-gray-500">Último payload enviado</div>
-                        <div className="text-xs text-gray-700 break-words">{lastPayloadSent ? JSON.stringify(lastPayloadSent) : '—'}</div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <div className="rounded-md border border-gray-200 bg-white p-3 text-sm text-gray-800">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex flex-col gap-1">
-                      <div>ID salvo no banco (Alertas): {String(dbPlayerId || profileOnesignalId || '—')}</div>
-                    </div>
-                    <div className="text-xs text-gray-600">Fonte: Supabase</div>
-                  </div>
-                </div>
+                
                 {showHelp && (
                   <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
                     <div className="font-medium mb-2">Como permitir notificações</div>
@@ -1065,29 +954,113 @@ export default function AlertasPage() {
                     <Button onClick={savePrefs} disabled={!canInteract} className="bg-blue-800 text-white hover:bg-blue-700">Salvar Configurações</Button>
                   </div>
                 </div>
-                <div className="rounded-md border border-gray-200 bg-white p-3 text-sm text-gray-800">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex flex-col gap-1">
-                      <div>Monitor de Service Worker</div>
-                      <div className="text-xs text-gray-600">Registrado: {String(swRegistered)}</div>
-                      <div className="text-xs text-gray-600">Scope: {String(swScope || '—')}</div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button onClick={refreshSwInfo} className="bg-gray-100 text-gray-800 hover:bg-gray-200 text-xs">Atualizar</Button>
-                    </div>
-                  </div>
-                  <div className="mt-3">
-                    <div className="font-medium mb-1">Captura de Payload</div>
-                    <pre className="rounded-md border bg-gray-50 p-2 text-[11px] text-gray-800 overflow-auto max-h-40">{(() => { try { return JSON.stringify(lastPayloadSent ?? {}, null, 2) } catch { return '{}' } })()}</pre>
-                  </div>
-                  <div className="mt-3">
-                    <Button onClick={resetFactory} className="bg-red-700 text-white hover:bg-red-800 text-xs">RESET DE FÁBRICA (NUCLEAR)</Button>
-                  </div>
-                </div>
               </div>
             )}
           </CardContent>
         </Card>
+        <div className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-blue-900">Ajuda / FAQ</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Accordion
+                single
+                items={[
+                  {
+                    id: 'faq-notificacoes',
+                    title: <span>Como ativar som e notificações</span>,
+                    content: (
+                      <div className="space-y-3 text-sm text-gray-800">
+                        <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-blue-900">
+                          Após configurar os alertas, se não estiver recebendo notificações, abra as permissões do site e habilite notificações e som.
+                        </div>
+                        <div>
+                          <div className="font-medium">Android (Chrome)</div>
+                          <ul className="list-disc pl-4">
+                            <li>Abra o site e toque no cadeado ao lado do endereço.</li>
+                            <li>Em “Permissões”, defina “Notificações” como “Permitir”.</li>
+                            <li>Verifique em Configurações do Android → Apps → Chrome → Notificações se o som está ativado.</li>
+                            <li>Ative também o modo não perturbador para permitir alertas sonoros quando necessário.</li>
+                          </ul>
+                        </div>
+                        <div>
+                          <div className="font-medium">iOS (Safari)</div>
+                          <ul className="list-disc pl-4">
+                            <li>iOS 16.4 ou superior: abra Ajustes → Safari → “Permitir Notificações”.</li>
+                            <li>No site, toque no ícone de “aA” na barra → Notificações → “Permitir”.</li>
+                            <li>Em Ajustes → Notificações → Safari, ative “Sons” e “Alertas”.</li>
+                          </ul>
+                        </div>
+                        <div>
+                          <div className="font-medium">Desktop (Chrome/Firefox)</div>
+                          <ul className="list-disc pl-4">
+                            <li>Clique no cadeado ao lado do endereço e marque “Notificações: Permitir”.</li>
+                            <li>Verifique em Sistema → Som → Preferências de app se o navegador tem som habilitado.</li>
+                            <li>Confirme que não há bloqueio por antivírus/Firewall para notificações do navegador.</li>
+                          </ul>
+                        </div>
+                        <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                          Dica: ao receber, você ouvirá o sinal e poderá ver detalhes na Central de Notificações deslizando a barra de status para baixo.
+                        </div>
+                      </div>
+                    ),
+                  },
+                  {
+                    id: 'faq-nao-recebendo',
+                    title: <span>Não estou recebendo notificações</span>,
+                    content: (
+                      <div className="space-y-3 text-sm text-gray-800">
+                        <div className="rounded-md border border-yellow-200 bg-yellow-50 p-3 text-yellow-900">
+                          Faça este checklist rápido:
+                        </div>
+                        <ul className="list-disc pl-4">
+                          <li>Permissões do site: habilite “Notificações” como “Permitir”.</li>
+                          <li>Som do dispositivo: verifique volume, modo silencioso e “Não Perturbe”.</li>
+                          <li>Economia de bateria: em Android, permita atividade em segundo plano para o navegador.</li>
+                          <li>Conexão: garanta internet estável (Wi‑Fi ou dados móveis).</li>
+                          <li>Abra a Central de Notificações deslizando a barra de status para baixo.</li>
+                        </ul>
+                        <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                          Se ainda assim não aparecer, toque em “Ativar Alertas de Publicação” na página e confirme as permissões do navegador.
+                        </div>
+                      </div>
+                    ),
+                  },
+                  {
+                    id: 'faq-confirmar-ativo',
+                    title: <span>Como confirmar que os alertas estão ativos</span>,
+                    content: (
+                      <div className="space-y-3 text-sm text-gray-800">
+                        <ul className="list-disc pl-4">
+                          <li>Veja a mensagem “Notificações permitidas” ao ativar.</li>
+                          <li>Deixe “Receber Push” marcado como “Ativado” nas preferências.</li>
+                          <li>Teste o recebimento aguardando os horários diários (07:00 e 16:00).</li>
+                          <li>Verifique se o site está acessado em HTTPS ou salvo como atalho/app no celular.</li>
+                        </ul>
+                      </div>
+                    ),
+                  },
+                  {
+                    id: 'faq-alertas-whatsapp',
+                    title: <span>Alertas x WhatsApp</span>,
+                    content: (
+                      <div className="space-y-3 text-sm text-gray-800">
+                        <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-blue-900">
+                          Os alertas são notificações nativas do seu dispositivo, entregues nos horários configurados. O WhatsApp é usado para compartilhar publicações manualmente com sua equipe ou clientes.
+                        </div>
+                        <ul className="list-disc pl-4">
+                          <li>Alertas: chegam na Central de Notificações com som e resumo.</li>
+                          <li>WhatsApp: opção de compartilhamento a partir das páginas de resultados.</li>
+                        </ul>
+                      </div>
+                    ),
+                  },
+                ]}
+              />
+            </CardContent>
+          </Card>
+        </div>
       </main>
     </div>
   )
