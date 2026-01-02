@@ -16,7 +16,7 @@ export async function POST(req: Request) {
     const expected = (process.env.ADMIN_TOKEN || 'DEV').trim()
     if (!token || token !== expected) return NextResponse.json({ ok: false, error: 'UNAUTHORIZED' }, { status: 401 })
     const body = await req.json().catch(() => ({} as any))
-    const email = String(body.email || 'kushida1@hotmail.com')
+    const email = String(body.email || 'licitmasa_suporte@proton.me')
     const password = String(body.password || '123456')
     const { data, error } = await supa.auth.admin.createUser({
       email,
