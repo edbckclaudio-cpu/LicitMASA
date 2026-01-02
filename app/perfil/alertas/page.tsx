@@ -782,6 +782,17 @@ export default function AlertasPage() {
   }
 
   const canInteract = !!userId
+  const subscribed = !!osPlayerId || permOS === 'granted' || permWeb === 'granted'
+
+  async function deactivateAlerts() {
+    try {
+      const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
+      try { await OneSignal?.User?.pushSubscription?.optOut?.() } catch {}
+      try { setPushOn(false) } catch {}
+      try { setUiMsg('Alertas desativados') } catch {}
+      try { await refreshOneSignalInfo() } catch {}
+    } catch {}
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -829,48 +840,23 @@ export default function AlertasPage() {
               <div className="space-y-6">
                 {uiMsg && <div className="rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-800">{uiMsg}</div>}
                 <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">🔔 Você receberá resumos automáticos às 07:00 horas e às 16:00 horas.</div>
-                {error && (
-                  <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</div>
-                )}
-                {!isGranted && (
-                  <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex flex-col gap-1">
-                        <div>Ative as notificações no navegador</div>
-                        <div className="text-xs text-red-700">Status Web: {String(permWeb || 'indisponível')}</div>
-                        <div className="text-xs text-red-700">Status OneSignal: {statusDelayOk ? String(permOS || 'indisponível') : String(permOS || 'carregando...')}</div>
-                        {!originSecure && <div className="text-xs text-red-700">Origem não segura (HTTP ou IP). Acesse via HTTPS: {String(process.env.NEXT_PUBLIC_SITE_URL || 'https://www.licitmasa.com.br')}</div>}
-                      </div>
-                    <div className="flex items-center gap-2">
-                      <Button onClick={() => { activateOneSignal(); updatePermStatus() }} className="bg-red-600 text-white hover:bg-red-700">
-                        Ativar Alertas de Publicação
-                      </Button>
-                      <Button onClick={openSiteSettings} className="bg-gray-100 text-gray-800 hover:bg-gray-200">
-                        Abrir configurações do site
-                      </Button>
-                      <Button onClick={forceBrowserPermission} className="bg-gray-100 text-gray-800 hover:bg-gray-200">
-                        Forçar permissão do navegador
-                      </Button>
-                    </div>
-                  </div>
+                <div className={subscribed ? "rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-800" : "rounded-md border border-gray-200 bg-gray-50 p-3 text-sm text-gray-800"}>
+                  {subscribed ? "✅ Alertas Ativados: Você receberá avisos sobre novas publicações." : "🔔 Alertas Desativados: Clique no botão abaixo para ativar."}
                 </div>
-              )}
-                {isGranted && (
-                  <div className="rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-800">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex flex-col gap-1">
-                        <div>Notificações permitidas</div>
-                        <div className="text-xs text-green-700">Status Web: {String(permWeb || 'indisponível')}</div>
-                        <div className="text-xs text-green-700">Status OneSignal: {statusDelayOk ? String(permOS || 'indisponível') : String(permOS || 'carregando...')}</div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button onClick={() => { activateOneSignal(); updatePermStatus() }} className="bg-green-600 text-white hover:bg-green-700">
-                          Já está ativo
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                {!subscribed && error ? (
+                  <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</div>
+                ) : null}
+                <div className="flex items-center">
+                  {subscribed ? (
+                    <Button onClick={deactivateAlerts} className="bg-gray-100 text-gray-800 hover:bg-gray-200">
+                      Desativar Alertas
+                    </Button>
+                  ) : (
+                    <Button onClick={() => { activateOneSignal(); updatePermStatus() }} className="bg-blue-800 text-white hover:bg-blue-700">
+                      Ativar Alertas de Publicações
+                    </Button>
+                  )}
+                </div>
                 
                 {showHelp && (
                   <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
@@ -1053,6 +1039,104 @@ export default function AlertasPage() {
                           <li>Alertas: chegam na Central de Notificações com som e resumo.</li>
                           <li>WhatsApp: opção de compartilhamento a partir das páginas de resultados.</li>
                         </ul>
+                      </div>
+                    ),
+                  },
+                ]}
+              />
+            </CardContent>
+          </Card>
+        </div>
+        <div className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-blue-900">Suporte Técnico / Diagnóstico</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Accordion
+                items={[
+                  {
+                    id: 'diag-acoes',
+                    title: <span>Ações de teste</span>,
+                    content: (
+                      <div className="flex flex-wrap gap-2">
+                        <Button onClick={sendTestNotification} disabled={testLoading} className="bg-blue-600 text-white hover:bg-blue-700 text-xs">
+                          {testLoading ? '...' : 'Enviar Teste'}
+                        </Button>
+                        <Button onClick={sendTestNotificationDelayed} disabled={testLoading} className="bg-indigo-600 text-white hover:bg-indigo-700 text-xs">
+                          {testLoading ? '...' : 'Teste (10 segundos)'}
+                        </Button>
+                        <Button onClick={resetAndReinstallNotifications} className="bg-red-600 text-white hover:bg-red-700 text-xs">
+                          Resetar e reinstalar notificações
+                        </Button>
+                        <Button onClick={openSiteSettings} className="bg-gray-100 text-gray-800 hover:bg-gray-200 text-xs">
+                          Abrir configurações do site
+                        </Button>
+                        <Button onClick={forceBrowserPermission} className="bg-gray-100 text-gray-800 hover:bg-gray-200 text-xs">
+                          Forçar permissão do navegador
+                        </Button>
+                        <Button onClick={manualRegisterOneSignalSW} className="bg-teal-600 text-white hover:bg-teal-700 text-xs">
+                          Registrar SW manualmente
+                        </Button>
+                        <Button onClick={forceOptReset} disabled={!swRegistered} className="bg-orange-600 text-white hover:bg-orange-700 text-xs">
+                          Gerar novo ID (optOut/optIn)
+                        </Button>
+                        <Button onClick={clearAndReenable} className="bg-red-600 text-white hover:bg-red-700 text-xs">
+                          Limpar e reativar
+                        </Button>
+                      </div>
+                    ),
+                  },
+                  {
+                    id: 'diag-logs',
+                    title: <span>Logs técnicos</span>,
+                    content: (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="rounded-md border bg-white p-3">
+                          <div className="text-xs text-gray-500">Status Web</div>
+                          <div className="text-sm text-gray-800">{String(permWeb || 'indisponível')}</div>
+                        </div>
+                        <div className="rounded-md border bg-white p-3">
+                          <div className="text-xs text-gray-500">Status Notificações</div>
+                          <div className="text-sm text-gray-800">{String(permOS || 'indisponível')}</div>
+                        </div>
+                        <div className="rounded-md border bg-white p-3">
+                          <div className="text-xs text-gray-500">Service Worker registrado</div>
+                          <div className="text-sm text-gray-800">{swRegistered ? 'sim' : 'não'}</div>
+                        </div>
+                        <div className="rounded-md border bg-white p-3">
+                          <div className="text-xs text-gray-500">Worker acessível (/OneSignalSDKWorker.js)</div>
+                          <div className="text-sm text-gray-800">{String(swWorkerReachable)}</div>
+                        </div>
+                        <div className="rounded-md border bg-white p-3">
+                          <div className="text-xs text-gray-500">Scope do Service Worker</div>
+                          <div className="text-sm text-gray-800">{String(swScope || '—')}</div>
+                        </div>
+                        <div className="rounded-md border bg-white p-3">
+                          <div className="text-xs text-gray-500">User ID</div>
+                          <div className="text-sm text-gray-800">{String(userId || '—')}</div>
+                        </div>
+                        <div className="rounded-md border bg-white p-3">
+                          <div className="text-xs text-gray-500">External ID</div>
+                          <div className="text-sm text-gray-800">{String(osExternalId || '—')}</div>
+                        </div>
+                        <div className="rounded-md border bg-white p-3">
+                          <div className="text-xs text-gray-500">Subscription ID</div>
+                          <div className="text-sm text-gray-800">{String(osPlayerId || '—')}</div>
+                        </div>
+                        <div className="rounded-md border bg-white p-3">
+                          <div className="text-xs text-gray-500">ID salvo no banco</div>
+                          <div className="text-sm text-gray-800">{String(dbPlayerId || profileOnesignalId || '—')}</div>
+                        </div>
+                        <div className="md:col-span-2 rounded-md border bg-white p-3">
+                          <div className="text-xs text-gray-500">Último payload enviado</div>
+                          <pre className="rounded-md border bg-gray-50 p-2 text-[11px] text-gray-800 overflow-auto max-h-40">{(() => { try { return JSON.stringify(lastPayloadSent ?? {}, null, 2) } catch { return '{}' } })()}</pre>
+                        </div>
+                        <div className="md:col-span-2">
+                          <Button onClick={copyDebug} className="bg-indigo-600 text-white hover:bg-indigo-700 text-xs">
+                            Copiar dados
+                          </Button>
+                        </div>
                       </div>
                     ),
                   },
