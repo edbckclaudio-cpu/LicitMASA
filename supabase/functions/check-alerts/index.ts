@@ -71,20 +71,39 @@ async function sendEmail(to: string, subject: string, html: string) {
 async function sendPush(externalUserId: string, subject: string, message: string, url?: string) {
   const appId = Deno.env.get("ONESIGNAL_APP_ID")
   const apiKey = Deno.env.get("ONESIGNAL_API_KEY")
+  const supaUrl = Deno.env.get("SUPABASE_URL") || ""
+  const supaKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""
   if (!appId || !apiKey || !externalUserId) return { ok: false }
+  const requestBase: any = {
+    app_id: appId,
+    headings: { en: subject },
+    contents: { en: message },
+    url: url || "https://pncp.gov.br/",
+  }
+  let body: any = { ...requestBase, include_external_user_ids: [externalUserId] }
+  if (supaUrl && supaKey) {
+    try {
+      const supa = createClient(supaUrl, supaKey)
+      const { data: prof } = await supa.from("profiles").select("onesignal_id").eq("id", externalUserId).limit(1).maybeSingle()
+      const subId = String((prof as any)?.onesignal_id || "")
+      if (!subId) {
+        const { data: ua } = await supa.from("user_alerts").select("fcm_token").eq("user_id", externalUserId).limit(1).maybeSingle()
+        const tok = String((ua as any)?.fcm_token || "")
+        if (tok) {
+          body = { ...requestBase, include_subscription_ids: [tok] }
+        }
+      } else {
+        body = { ...requestBase, include_subscription_ids: [subId] }
+      }
+    } catch {}
+  }
   const res = await fetch("https://api.onesignal.com/notifications", {
     method: "POST",
     headers: {
       "Authorization": `Basic ${apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      app_id: appId,
-      include_external_user_ids: [externalUserId],
-      headings: { en: subject },
-      contents: { en: message },
-      url: url || "https://pncp.gov.br/",
-    }),
+    body: JSON.stringify(body),
   })
   return { ok: res.ok }
 }
