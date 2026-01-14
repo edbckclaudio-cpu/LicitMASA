@@ -209,6 +209,7 @@ export default function AlertasPage() {
           if (liveId) {
             setOsPlayerId(String(liveId))
             saveSubscriptionIdToProfile(String(liveId))
+            ensureSubscriptionReady()
           }
         } catch {}
       }
@@ -219,6 +220,7 @@ export default function AlertasPage() {
           if (pid) {
             setOsPlayerId(String(pid))
             saveSubscriptionIdToProfile(String(pid))
+            ensureSubscriptionReady()
           }
         } catch {}
       })
@@ -301,6 +303,10 @@ export default function AlertasPage() {
             const { data: prof } = await supabase.from('profiles').select('onesignal_id').eq('id', userId).limit(1).maybeSingle()
             const p = String((prof as any)?.onesignal_id || '')
             if (p) playerIdToUse = p
+            if (!p) {
+              const got = await ensureSubscriptionReady()
+              if (got) playerIdToUse = got
+            }
           }
         } catch {}
       }
@@ -440,6 +446,32 @@ export default function AlertasPage() {
       }
     } catch {}
   }, [userId])
+  async function ensureSubscriptionReady() {
+    try {
+      const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
+      let attempts = 0
+      let pid: string | null = null
+      while (attempts < 10 && !pid) {
+        try {
+          const p1 = (OneSignal as any)?.User?.pushSubscriptionId
+          const p2 = OneSignal?.User?.PushSubscription?.id
+          const p3 = await OneSignal?.getSubscriptionId?.()
+          pid = String(p1 || p2 || p3 || '') || null
+        } catch {}
+        if (!pid) {
+          try { await OneSignal?.User?.pushSubscription?.optIn?.() } catch {}
+          await new Promise((r) => setTimeout(r, 500))
+        }
+        attempts++
+      }
+      if (pid) {
+        try { setOsPlayerId(String(pid)) } catch {}
+        try { await saveSubscriptionIdToProfile(String(pid)) } catch {}
+        return String(pid)
+      }
+    } catch {}
+    return null
+  }
   async function activateOneSignal() {
     try {
       setUiMsg(null)
@@ -480,17 +512,18 @@ export default function AlertasPage() {
             const liveId = (OneSignal as any)?.User?.pushSubscriptionId
             if (!liveId) {
               await OneSignal?.User?.pushSubscription?.optIn?.()
-            }
-            const pidNow = (OneSignal as any)?.User?.pushSubscriptionId
-            if (pidNow) {
-              setOsPlayerId(String(pidNow))
-              saveSubscriptionIdToProfile(String(pidNow))
-            }
-          } catch {}
+          }
+          const pidNow = (OneSignal as any)?.User?.pushSubscriptionId
+          if (pidNow) {
+            setOsPlayerId(String(pidNow))
+            saveSubscriptionIdToProfile(String(pidNow))
+          }
+          await ensureSubscriptionReady()
         } catch {}
-        try { console.log('[PermLog] Antes=', beforePerm, 'Depois=', OneSignal?.Notifications?.permission) } catch {}
-        return
-      }
+      } catch {}
+      try { console.log('[PermLog] Antes=', beforePerm, 'Depois=', OneSignal?.Notifications?.permission) } catch {}
+      return
+    }
       try {
         await OneSignal?.Notifications?.requestPermission()
       } catch {}
@@ -543,17 +576,18 @@ export default function AlertasPage() {
             const liveId = (OneSignal as any)?.User?.pushSubscriptionId
             if (!liveId) {
               await OneSignal?.User?.pushSubscription?.optIn?.()
-            }
-            const pidNow = (OneSignal as any)?.User?.pushSubscriptionId
-            if (pidNow) {
-              setOsPlayerId(String(pidNow))
-              saveSubscriptionIdToProfile(String(pidNow))
-            }
-          } catch {}
+          }
+          const pidNow = (OneSignal as any)?.User?.pushSubscriptionId
+          if (pidNow) {
+            setOsPlayerId(String(pidNow))
+            saveSubscriptionIdToProfile(String(pidNow))
+          }
+          await ensureSubscriptionReady()
         } catch {}
-      } else {
-        setError('Permissão negada ou não concedida')
-      }
+      } catch {}
+    } else {
+      setError('Permissão negada ou não concedida')
+    }
       try { console.log('[PermLog] Antes=', beforePerm, 'Depois=', OneSignal?.Notifications?.permission) } catch {}
     } catch {
       setError('Falha ao ativar notificações')
