@@ -43,11 +43,17 @@ function PerfilContent() {
     const user = userData?.user
     if (!user) return
     try {
-      await supabase.from('user_favorites').delete().eq('user_id', user.id)
-      await supabase.from('search_alerts').delete().eq('user_id', user.id)
-      await supabase.from('user_alerts').delete().eq('user_id', user.id)
-      await supabase.from('user_certificates').delete().eq('user_id', user.id)
-      await supabase.from('profiles').delete().eq('id', user.id)
+      const res = await fetch('/api/account/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-token': 'DEV' },
+        body: JSON.stringify({ userId: user.id })
+      })
+      if (!res.ok) {
+        try {
+          const raw = await res.text()
+          alert(raw || 'Falha ao excluir conta')
+        } catch {}
+      }
     } catch {}
     try { await supabase.auth.signOut() } catch {}
     router.push('/login')

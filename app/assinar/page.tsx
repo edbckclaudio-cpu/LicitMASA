@@ -9,7 +9,21 @@ import { supabase } from '@/lib/supabaseClient'
 export default function AssinarPage() {
   const payUrl = process.env.NEXT_PUBLIC_PAYMENT_URL || '/perfil'
   const price = process.env.NEXT_PUBLIC_PLAN_PRICE || '49,90'
+  const playProductId = process.env.NEXT_PUBLIC_PLAY_PRODUCT_ID || ''
   const [ctaHref, setCtaHref] = useState<string>('/login')
+  const twaAndroid = (() => {
+    try {
+      const ua = typeof navigator !== 'undefined' ? navigator.userAgent.toLowerCase() : ''
+      const isAndroid = /android/.test(ua)
+      const isStandalone = typeof window !== 'undefined' && window.matchMedia ? window.matchMedia('(display-mode: standalone)').matches : false
+      return Boolean(isAndroid && isStandalone)
+    } catch { return false }
+  })()
+  const canPlayBilling = (() => {
+    try { return Boolean(twaAndroid && playProductId && typeof window !== 'undefined' && (window as any).PaymentRequest) } catch { return false }
+  })()
+  const [purchaseLoading, setPurchaseLoading] = useState(false)
+  const [purchaseMsg, setPurchaseMsg] = useState<string | null>(null)
   useEffect(() => {
     async function resolve() {
       const ud = await supabase?.auth.getUser()
@@ -18,6 +32,35 @@ export default function AssinarPage() {
     }
     resolve()
   }, [payUrl])
+  async function purchaseViaPlay() {
+    try {
+      setPurchaseMsg(null)
+      setPurchaseLoading(true)
+      const methodData = [{
+        supportedMethods: 'https://play.google.com/billing',
+        data: { sku: playProductId, type: 'inapp' }
+      }] as any
+      const details = { total: { label: 'Premium', amount: { currency: 'BRL', value: '0.00' } } } as any
+      const pr = new (window as any).PaymentRequest(methodData, details)
+      const resp = await pr.show()
+      await resp.complete('success')
+      const tok = String(resp?.details?.purchaseToken || '')
+      const ud = await supabase?.auth.getUser()
+      const user = ud?.data?.user
+      const uid = String(user?.id || '')
+      if (!tok || !uid) { setPurchaseMsg('Falha ao capturar token de compra'); return }
+      const vr = await fetch('/api/billing/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ purchaseToken: tok, productId: playProductId, userId: uid })
+      })
+      setPurchaseMsg(vr.ok ? 'Premium liberado' : 'Falha na validação')
+    } catch (e: any) {
+      setPurchaseMsg(e?.message || 'Falha na compra')
+    } finally {
+      setPurchaseLoading(false)
+    }
+  }
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="border-b bg-white">
@@ -78,11 +121,20 @@ export default function AssinarPage() {
             </CardHeader>
             <CardContent>
               <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
-                Acesso imediato após confirmação do pagamento.
+                {canPlayBilling ? 'Pagamento via Google Play disponível.' : (twaAndroid ? 'Compras via Google Play disponíveis em breve nesta versão Android.' : 'Acesso imediato após confirmação do pagamento.')}
               </div>
-              <Link href={ctaHref} className="mt-4 inline-flex w-full items-center justify-center rounded-md bg-blue-800 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700">
-                Assinar Agora
-              </Link>
+              {canPlayBilling ? (
+                <Button onClick={purchaseViaPlay} disabled={purchaseLoading} className="mt-4 inline-flex w-full items-center justify-center rounded-md bg-blue-800 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700">
+                  {purchaseLoading ? 'Processando...' : 'Comprar via Google Play'}
+                </Button>
+              ) : twaAndroid ? (
+                <Button disabled className="mt-4 inline-flex w-full items-center justify-center rounded-md bg-gray-200 px-3 py-2 text-sm font-medium text-gray-800">Em breve via Google Play</Button>
+              ) : (
+                <Link href={ctaHref} className="mt-4 inline-flex w-full items-center justify-center rounded-md bg-blue-800 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700">
+                  Assinar Agora
+                </Link>
+              )}
+              {purchaseMsg ? <div className="mt-3 text-center text-xs text-slate-600">{purchaseMsg}</div> : null}
               <div className="mt-3 text-center text-xs text-slate-500">
                 Cancelamento simples a qualquer momento.
               </div>
