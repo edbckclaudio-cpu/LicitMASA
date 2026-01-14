@@ -1404,6 +1404,7 @@ export default function HomePage() {
                       })()}
                       target="_blank"
                       rel="noreferrer"
+                      onClick={(e) => { if (!isPremium) { e.preventDefault(); setUpgradeOpen(true) } }}
                       className="inline-flex items-center gap-2 rounded-md bg-blue-800 px-3 py-2 text-xs font-medium text-white hover:bg-blue-700"
                     >
                       Ver Edital
