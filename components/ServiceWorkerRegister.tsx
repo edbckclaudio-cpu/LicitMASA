@@ -44,6 +44,17 @@ export default function ServiceWorkerRegister() {
           serviceWorkerUpdaterPath: '/OneSignalSDKUpdaterWorker.js'
         })
         try {
+          const hasNotif = !!(OneSignal && (OneSignal as any).Notifications)
+          if (!hasNotif) {
+            ;(OneSignal as any).Notifications = {}
+            try {
+              if (!((OneSignal as any).Notifications as any).on) {
+                ;((OneSignal as any).Notifications as any).on = function() {}
+              }
+            } catch {}
+          }
+        } catch {}
+        try {
           if ('serviceWorker' in navigator) {
             const regs = await navigator.serviceWorker.getRegistrations().catch(() => [])
             const found = Array.isArray(regs) && regs.some((r: any) => {

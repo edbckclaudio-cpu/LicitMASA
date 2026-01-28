@@ -30,13 +30,22 @@
     and is injected into the AndroidManifest.xml
   -->
   <string name="assetStatements">
-    [{
+    [
+      {
         \"relation\": [\"delegate_permission/common.handle_all_urls\"],
         \"target\": {
-            \"namespace\": \"web\",
-            \"site\": \"https://www.licitmasa.com.br\"
+          \"namespace\": \"web\",
+          \"site\": \"https://www.licitmasa.com.br\"
         }
-    }]
+      },
+      {
+        \"relation\": [\"delegate_permission/common.handle_all_urls\"],
+        \"target\": {
+          \"namespace\": \"web\",
+          \"site\": \"https://licitmasa.com.br\"
+        }
+      }
+    ]
     
   </string>  
 </resources>
