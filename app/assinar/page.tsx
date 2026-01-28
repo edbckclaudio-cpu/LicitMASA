@@ -5,12 +5,14 @@ import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
+import { useRouter } from 'next/navigation'
 
 export default function AssinarPage() {
   const payUrl = process.env.NEXT_PUBLIC_PAYMENT_URL || '/perfil'
   const price = process.env.NEXT_PUBLIC_PLAN_PRICE || '49,90'
   const playProductId = process.env.NEXT_PUBLIC_PLAY_PRODUCT_ID || ''
   const [ctaHref, setCtaHref] = useState<string>('/login')
+  const router = useRouter()
   const twaAndroid = (() => {
     try {
       const ua = typeof navigator !== 'undefined' ? navigator.userAgent.toLowerCase() : ''
@@ -24,6 +26,26 @@ export default function AssinarPage() {
   })()
   const [purchaseLoading, setPurchaseLoading] = useState(false)
   const [purchaseMsg, setPurchaseMsg] = useState<string | null>(null)
+  async function assinanteDeTeste() {
+    try {
+      setPurchaseMsg(null)
+      if (!supabase) { setPurchaseMsg('Configure o Supabase'); return }
+      const redirectTo = typeof window !== 'undefined' ? `${window.location.origin}/perfil` : '/perfil'
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo, skipBrowserRedirect: true }
+      })
+      if (error) { setPurchaseMsg('Falha ao iniciar login de teste'); return }
+      const url = String(data?.url || '')
+      if (url && typeof window !== 'undefined') {
+        window.location.href = url
+        return
+      }
+      setPurchaseMsg('Redirecionamento indisponível')
+    } catch (e: any) {
+      setPurchaseMsg(e?.message || 'Falha no login de teste')
+    }
+  }
   useEffect(() => {
     async function resolve() {
       const ud = await supabase?.auth.getUser()
@@ -55,6 +77,9 @@ export default function AssinarPage() {
         body: JSON.stringify({ purchaseToken: tok, productId: playProductId, userId: uid })
       })
       setPurchaseMsg(vr.ok ? 'Premium liberado' : 'Falha na validação')
+      if (vr.ok) {
+        try { router.push(payUrl) } catch {}
+      }
     } catch (e: any) {
       setPurchaseMsg(e?.message || 'Falha na compra')
     } finally {
@@ -128,7 +153,12 @@ export default function AssinarPage() {
                   {purchaseLoading ? 'Processando...' : 'Comprar via Google Play'}
                 </Button>
               ) : twaAndroid ? (
-                <Button disabled className="mt-4 inline-flex w-full items-center justify-center rounded-md bg-gray-200 px-3 py-2 text-sm font-medium text-gray-800">Em breve via Google Play</Button>
+                <div className="space-y-3">
+                  <Button disabled className="inline-flex w-full items-center justify-center rounded-md bg-gray-200 px-3 py-2 text-sm font-medium text-gray-800">Em breve via Google Play</Button>
+                  <Button onClick={assinanteDeTeste} className="inline-flex w-full items-center justify-center rounded-md bg-blue-800 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700">
+                    Assinante de teste (Google)
+                  </Button>
+                </div>
               ) : (
                 <Link href={ctaHref} className="mt-4 inline-flex w-full items-center justify-center rounded-md bg-blue-800 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700">
                   Assinar Agora
