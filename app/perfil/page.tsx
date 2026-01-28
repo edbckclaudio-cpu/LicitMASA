@@ -12,10 +12,19 @@ function PerfilContent() {
   const [showTerms, setShowTerms] = useState(false)
   const [showPrivacy, setShowPrivacy] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [authMsg, setAuthMsg] = useState<string | null>(null)
 
   useEffect(() => {
     async function load() {
       if (!supabase) { router.push('/login'); return }
+      try {
+        const err = sp.get('error')
+        const code = sp.get('code')
+        if (err) setAuthMsg('Falha no login: ' + err)
+        if (code) {
+          try { await supabase.auth.exchangeCodeForSession(code) } catch (e: any) { setAuthMsg(e?.message || 'Falha ao concluir login') }
+        }
+      } catch {}
       const { data: userData } = await supabase.auth.getUser()
       const user = userData?.user
       if (!user) {
@@ -77,6 +86,14 @@ function PerfilContent() {
           </CardHeader>
           <CardContent>
             <div className="divide-y">
+              {authMsg ? (
+                <div className="flex items-center justify-between py-3">
+                  <div className="text-sm">
+                    <div className="font-medium text-red-700">Status de Autenticação</div>
+                    <div className="text-gray-700 text-xs">{authMsg}</div>
+                  </div>
+                </div>
+              ) : null}
               <div className="flex items-center justify-between py-3">
                 <div className="text-sm">
                   <div className="font-medium text-gray-900">Meus Dados</div>

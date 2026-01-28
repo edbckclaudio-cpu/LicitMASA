@@ -15,10 +15,21 @@ export default function LoginPage() {
     if (!supabase) { setMessage('Configure o Supabase no .env'); return }
     const redirectTo =
       typeof window !== 'undefined' ? `${window.location.origin}/perfil` : authRedirectTo
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo }
-    })
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo, skipBrowserRedirect: true }
+      })
+      if (error) { setMessage('Falha ao iniciar login com Google'); return }
+      const url = String(data?.url || '')
+      if (url && typeof window !== 'undefined') {
+        window.location.href = url
+        return
+      }
+      setMessage('Redirecionamento de login indisponível')
+    } catch (e: any) {
+      setMessage(e?.message || 'Falha ao iniciar login')
+    }
   }
   async function sendMagicLink() {
     if (!supabase) { setMessage('Configure o Supabase no .env'); return }
