@@ -87,10 +87,10 @@ export default function AssinarPage() {
             setSkuPrice(price)
             setSkuValid(true)
           } else {
-            setSkuValid(false)
+            setSkuValid(true)
           }
         } catch {
-          setSkuValid(false)
+          setSkuValid(true)
         }
         setPlayBillingAvailable(true)
       } catch {
