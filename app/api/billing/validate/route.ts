@@ -38,8 +38,23 @@ export async function POST(req: Request) {
       token: purchaseToken,
     })
     const data: any = res.data || {}
-    const okPurchase = (data.purchaseState === 0) || (data.paymentState === 1)
+    const now = Date.now()
+    const exp = Number(data?.expiryTimeMillis || 0)
+    const paymentOk = (data?.paymentState === 1) || (data?.paymentState === 2)
+    const activeWindow = exp > now
+    const acknowledged = Number(data?.acknowledgementState || 0) === 1
+    const autoRenew = !!data?.autoRenewing
+    const okPurchase = paymentOk || activeWindow || acknowledged || autoRenew
     if (!okPurchase) return NextResponse.json({ ok: false, status: 400, data }, { status: 400 })
+    try {
+      if (!acknowledged) {
+        await play.purchases.subscriptions.acknowledge({
+          packageName,
+          subscriptionId: productId,
+          token: purchaseToken,
+        }, { headers: { 'Content-Type': 'application/json' } } as any)
+      }
+    } catch {}
 
     const supa = adminClient()
     if (!supa) return NextResponse.json({ ok: false, error: 'SERVICE_KEY_MISSING' }, { status: 500 })
