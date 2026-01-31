@@ -31,6 +31,13 @@ function PerfilContent() {
         router.push('/login')
         return
       }
+      try {
+        const nextUrl = sp.get('continue')
+        if (nextUrl) {
+          router.replace(nextUrl)
+          return
+        }
+      } catch {}
       setUserEmail(user.email || null)
       const v = sp.get('view')
       if (v === 'termos') setShowTerms(true)

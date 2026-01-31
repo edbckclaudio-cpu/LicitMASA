@@ -105,6 +105,33 @@ export default function AssinarPage() {
       setPurchaseLoading(true)
       if (!playBillingAvailable) { setPurchaseMsg('Pagamento via Google Play indisponível'); return }
       if (!skuValid) { setPurchaseMsg('Assinatura não encontrada ou inativa'); return }
+      {
+        const ud = await supabase?.auth.getUser()
+        const user = ud?.data?.user
+        const uid = String(user?.id || '')
+        if (!uid) {
+          try {
+            const redirectTo = typeof window !== 'undefined' ? `${window.location.origin}/perfil?continue=/assinar` : '/perfil'
+            const { data, error } = await supabase!.auth.signInWithOAuth({
+              provider: 'google',
+              options: { redirectTo, skipBrowserRedirect: true }
+            })
+            if (error) { setPurchaseMsg('Falha ao iniciar login com Google'); return }
+            const url = String(data?.url || '')
+            if (url && typeof window !== 'undefined') {
+              setPurchaseMsg('Entrando com Google para prosseguir com a compra...')
+              window.location.href = url
+              return
+            }
+            setPurchaseMsg('Redirecionamento indisponível para login')
+            return
+          } catch (e: any) {
+            const m = String(e?.message || '').trim()
+            setPurchaseMsg(m || 'Falha ao iniciar login com Google')
+            return
+          }
+        }
+      }
       const methodData = [{
         supportedMethods: 'https://play.google.com/billing',
         data: { sku: playProductId, type: 'subs' }
@@ -112,7 +139,15 @@ export default function AssinarPage() {
       const pr = new (window as any).PaymentRequest(methodData, {})
       const resp = await pr.show()
       await resp.complete('success')
-      const tok = String(resp?.details?.purchaseToken || '')
+      const details: any = (resp as any)?.details || {}
+      const tok = String(
+        details?.purchaseToken
+        || details?.token
+        || details?.purchase_token
+        || details?.['purchaseToken']
+        || details?.['token']
+        || ''
+      )
       const ud = await supabase?.auth.getUser()
       const user = ud?.data?.user
       const uid = String(user?.id || '')
