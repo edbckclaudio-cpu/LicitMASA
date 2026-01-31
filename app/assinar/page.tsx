@@ -155,9 +155,9 @@ export default function AssinarPage() {
               ) : twaAndroid ? (
                 <div className="space-y-3">
                   <Button disabled className="inline-flex w-full items-center justify-center rounded-md bg-gray-200 px-3 py-2 text-sm font-medium text-gray-800">Em breve via Google Play</Button>
-                  <Button onClick={assinanteDeTeste} className="inline-flex w-full items-center justify-center rounded-md bg-blue-800 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700">
-                    Assinante de teste (Google)
-                  </Button>
+                  <Link href="/assinar/google" className="inline-flex w-full items-center justify-center rounded-md bg-blue-800 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700">
+                    Entrar com Google e pagar via Play
+                  </Link>
                 </div>
               ) : (
                 <Link href={ctaHref} className="mt-4 inline-flex w-full items-center justify-center rounded-md bg-blue-800 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700">
