@@ -122,7 +122,17 @@ export default function AssinarPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ purchaseToken: tok, productId: playProductId, userId: uid })
       })
-      setPurchaseMsg(vr.ok ? 'Premium liberado' : 'Falha na validação')
+      if (!vr.ok) {
+        try {
+          const data = await vr.json().catch(() => ({}))
+          const m = String((data && (data.error || data.message)) || '').trim()
+          setPurchaseMsg(m ? `Falha na validação: ${m}` : 'Falha na validação')
+        } catch {
+          setPurchaseMsg('Falha na validação')
+        }
+      } else {
+        setPurchaseMsg('Premium liberado')
+      }
       if (vr.ok) {
         try { router.push(payUrl) } catch {}
       }

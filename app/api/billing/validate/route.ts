@@ -32,11 +32,19 @@ export async function POST(req: Request) {
     const auth = await getOAuth2Client()
     if (!auth) return NextResponse.json({ ok: false, error: 'PLAY_AUTH_MISSING' }, { status: 500 })
     const play = google.androidpublisher({ version: 'v3', auth })
-    const resV2 = await play.purchases.subscriptionsv2.get({
-      packageName,
-      token: purchaseToken,
-    } as any)
-    const v2: any = resV2.data || {}
+    let v2: any = {}
+    try {
+      const resV2 = await play.purchases.subscriptionsv2.get({
+        packageName,
+        token: purchaseToken,
+      } as any)
+      v2 = resV2.data || {}
+    } catch (e: any) {
+      const msg = String(e?.message || '').trim()
+      const code = Number((e as any)?.code || 0)
+      const err = (e as any)?.errors || (e as any)?.response?.data || null
+      return NextResponse.json({ ok: false, error: msg || 'PLAY_API_ERROR', code, details: err, packageName, productId }, { status: code && code >= 400 && code < 600 ? code : 500 })
+    }
     const state = String(v2?.subscriptionState || '')
     const items: any[] = Array.isArray(v2?.lineItems) ? v2.lineItems : []
     const expIso = String(items?.[0]?.expiryTime || '')
