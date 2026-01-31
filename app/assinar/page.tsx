@@ -60,7 +60,7 @@ export default function AssinarPage() {
       setPurchaseLoading(true)
       const methodData = [{
         supportedMethods: 'https://play.google.com/billing',
-        data: { sku: playProductId, type: 'inapp' }
+        data: { sku: playProductId, type: 'subs' }
       }] as any
       const details = { total: { label: 'Premium', amount: { currency: 'BRL', value: '0.00' } } } as any
       const pr = new (window as any).PaymentRequest(methodData, details)

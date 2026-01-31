@@ -32,13 +32,13 @@ export async function POST(req: Request) {
     const auth = await getOAuth2Client()
     if (!auth) return NextResponse.json({ ok: false, error: 'PLAY_AUTH_MISSING' }, { status: 500 })
     const play = google.androidpublisher({ version: 'v3', auth })
-    const res = await play.purchases.products.get({
+    const res = await play.purchases.subscriptions.get({
       packageName,
-      productId,
+      subscriptionId: productId,
       token: purchaseToken,
     })
     const data: any = res.data || {}
-    const okPurchase = (data.purchaseState === 0)
+    const okPurchase = (data.purchaseState === 0) || (data.paymentState === 1)
     if (!okPurchase) return NextResponse.json({ ok: false, status: 400, data }, { status: 400 })
 
     const supa = adminClient()
