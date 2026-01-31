@@ -32,22 +32,23 @@ export async function POST(req: Request) {
     const auth = await getOAuth2Client()
     if (!auth) return NextResponse.json({ ok: false, error: 'PLAY_AUTH_MISSING' }, { status: 500 })
     const play = google.androidpublisher({ version: 'v3', auth })
-    const res = await play.purchases.subscriptions.get({
+    const resV2 = await play.purchases.subscriptionsv2.get({
       packageName,
-      subscriptionId: productId,
       token: purchaseToken,
-    })
-    const data: any = res.data || {}
-    const now = Date.now()
-    const exp = Number(data?.expiryTimeMillis || 0)
-    const paymentOk = (data?.paymentState === 1) || (data?.paymentState === 2)
-    const activeWindow = exp > now
-    const acknowledged = Number(data?.acknowledgementState || 0) === 1
-    const autoRenew = !!data?.autoRenewing
-    const okPurchase = paymentOk || activeWindow || acknowledged || autoRenew
-    if (!okPurchase) return NextResponse.json({ ok: false, status: 400, data }, { status: 400 })
+    } as any)
+    const v2: any = resV2.data || {}
+    const state = String(v2?.subscriptionState || '')
+    const items: any[] = Array.isArray(v2?.lineItems) ? v2.lineItems : []
+    const expIso = String(items?.[0]?.expiryTime || '')
+    const expMs = (() => { try { return expIso ? new Date(expIso).getTime() : 0 } catch { return 0 } })()
+    const acknowledgedV2 = String(v2?.acknowledgementState || '').toUpperCase().includes('ACKNOWLEDGED')
+    const autoRenewEnabled = !!items?.[0]?.autoRenewingPlan?.autoRenewEnabled
+    const activeByState = state.toUpperCase().includes('ACTIVE')
+    const activeWindow = expMs > Date.now()
+    const okPurchase = activeByState || activeWindow || acknowledgedV2 || autoRenewEnabled
+    if (!okPurchase) return NextResponse.json({ ok: false, status: 400, data: v2 }, { status: 400 })
     try {
-      if (!acknowledged) {
+      if (!acknowledgedV2) {
         await play.purchases.subscriptions.acknowledge({
           packageName,
           subscriptionId: productId,
@@ -59,7 +60,7 @@ export async function POST(req: Request) {
     const supa = adminClient()
     if (!supa) return NextResponse.json({ ok: false, error: 'SERVICE_KEY_MISSING' }, { status: 500 })
     await supa.from('profiles').upsert({ id: userId, is_premium: true, plan: 'premium' }, { onConflict: 'id' })
-    return NextResponse.json({ ok: true, data })
+    return NextResponse.json({ ok: true, data: v2 })
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || 'UNKNOWN' }, { status: 500 })
   }
