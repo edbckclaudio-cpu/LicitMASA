@@ -20,15 +20,19 @@
     "path": "c:\\LicitMASA\\LicitMASA\\twa-licitmasa\\android.keystore",
     "alias": "android"
   },
-  "appVersionName": "28",
-  "appVersionCode": 28,
+  "appVersionName": "30",
+  "appVersionCode": 30,
   "shortcuts": [],
   "generatorApp": "bubblewrap-cli",
   "webManifestUrl": "https://www.licitmasa.com.br/manifest.webmanifest",
   "fallbackType": "customtabs",
-  "features": {},
+  "features": {
+    "playBilling": {
+      "enabled": true
+    }
+  },
   "alphaDependencies": {
-    "enabled": false
+    "enabled": true
   },
   "enableSiteSettingsShortcut": true,
   "isChromeOSOnly": false,
@@ -43,5 +47,5 @@
   "fileHandlers": [],
   "launchHandlerClientMode": "",
   "displayOverride": [],
-  "appVersion": "28"
+  "appVersion": "30"
 }

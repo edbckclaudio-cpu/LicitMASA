@@ -21,9 +21,7 @@ export default function AssinarPage() {
       return Boolean(isAndroid && isStandalone)
     } catch { return false }
   })()
-  const canPlayBilling = (() => {
-    try { return Boolean(twaAndroid && playProductId && typeof window !== 'undefined' && (window as any).PaymentRequest) } catch { return false }
-  })()
+  const [playBillingAvailable, setPlayBillingAvailable] = useState(false)
   const [purchaseLoading, setPurchaseLoading] = useState(false)
   const [purchaseMsg, setPurchaseMsg] = useState<string | null>(null)
   async function assinanteDeTeste() {
@@ -54,16 +52,35 @@ export default function AssinarPage() {
     }
     resolve()
   }, [payUrl])
+  useEffect(() => {
+    async function probe() {
+      try {
+        setPlayBillingAvailable(false)
+        if (!twaAndroid) return
+        if (!playProductId) return
+        const w: any = typeof window !== 'undefined' ? window : null
+        if (!w) return
+        if (!('getDigitalGoodsService' in w)) return
+        const svc = await w.getDigitalGoodsService('https://play.google.com/billing')
+        if (!svc) return
+        if (!(w as any).PaymentRequest) return
+        setPlayBillingAvailable(true)
+      } catch {
+        setPlayBillingAvailable(false)
+      }
+    }
+    probe()
+  }, [twaAndroid, playProductId])
   async function purchaseViaPlay() {
     try {
       setPurchaseMsg(null)
       setPurchaseLoading(true)
+      if (!playBillingAvailable) { setPurchaseMsg('Pagamento via Google Play indisponível'); return }
       const methodData = [{
         supportedMethods: 'https://play.google.com/billing',
         data: { sku: playProductId, type: 'subs' }
       }] as any
-      const details = { total: { label: 'Premium', amount: { currency: 'BRL', value: '0.00' } } } as any
-      const pr = new (window as any).PaymentRequest(methodData, details)
+      const pr = new (window as any).PaymentRequest(methodData, {})
       const resp = await pr.show()
       await resp.complete('success')
       const tok = String(resp?.details?.purchaseToken || '')
@@ -146,9 +163,9 @@ export default function AssinarPage() {
             </CardHeader>
             <CardContent>
               <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
-                {canPlayBilling ? 'Pagamento via Google Play disponível.' : (twaAndroid ? 'Compras via Google Play disponíveis em breve nesta versão Android.' : 'Acesso imediato após confirmação do pagamento.')}
+                {playBillingAvailable ? 'Pagamento via Google Play disponível.' : (twaAndroid ? 'Pagamento via Google Play indisponível neste navegador.' : 'Acesso imediato após confirmação do pagamento.')}
               </div>
-              {canPlayBilling ? (
+              {playBillingAvailable ? (
                 <Button onClick={purchaseViaPlay} disabled={purchaseLoading} className="mt-4 inline-flex w-full items-center justify-center rounded-md bg-blue-800 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700">
                   {purchaseLoading ? 'Processando...' : 'Comprar via Google Play'}
                 </Button>
