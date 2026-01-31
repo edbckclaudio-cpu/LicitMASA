@@ -22,6 +22,8 @@ export default function AssinarPage() {
     } catch { return false }
   })()
   const [playBillingAvailable, setPlayBillingAvailable] = useState(false)
+  const [skuValid, setSkuValid] = useState(false)
+  const [skuPrice, setSkuPrice] = useState<string | null>(null)
   const [purchaseLoading, setPurchaseLoading] = useState(false)
   const [purchaseMsg, setPurchaseMsg] = useState<string | null>(null)
   async function assinanteDeTeste() {
@@ -56,6 +58,8 @@ export default function AssinarPage() {
     async function probe() {
       try {
         setPlayBillingAvailable(false)
+        setSkuValid(false)
+        setSkuPrice(null)
         if (!twaAndroid) return
         if (!playProductId) return
         const w: any = typeof window !== 'undefined' ? window : null
@@ -64,6 +68,30 @@ export default function AssinarPage() {
         const svc = await w.getDigitalGoodsService('https://play.google.com/billing')
         if (!svc) return
         if (!(w as any).PaymentRequest) return
+        try {
+          const details = await svc.getDetails([playProductId])
+          if (Array.isArray(details) && details.length > 0) {
+            const item = details[0]
+            const price = (() => {
+              try {
+                const p = item?.price
+                if (p?.currency && p?.value != null) {
+                  return new Intl.NumberFormat(
+                    typeof navigator !== 'undefined' ? navigator.language : 'pt-BR',
+                    { style: 'currency', currency: p.currency }
+                  ).format(p.value)
+                }
+              } catch {}
+              return null
+            })()
+            setSkuPrice(price)
+            setSkuValid(true)
+          } else {
+            setSkuValid(false)
+          }
+        } catch {
+          setSkuValid(false)
+        }
         setPlayBillingAvailable(true)
       } catch {
         setPlayBillingAvailable(false)
@@ -76,6 +104,7 @@ export default function AssinarPage() {
       setPurchaseMsg(null)
       setPurchaseLoading(true)
       if (!playBillingAvailable) { setPurchaseMsg('Pagamento via Google Play indisponível'); return }
+      if (!skuValid) { setPurchaseMsg('Assinatura não encontrada ou inativa'); return }
       const methodData = [{
         supportedMethods: 'https://play.google.com/billing',
         data: { sku: playProductId, type: 'subs' }
@@ -98,7 +127,8 @@ export default function AssinarPage() {
         try { router.push(payUrl) } catch {}
       }
     } catch (e: any) {
-      setPurchaseMsg(e?.message || 'Falha na compra')
+      const msg = String(e?.message || '').trim()
+      setPurchaseMsg(msg ? msg : 'Falha na compra')
     } finally {
       setPurchaseLoading(false)
     }
@@ -167,7 +197,7 @@ export default function AssinarPage() {
               </div>
               {playBillingAvailable ? (
                 <Button onClick={purchaseViaPlay} disabled={purchaseLoading} className="mt-4 inline-flex w-full items-center justify-center rounded-md bg-blue-800 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700">
-                  {purchaseLoading ? 'Processando...' : 'Comprar via Google Play'}
+                  {purchaseLoading ? 'Processando...' : (skuValid ? `Comprar via Google Play${skuPrice ? ` (${skuPrice})` : ''}` : 'Assinatura indisponível')}
                 </Button>
               ) : twaAndroid ? (
                 <div className="space-y-3">
