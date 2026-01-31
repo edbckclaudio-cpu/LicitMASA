@@ -22,6 +22,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="br.com.licitmasa">
 
+    <uses-sdk android:minSdkVersion="23" />
+    
     
         <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     
