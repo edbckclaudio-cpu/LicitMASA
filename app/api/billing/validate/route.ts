@@ -20,6 +20,30 @@ async function getOAuth2Client() {
   return auth
 }
 
+async function getPlayAuth() {
+  const saJson = (process.env.GOOGLE_SERVICE_ACCOUNT_JSON || '').trim()
+  const saPath = (process.env.GOOGLE_APPLICATION_CREDENTIALS || '').trim()
+  const scope = ['https://www.googleapis.com/auth/androidpublisher']
+  if (saJson) {
+    try {
+      const creds = JSON.parse(saJson)
+      const email = String(creds.client_email || '').trim()
+      const key = String(creds.private_key || '').trim()
+      if (email && key) {
+        const jwt = new google.auth.JWT(email, undefined, key, scope)
+        return jwt
+      }
+    } catch {}
+  }
+  if (saPath) {
+    try {
+      const jwt = new google.auth.GoogleAuth({ keyFile: saPath, scopes: scope })
+      return jwt
+    } catch {}
+  }
+  return await getOAuth2Client()
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}))
@@ -29,7 +53,7 @@ export async function POST(req: Request) {
     const userId = String(body.userId || '').trim()
     if (!productId || !purchaseToken || !userId) return NextResponse.json({ ok: false, error: 'MISSING_FIELDS' }, { status: 400 })
 
-    const auth = await getOAuth2Client()
+    const auth = await getPlayAuth()
     if (!auth) return NextResponse.json({ ok: false, error: 'PLAY_AUTH_MISSING' }, { status: 500 })
     const play = google.androidpublisher({ version: 'v3', auth })
     let v2: any = {}

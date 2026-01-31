@@ -11,6 +11,8 @@
       NEXT_PUBLIC_PLAY_PRODUCT_ID: !!productId,
        NEXT_PUBLIC_SITE_URL: !!(process.env.NEXT_PUBLIC_SITE_URL || '').trim(),
       ANDROID_PACKAGE_ID: !!packageName,
+      GOOGLE_SERVICE_ACCOUNT_JSON: !!(process.env.GOOGLE_SERVICE_ACCOUNT_JSON || '').trim(),
+      GOOGLE_APPLICATION_CREDENTIALS: !!(process.env.GOOGLE_APPLICATION_CREDENTIALS || '').trim(),
      }
     return NextResponse.json({ ok: true, present: d, values: { productId, packageName } })
    } catch (e: any) {
