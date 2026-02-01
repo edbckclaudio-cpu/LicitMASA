@@ -34,6 +34,8 @@ async function getPlayAuth() {
       const key = String(creds.private_key || '').trim()
       if (email && key) {
         const jwt = new google.auth.JWT(email, undefined, key, scope)
+        ;(jwt as any).source = 'service_account_json'
+        ;(jwt as any).email = email
         return jwt
       }
     } catch {}
@@ -42,16 +44,24 @@ async function getPlayAuth() {
     try {
       const ga = new google.auth.GoogleAuth({ keyFile: saPath, scopes: scope })
       const client = await ga.getClient()
+      ;(client as any).source = 'service_account_keyfile'
       return client
     } catch {}
   }
   if (saEmail && saKey) {
     try {
       const jwt = new google.auth.JWT(saEmail, undefined, saKey, scope)
+      ;(jwt as any).source = 'service_account_env'
+      ;(jwt as any).email = saEmail
       return jwt
     } catch {}
   }
-  return await getOAuth2Client()
+  const oauth = await getOAuth2Client()
+  if (oauth) {
+    ;(oauth as any).source = 'oauth2'
+    return oauth
+  }
+  return null
 }
 
 export async function POST(req: Request) {
@@ -65,6 +75,8 @@ export async function POST(req: Request) {
 
     const auth = await getPlayAuth()
     if (!auth) return NextResponse.json({ ok: false, error: 'PLAY_AUTH_MISSING' }, { status: 500 })
+    const authSource = String((auth as any)?.source || 'unknown')
+    const authEmail = String((auth as any)?.email || '')
     try {
       const client: any = (auth as any).getAccessToken ? auth : await (async () => {
         try {
@@ -78,7 +90,7 @@ export async function POST(req: Request) {
       }
     } catch (e: any) {
       const msg = String(e?.message || '').trim()
-      return NextResponse.json({ ok: false, error: 'INVALID_CLIENT', details: msg }, { status: 401 })
+      return NextResponse.json({ ok: false, error: 'INVALID_CLIENT', details: msg, authSource, authEmail }, { status: 401 })
     }
     const play = google.androidpublisher({ version: 'v3', auth: auth as any })
     let v2: any = {}
@@ -90,9 +102,61 @@ export async function POST(req: Request) {
       v2 = resV2.data || {}
     } catch (e: any) {
       const msg = String(e?.message || '').trim()
+      const msgLc = msg.toLowerCase()
       const code = Number((e as any)?.code || 0)
       const err = (e as any)?.errors || (e as any)?.response?.data || null
-      return NextResponse.json({ ok: false, error: msg || 'PLAY_API_ERROR', code, details: err, packageName, productId }, { status: code && code >= 400 && code < 600 ? code : 500 })
+      const projectMatch = msg.match(/project\s+(\d{6,})/i)
+      const projectId = projectMatch ? projectMatch[1] : undefined
+      const apiDisabled = msgLc.includes('androidpublisher.googleapis.com') && (msgLc.includes('has not been used') || msgLc.includes('disabled'))
+      if (apiDisabled) {
+        try {
+          const oauth = await getOAuth2Client()
+          if (oauth && oauth !== auth) {
+            const play2 = google.androidpublisher({ version: 'v3', auth: oauth as any })
+            const resV2b = await play2.purchases.subscriptionsv2.get({
+              packageName,
+              token: purchaseToken,
+            } as any)
+            v2 = resV2b.data || {}
+          } else {
+            return NextResponse.json({
+              ok: false,
+              error: 'ANDROIDPUBLISHER_NOT_ENABLED',
+              message: msg,
+              projectId,
+              hint: 'Habilite a API Google Play Android Developer (androidpublisher) no projeto GCP usado pelas credenciais',
+              authSource,
+              authEmail,
+            }, { status: 400 })
+          }
+        } catch (e2: any) {
+          const msg2 = String(e2?.message || '').trim()
+          return NextResponse.json({
+            ok: false,
+            error: 'ANDROIDPUBLISHER_NOT_ENABLED',
+            message: msg2 || msg,
+            projectId,
+            details: (e2 as any)?.errors || (e2 as any)?.response?.data || null,
+            authSource,
+            authEmail,
+          }, { status: 400 })
+        }
+      } else {
+        const insufficient = code === 403 || msgLc.includes('insufficient') || msgLc.includes('permission')
+        if (insufficient) {
+          return NextResponse.json({
+            ok: false,
+            error: 'PERMISSION_DENIED',
+            message: msg || 'INSUFFICIENT_PERMISSIONS',
+            packageName,
+            productId,
+            authSource,
+            authEmail,
+            hint: 'Conceda acesso no Play Console: Settings > API access. Vincule o projeto GCP e dê permissões ao Service Account ou usuário OAuth. Recomenda-se papel Admin ou incluir Order management e View financial data.',
+          }, { status: 403 })
+        }
+        return NextResponse.json({ ok: false, error: msg || 'PLAY_API_ERROR', code, details: err, packageName, productId, authSource, authEmail }, { status: code && code >= 400 && code < 600 ? code : 500 })
+      }
     }
     const state = String(v2?.subscriptionState || '')
     const items: any[] = Array.isArray(v2?.lineItems) ? v2.lineItems : []

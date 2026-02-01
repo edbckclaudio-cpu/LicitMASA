@@ -30,3 +30,6 @@ twa-licitmasa/app-release-unsigned-*.apk
 twa-licitmasa/*.idsig
 twa-licitmasa/android.keystore
 twa-licitmasa/release.keystore
+
+.vercel
+.env*.local
