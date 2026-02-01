@@ -154,34 +154,46 @@ export default function HomePage() {
   useEffect(() => {
     document.title = 'Buscar Publicações'
   }, [])
-  useEffect(() => {
-    async function loadUserPlan() {
-      if (!supabase) return
-      const { data: userData } = await supabase.auth.getUser()
-      const user = userData?.user
-      if (!user) {
-        setLoggedIn(false)
-        setIsPremium(false)
-        setShowPremiumBanner(true)
-        setTimeout(() => setShowPremiumBanner(false), 5000)
-        return
-      }
-      setLoggedIn(true)
-      const { data: prof, error } = await supabase.from('profiles').select('is_premium, plan').eq('id', user.id).single()
-      const allow = String(process.env.NEXT_PUBLIC_PREMIUM_EMAILS || '').toLowerCase().split(',').map((s) => s.trim()).filter(Boolean)
-      const email = String(user.email || '').toLowerCase()
-      const premium = Boolean(prof?.is_premium) || String(prof?.plan || '').toLowerCase() === 'premium' || allow.includes(email)
-      setIsPremium(premium)
-      if (!premium) {
-        setShowPremiumBanner(true)
-        setTimeout(() => setShowPremiumBanner(false), 5000)
-      } else {
-        setShowPremiumBanner(false)
-        try { await requestAndSaveToken() } catch {}
-      }
+  const loadUserPlan = useCallback(async () => {
+    if (!supabase) return
+    const { data: userData } = await supabase.auth.getUser()
+    const user = userData?.user
+    if (!user) {
+      setLoggedIn(false)
+      setIsPremium(false)
+      setShowPremiumBanner(true)
+      setTimeout(() => setShowPremiumBanner(false), 5000)
+      return
     }
-    loadUserPlan()
+    setLoggedIn(true)
+    const { data: prof } = await supabase.from('profiles').select('is_premium, plan').eq('id', user.id).single()
+    const allow = String(process.env.NEXT_PUBLIC_PREMIUM_EMAILS || '').toLowerCase().split(',').map((s) => s.trim()).filter(Boolean)
+    const email = String(user.email || '').toLowerCase()
+    const premium = Boolean(prof?.is_premium) || String(prof?.plan || '').toLowerCase() === 'premium' || allow.includes(email)
+    setIsPremium(premium)
+    if (!premium) {
+      setShowPremiumBanner(true)
+      setTimeout(() => setShowPremiumBanner(false), 5000)
+    } else {
+      setShowPremiumBanner(false)
+      try { await requestAndSaveToken() } catch {}
+    }
   }, [])
+  useEffect(() => { loadUserPlan() }, [loadUserPlan])
+  useEffect(() => {
+    const sub = supabase?.auth?.onAuthStateChange?.((_event: any, _session: any) => { loadUserPlan() })
+    return () => { try { (sub as any)?.data?.subscription?.unsubscribe?.() } catch {} }
+  }, [loadUserPlan])
+  useEffect(() => {
+    const onFocus = () => { loadUserPlan() }
+    const onVis = () => { try { if (document.visibilityState === 'visible') loadUserPlan() } catch {} }
+    try { window.addEventListener('focus', onFocus) } catch {}
+    try { document.addEventListener('visibilitychange', onVis) } catch {}
+    return () => {
+      try { window.removeEventListener('focus', onFocus) } catch {}
+      try { document.removeEventListener('visibilitychange', onVis) } catch {}
+    }
+  }, [loadUserPlan])
   useEffect(() => {
     function onClear() { setToasts([]) }
     window.addEventListener('clear-toasts', onClear as any)
@@ -946,7 +958,6 @@ export default function HomePage() {
                                 href={edital}
                                 target="_blank"
                                 rel="noreferrer"
-                                onClick={(e) => { if (!isPremium) { e.preventDefault(); router.push('/assinar') } }}
                                 className="h-9 w-[70%] inline-flex items-center justify-center gap-2 rounded-md bg-blue-700 px-3 text-xs font-semibold text-white shadow hover:bg-blue-600"
                               >
                                 <FileText className="h-4 w-4" />
@@ -1102,7 +1113,6 @@ export default function HomePage() {
                           href={edital}
                           target="_blank"
                           rel="noreferrer"
-                          onClick={(e) => { if (!isPremium) { e.preventDefault(); router.push('/assinar') } }}
                           className="inline-flex items-center gap-2 rounded-md bg-blue-700 px-3 py-2 text-xs font-medium text-white hover:bg-blue-600 w-[70%]"
                         >
                           <FileText className="h-4 w-4" />
