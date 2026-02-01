@@ -23,6 +23,9 @@ async function getOAuth2Client() {
 async function getPlayAuth() {
   const saJson = (process.env.GOOGLE_SERVICE_ACCOUNT_JSON || '').trim()
   const saPath = (process.env.GOOGLE_APPLICATION_CREDENTIALS || '').trim()
+  const saEmail = (process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || process.env.GOOGLE_PLAY_SERVICE_ACCOUNT_EMAIL || '').trim()
+  const saKeyRaw = (process.env.GOOGLE_SERVICE_ACCOUNT_KEY || process.env.GOOGLE_PLAY_SERVICE_ACCOUNT_KEY || '').trim()
+  const saKey = saKeyRaw.replace(/\\n/g, '\n')
   const scope = ['https://www.googleapis.com/auth/androidpublisher']
   if (saJson) {
     try {
@@ -37,7 +40,14 @@ async function getPlayAuth() {
   }
   if (saPath) {
     try {
-      const jwt = new google.auth.GoogleAuth({ keyFile: saPath, scopes: scope })
+      const ga = new google.auth.GoogleAuth({ keyFile: saPath, scopes: scope })
+      const client = await ga.getClient()
+      return client
+    } catch {}
+  }
+  if (saEmail && saKey) {
+    try {
+      const jwt = new google.auth.JWT(saEmail, undefined, saKey, scope)
       return jwt
     } catch {}
   }
@@ -49,13 +59,28 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => ({}))
     const packageName = (process.env.GOOGLE_PLAY_PACKAGE_NAME || process.env.ANDROID_PACKAGE_ID || 'br.com.licitmasa').trim()
     const productId = String(body.productId || process.env.NEXT_PUBLIC_PLAY_PRODUCT_ID || '').trim()
-    const purchaseToken = String(body.purchaseToken || '').trim()
+    const purchaseToken = String(body.purchaseToken || body.token || body.purchase_token || '').trim()
     const userId = String(body.userId || '').trim()
     if (!productId || !purchaseToken || !userId) return NextResponse.json({ ok: false, error: 'MISSING_FIELDS' }, { status: 400 })
 
     const auth = await getPlayAuth()
     if (!auth) return NextResponse.json({ ok: false, error: 'PLAY_AUTH_MISSING' }, { status: 500 })
-    const play = google.androidpublisher({ version: 'v3', auth })
+    try {
+      const client: any = (auth as any).getAccessToken ? auth : await (async () => {
+        try {
+          const ga = new google.auth.GoogleAuth({ scopes: ['https://www.googleapis.com/auth/androidpublisher'] })
+          return await ga.getClient()
+        } catch { return auth }
+      })()
+      const tokenInfo = await client.getAccessToken().catch((e: any) => { throw e })
+      if (!tokenInfo || !tokenInfo.token) {
+        throw new Error('INVALID_CLIENT_ACCESS_TOKEN')
+      }
+    } catch (e: any) {
+      const msg = String(e?.message || '').trim()
+      return NextResponse.json({ ok: false, error: 'INVALID_CLIENT', details: msg }, { status: 401 })
+    }
+    const play = google.androidpublisher({ version: 'v3', auth: auth as any })
     let v2: any = {}
     try {
       const resV2 = await play.purchases.subscriptionsv2.get({
