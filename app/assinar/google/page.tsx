@@ -9,6 +9,7 @@ import { supabase, authRedirectTo, buildAuthRedirect } from '@/lib/supabaseClien
    const router = useRouter()
    const [msg, setMsg] = useState<string | null>(null)
    const [loading, setLoading] = useState(false)
+   const [isPremium, setIsPremium] = useState(false)
    const playProductId = process.env.NEXT_PUBLIC_PLAY_PRODUCT_ID || ''
    const twaAndroid = (() => {
      try {
@@ -29,7 +30,27 @@ import { supabase, authRedirectTo, buildAuthRedirect } from '@/lib/supabaseClien
          if (!supabase) { setMsg('Configure o Supabase'); return }
          const { data: ud } = await supabase.auth.getUser()
          const user = ud?.user
-         if (user?.id) return
+         if (user?.id) {
+           try {
+             const { data: prof } = await supabase!.from('profiles').select('is_premium, plan').eq('id', user.id).single()
+             let premium = Boolean(prof?.is_premium) || String(prof?.plan || '').toLowerCase() === 'premium'
+             if (!premium) {
+               try {
+                 const r = await fetch('/api/profile/status', {
+                   method: 'POST',
+                   headers: { 'Content-Type': 'application/json', 'x-admin-token': 'DEV' },
+                   body: JSON.stringify({ userId: user.id })
+                 })
+                 if (r.ok) {
+                   const j = await r.json()
+                   premium = Boolean(j?.isPremium)
+                 }
+               } catch {}
+             }
+             setIsPremium(premium)
+           } catch {}
+           return
+         }
         const redirectTo = buildAuthRedirect('/assinar/google')
          const { data, error } = await supabase.auth.signInWithOAuth({
            provider: 'google',
@@ -87,13 +108,40 @@ import { supabase, authRedirectTo, buildAuthRedirect } from '@/lib/supabaseClien
           return
         }
       } catch {}
+      // Checagem adicional via Digital Goods API para detectar assinatura já ativa e evitar PaymentRequest
+      try {
+        const w: any = typeof window !== 'undefined' ? window : null
+        if (w && 'getDigitalGoodsService' in w) {
+          const svc = await w.getDigitalGoodsService('https://play.google.com/billing')
+          if (svc && typeof svc.listPurchases === 'function') {
+            const purchases = await svc.listPurchases()
+            const hasActive = Array.isArray(purchases) && purchases.some((p: any) => String(p?.sku || '') === String(playProductId))
+            if (hasActive) {
+              setMsg('Você já tem uma assinatura via Google Play')
+              try { router.push('/perfil') } catch {}
+              return
+            }
+          }
+        }
+      } catch {}
        const methodData = [{
          supportedMethods: 'https://play.google.com/billing',
         data: { sku: playProductId, type: 'subs' }
        }] as any
        const details = { total: { label: 'Premium', amount: { currency: 'BRL', value: '0.00' } } } as any
-       const pr = new (window as any).PaymentRequest(methodData, details)
-       const resp = await pr.show()
+      let resp: any
+      try {
+        const pr = new (window as any).PaymentRequest(methodData, details)
+        resp = await pr.show()
+      } catch (e: any) {
+        const m = String(e?.message || '').toLowerCase()
+        if (m.includes('already') || m.includes('assinatura') || m.includes('already have')) {
+          setMsg('Assinatura já existente no Google Play')
+          try { router.push('/perfil') } catch {}
+          return
+        }
+        throw e
+      }
        await resp.complete('success')
        const tok = String(resp?.details?.purchaseToken || '')
        if (!tok) { setMsg('Token de compra não retornado'); return }
@@ -130,8 +178,11 @@ import { supabase, authRedirectTo, buildAuthRedirect } from '@/lib/supabaseClien
                  ? 'Pagamento via Google Play disponível neste dispositivo.'
                  : (twaAndroid ? 'Compras via Google Play disponíveis em breve nesta versão Android.' : 'Abra pelo app Android (TWA) para pagar via Google Play.')}
              </div>
+             {isPremium ? (
+               <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800">Você já é assinante Premium</div>
+             ) : null}
              <div className="flex gap-3">
-               <Button onClick={comprarViaGooglePlay} disabled={!canPlayBilling || loading} className="inline-flex items-center justify-center rounded-md bg-blue-800 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700">
+               <Button onClick={comprarViaGooglePlay} disabled={!canPlayBilling || loading || isPremium} className="inline-flex items-center justify-center rounded-md bg-blue-800 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700">
                  {loading ? 'Processando...' : 'Pagar via Google Play'}
                </Button>
                <Button onClick={() => router.push('/perfil')} className="inline-flex items-center justify-center rounded-md px-3 py-2 text-sm font-medium bg-gray-100 text-gray-800 hover:bg-gray-200">

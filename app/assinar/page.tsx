@@ -13,6 +13,7 @@ export default function AssinarPage() {
   const playProductId = process.env.NEXT_PUBLIC_PLAY_PRODUCT_ID || ''
   const [ctaHref, setCtaHref] = useState<string>('/login')
   const router = useRouter()
+  const [isPremium, setIsPremium] = useState(false)
   const twaAndroid = (() => {
     try {
       const ua = typeof navigator !== 'undefined' ? navigator.userAgent.toLowerCase() : ''
@@ -60,6 +61,33 @@ export default function AssinarPage() {
     }
     resolve()
   }, [payUrl])
+  useEffect(() => {
+    async function checkPremium() {
+      try {
+        const ud = await supabase?.auth.getUser()
+        const user = ud?.data?.user
+        const uid = String(user?.id || '')
+        if (!uid) { setIsPremium(false); return }
+        const { data: prof } = await supabase!.from('profiles').select('is_premium, plan').eq('id', uid).single()
+        let premium = Boolean(prof?.is_premium) || String(prof?.plan || '').toLowerCase() === 'premium'
+        if (!premium) {
+          try {
+            const r = await fetch('/api/profile/status', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'x-admin-token': 'DEV' },
+              body: JSON.stringify({ userId: uid })
+            })
+            if (r.ok) {
+              const j = await r.json()
+              premium = Boolean(j?.isPremium)
+            }
+          } catch {}
+        }
+        setIsPremium(premium)
+      } catch { setIsPremium(false) }
+    }
+    checkPremium()
+  }, [])
   useEffect(() => {
     async function probe() {
       try {
@@ -166,13 +194,40 @@ export default function AssinarPage() {
             return
           }
         } catch {}
+        // Checagem adicional via Digital Goods API para evitar abrir PaymentRequest em assinatura já ativa
+        try {
+          const w: any = typeof window !== 'undefined' ? window : null
+          if (w && 'getDigitalGoodsService' in w) {
+            const svc = await w.getDigitalGoodsService('https://play.google.com/billing')
+            if (svc && typeof svc.listPurchases === 'function') {
+              const purchases = await svc.listPurchases()
+              const hasActive = Array.isArray(purchases) && purchases.some((p: any) => String(p?.sku || '') === String(playProductId))
+              if (hasActive) {
+                setPurchaseMsg('Você já tem uma assinatura via Google Play')
+                try { router.push(payUrl) } catch {}
+                return
+              }
+            }
+          }
+        } catch {}
       }
       const methodData = [{
         supportedMethods: 'https://play.google.com/billing',
         data: { sku: playProductId, type: 'subs' }
       }] as any
-      const pr = new (window as any).PaymentRequest(methodData, {})
-      const resp = await pr.show()
+      let resp: any
+      try {
+        const pr = new (window as any).PaymentRequest(methodData, {})
+        resp = await pr.show()
+      } catch (e: any) {
+        const m = String(e?.message || '').toLowerCase()
+        if (m.includes('already') || m.includes('assinatura') || m.includes('already have')) {
+          setPurchaseMsg('Assinatura já existente no Google Play')
+          try { router.push(payUrl) } catch {}
+          return
+        }
+        throw e
+      }
       await resp.complete('success')
       const details: any = (resp as any)?.details || {}
       const tok = String(
@@ -275,7 +330,14 @@ export default function AssinarPage() {
               <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
                 {playBillingAvailable ? 'Pagamento via Google Play disponível.' : (twaAndroid ? 'Pagamento via Google Play indisponível neste navegador.' : 'Acesso imediato após confirmação do pagamento.')}
               </div>
-              {playBillingAvailable ? (
+              {isPremium ? (
+                <div className="mt-4 space-y-3">
+                  <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800">Você já é assinante Premium</div>
+                  <Link href={payUrl} className="inline-flex w-full items-center justify-center rounded-md bg-blue-800 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700">
+                    Ir ao Perfil
+                  </Link>
+                </div>
+              ) : playBillingAvailable ? (
                 <Button onClick={purchaseViaPlay} disabled={purchaseLoading} className="mt-4 inline-flex w-full items-center justify-center rounded-md bg-blue-800 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700">
                   {purchaseLoading ? 'Processando...' : (skuValid ? `Comprar via Google Play${skuPrice ? ` (${skuPrice})` : ''}` : 'Assinatura indisponível')}
                 </Button>
