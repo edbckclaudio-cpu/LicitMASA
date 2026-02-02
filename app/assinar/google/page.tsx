@@ -67,7 +67,20 @@ import { supabase, authRedirectTo, buildAuthRedirect } from '@/lib/supabaseClien
       // Evita compra se já for Premium
       try {
         const { data: prof } = await supabase!.from('profiles').select('is_premium, plan').eq('id', uid).single()
-        const premium = Boolean(prof?.is_premium) || String(prof?.plan || '').toLowerCase() === 'premium'
+        let premium = Boolean(prof?.is_premium) || String(prof?.plan || '').toLowerCase() === 'premium'
+        if (!premium) {
+          try {
+            const r = await fetch('/api/profile/status', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'x-admin-token': 'DEV' },
+              body: JSON.stringify({ userId: uid })
+            })
+            if (r.ok) {
+              const j = await r.json()
+              premium = Boolean(j?.isPremium)
+            }
+          } catch {}
+        }
         if (premium) {
           setMsg('Você já é assinante Premium')
           try { router.push('/perfil') } catch {}
