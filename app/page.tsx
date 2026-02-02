@@ -140,7 +140,9 @@ export default function HomePage() {
   const [swipeStart, setSwipeStart] = useState<number | null>(null)
   const [swipeDelta, setSwipeDelta] = useState<number>(0)
   const [loggedIn, setLoggedIn] = useState<boolean>(false)
-  const [isPremium, setIsPremium] = useState<boolean>(false)
+  const [isPremium, setIsPremium] = useState<boolean | null>(null)
+  const [planLoading, setPlanLoading] = useState<boolean>(true)
+  const [checkingPremiumAction, setCheckingPremiumAction] = useState<boolean>(false)
   const planPrice = process.env.NEXT_PUBLIC_PLAN_PRICE || '49,90'
   const [showPremiumBanner, setShowPremiumBanner] = useState<boolean>(false)
   const [ordenar, setOrdenar] = useState<'data' | 'valor_desc' | 'valor_asc'>('data')
@@ -156,6 +158,7 @@ export default function HomePage() {
   }, [])
   const loadUserPlan = useCallback(async () => {
     if (!supabase) return
+    setPlanLoading(true)
     const { data: userData } = await supabase.auth.getUser()
     const user = userData?.user
     if (!user) {
@@ -163,6 +166,7 @@ export default function HomePage() {
       setIsPremium(false)
       setShowPremiumBanner(true)
       setTimeout(() => setShowPremiumBanner(false), 5000)
+      setPlanLoading(false)
       return
     }
     setLoggedIn(true)
@@ -191,6 +195,7 @@ export default function HomePage() {
       setShowPremiumBanner(false)
       try { await requestAndSaveToken() } catch {}
     }
+    setPlanLoading(false)
   }, [])
   useEffect(() => { loadUserPlan() }, [loadUserPlan])
   useEffect(() => {
@@ -596,7 +601,7 @@ export default function HomePage() {
       </div>
 
       
-      {!isPremium && showPremiumBanner && (
+      {isPremium === false && showPremiumBanner && (
         <div className="mx-auto max-w-5xl px-6 pt-2">
           <div className="flex items-center justify-between rounded-md border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
             <span>Plano Premium por R$ {planPrice}/mês: desbloqueie alertas às 07:00/16:00, WhatsApp e Raio‑X.</span>
@@ -971,16 +976,75 @@ export default function HomePage() {
                                 href={edital}
                                 target="_blank"
                                 rel="noreferrer"
-                                onClick={(e) => { if (!isPremium) { e.preventDefault(); setUpgradeOpen(true) } }}
-                                className="h-9 w-[70%] inline-flex items-center justify-center gap-2 rounded-md bg-blue-700 px-3 text-xs font-semibold text-white shadow hover:bg-blue-600"
+                                onClick={async (e) => {
+                                  e.preventDefault()
+                                  if (planLoading || isPremium === null || checkingPremiumAction) return
+                                  setCheckingPremiumAction(true)
+                                  try {
+                                    const ud = await supabase?.auth.getUser()
+                                    const user = ud?.data?.user || (ud as any)?.user
+                                    let premiumNow = isPremium
+                                    if (user?.id && !premiumNow) {
+                                      try {
+                                        const r = await fetch('/api/profile/status', {
+                                          method: 'POST',
+                                          headers: { 'Content-Type': 'application/json', 'x-admin-token': 'DEV' },
+                                          body: JSON.stringify({ userId: user.id })
+                                        })
+                                        if (r.ok) {
+                                          const j = await r.json()
+                                          premiumNow = Boolean(j?.isPremium)
+                                          setIsPremium(premiumNow)
+                                        }
+                                      } catch {}
+                                    }
+                                    if (premiumNow) {
+                                      try { window.open(edital, '_blank') } catch {}
+                                    } else {
+                                      setUpgradeOpen(true)
+                                    }
+                                  } finally {
+                                    setCheckingPremiumAction(false)
+                                  }
+                                }}
+                                className={"h-9 w-[70%] inline-flex items-center justify-center gap-2 rounded-md px-3 text-xs font-semibold text-white shadow " + ((planLoading || isPremium === null || checkingPremiumAction) ? "bg-blue-400 cursor-wait opacity-50 pointer-events-none" : "bg-blue-700 hover:bg-blue-600")}
                               >
                                 <FileText className="h-4 w-4" />
-                                Ver Edital
+                                {planLoading || isPremium === null || checkingPremiumAction ? 'Carregando...' : 'Ver Edital'}
                               </a>
                               <div className="flex items-center gap-2">
                                 <Button
-                                  onClick={() => { if (!isPremium) { setUpgradeOpen(true); return } setRaioxItem(item); setRaioxOpen(true) }}
-                                  className="h-9 inline-flex items-center justify-center rounded-md border bg-white px-2 text-xs text-slate-800 hover:bg-gray-100"
+                                  onClick={async () => {
+                                    if (planLoading || isPremium === null || checkingPremiumAction) return
+                                    setCheckingPremiumAction(true)
+                                    try {
+                                      const ud = await supabase?.auth.getUser()
+                                      const user = ud?.data?.user || (ud as any)?.user
+                                      let premiumNow = isPremium
+                                      if (user?.id && !premiumNow) {
+                                        try {
+                                          const r = await fetch('/api/profile/status', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json', 'x-admin-token': 'DEV' },
+                                            body: JSON.stringify({ userId: user.id })
+                                          })
+                                          if (r.ok) {
+                                            const j = await r.json()
+                                            premiumNow = Boolean(j?.isPremium)
+                                            setIsPremium(premiumNow)
+                                          }
+                                        } catch {}
+                                      }
+                                      if (premiumNow) {
+                                        setRaioxItem(item); setRaioxOpen(true)
+                                      } else {
+                                        setUpgradeOpen(true)
+                                      }
+                                    } finally {
+                                      setCheckingPremiumAction(false)
+                                    }
+                                  }}
+                                  className={"h-9 inline-flex items-center justify-center rounded-md border px-2 text-xs " + ((planLoading || isPremium === null || checkingPremiumAction) ? "bg-gray-50 text-slate-500 cursor-wait opacity-50 pointer-events-none" : "bg-white text-slate-800 hover:bg-gray-100")}
                                   aria-label="Raio-X da Oportunidade"
                                   title="Raio-X da Oportunidade"
                                 >
@@ -996,8 +1060,37 @@ export default function HomePage() {
                                 </Button>
                                 
                                 <Button
-                                  onClick={() => { if (!isPremium) { setUpgradeOpen(true); return } shareToWhatsApp(item) }}
-                                  className="h-9 inline-flex items-center justify-center rounded-md border bg-white px-2 text-xs text-green-700 hover:bg-green-50"
+                                  onClick={async () => {
+                                    if (planLoading || isPremium === null || checkingPremiumAction) return
+                                    setCheckingPremiumAction(true)
+                                    try {
+                                      const ud = await supabase?.auth.getUser()
+                                      const user = ud?.data?.user || (ud as any)?.user
+                                      let premiumNow = isPremium
+                                      if (user?.id && !premiumNow) {
+                                        try {
+                                          const r = await fetch('/api/profile/status', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json', 'x-admin-token': 'DEV' },
+                                            body: JSON.stringify({ userId: user.id })
+                                          })
+                                          if (r.ok) {
+                                            const j = await r.json()
+                                            premiumNow = Boolean(j?.isPremium)
+                                            setIsPremium(premiumNow)
+                                          }
+                                        } catch {}
+                                      }
+                                      if (premiumNow) {
+                                        shareToWhatsApp(item)
+                                      } else {
+                                        setUpgradeOpen(true)
+                                      }
+                                    } finally {
+                                      setCheckingPremiumAction(false)
+                                    }
+                                  }}
+                                  className={"h-9 inline-flex items-center justify-center rounded-md border px-2 text-xs " + ((planLoading || isPremium === null || checkingPremiumAction) ? "bg-green-50 text-green-600 cursor-wait opacity-50 pointer-events-none" : "bg-white text-green-700 hover:bg-green-50")}
                                   aria-label="Enviar para WhatsApp"
                                 >
                                   <MessageCircle className="h-4 w-4 text-green-700" />
@@ -1127,14 +1220,73 @@ export default function HomePage() {
                           href={edital}
                           target="_blank"
                           rel="noreferrer"
-                          onClick={(e) => { if (!isPremium) { e.preventDefault(); setUpgradeOpen(true) } }}
-                          className="inline-flex items-center gap-2 rounded-md bg-blue-700 px-3 py-2 text-xs font-medium text-white hover:bg-blue-600 w-[70%]"
+                          onClick={async (e) => {
+                            e.preventDefault()
+                            if (planLoading || isPremium === null || checkingPremiumAction) return
+                            setCheckingPremiumAction(true)
+                            try {
+                              const ud = await supabase?.auth.getUser()
+                              const user = ud?.data?.user || (ud as any)?.user
+                              let premiumNow = isPremium
+                              if (user?.id && !premiumNow) {
+                                try {
+                                  const r = await fetch('/api/profile/status', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json', 'x-admin-token': 'DEV' },
+                                    body: JSON.stringify({ userId: user.id })
+                                  })
+                                  if (r.ok) {
+                                    const j = await r.json()
+                                    premiumNow = Boolean(j?.isPremium)
+                                    setIsPremium(premiumNow)
+                                  }
+                                } catch {}
+                              }
+                              if (premiumNow) {
+                                try { window.open(edital, '_blank') } catch {}
+                              } else {
+                                setUpgradeOpen(true)
+                              }
+                            } finally {
+                              setCheckingPremiumAction(false)
+                            }
+                          }}
+                          className={"inline-flex items-center gap-2 rounded-md px-3 py-2 text-xs font-medium text-white w-[70%] " + ((planLoading || isPremium === null || checkingPremiumAction) ? "bg-blue-500 cursor-wait opacity-50 pointer-events-none" : "bg-blue-700 hover:bg-blue-600")}
                         >
-                          <FileText className="h-4 w-4" />
-                          Ver Edital
+                          <FileText className="h-4 w-4 text-blue-700" />
+                          {planLoading || isPremium === null || checkingPremiumAction ? 'Carregando...' : 'Ver Edital'}
                         </a>
                         <Button
-                          onClick={() => { if (!isPremium) { setUpgradeOpen(true); return } setRaioxItem(item); setRaioxOpen(true) }}
+                          onClick={async () => {
+                            if (planLoading || isPremium === null || checkingPremiumAction) return
+                            setCheckingPremiumAction(true)
+                            try {
+                              const ud = await supabase?.auth.getUser()
+                              const user = ud?.data?.user || (ud as any)?.user
+                              let premiumNow = isPremium
+                              if (user?.id && !premiumNow) {
+                                try {
+                                  const r = await fetch('/api/profile/status', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json', 'x-admin-token': 'DEV' },
+                                    body: JSON.stringify({ userId: user.id })
+                                  })
+                                  if (r.ok) {
+                                    const j = await r.json()
+                                    premiumNow = Boolean(j?.isPremium)
+                                    setIsPremium(premiumNow)
+                                  }
+                                } catch {}
+                              }
+                              if (premiumNow) {
+                                setRaioxItem(item); setRaioxOpen(true)
+                              } else {
+                                setUpgradeOpen(true)
+                              }
+                            } finally {
+                              setCheckingPremiumAction(false)
+                            }
+                          }}
                           className="inline-flex items-center justify-center rounded-md border bg-white px-2 text-xs text-slate-800 hover:bg-gray-100"
                           aria-label="Raio-X da Oportunidade"
                           title="Raio-X da Oportunidade"
@@ -1151,11 +1303,40 @@ export default function HomePage() {
                         </Button>
                         
                         <Button
-                          onClick={() => { if (!isPremium) { setUpgradeOpen(true); return } shareToWhatsApp(item) }}
-                          className="inline-flex items-center gap-2 rounded-md border border-green-600 bg-white px-3 py-2 text-xs font-medium text-green-700 hover:bg-green-50"
+                          onClick={async () => {
+                            if (planLoading || checkingPremiumAction) return
+                            setCheckingPremiumAction(true)
+                            try {
+                              const ud = await supabase?.auth.getUser()
+                              const user = ud?.data?.user || (ud as any)?.user
+                              let premiumNow = isPremium
+                              if (user?.id && !premiumNow) {
+                                try {
+                                  const r = await fetch('/api/profile/status', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json', 'x-admin-token': 'DEV' },
+                                    body: JSON.stringify({ userId: user.id })
+                                  })
+                                  if (r.ok) {
+                                    const j = await r.json()
+                                    premiumNow = Boolean(j?.isPremium)
+                                    setIsPremium(premiumNow)
+                                  }
+                                } catch {}
+                              }
+                              if (premiumNow) {
+                                shareToWhatsApp(item)
+                              } else {
+                                setUpgradeOpen(true)
+                              }
+                            } finally {
+                              setCheckingPremiumAction(false)
+                            }
+                          }}
+                          className={"inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-medium " + (planLoading || checkingPremiumAction ? "border-green-600 bg-green-50 text-green-700 cursor-wait" : "border-green-600 bg-white text-green-700 hover:bg-green-50")}
                         >
                           <MessageCircle className="h-4 w-4 text-green-600" />
-                          Enviar para WhatsApp
+                          {planLoading || checkingPremiumAction ? 'Verificando...' : 'Enviar para WhatsApp'}
                         </Button>
                         {!compact && (
                           <div className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs text-gray-700">
@@ -1429,10 +1610,63 @@ export default function HomePage() {
                       })()}
                       target="_blank"
                       rel="noreferrer"
-                      onClick={(e) => { if (!isPremium) { e.preventDefault(); setUpgradeOpen(true) } }}
-                      className="inline-flex items-center gap-2 rounded-md bg-blue-800 px-3 py-2 text-xs font-medium text-white hover:bg-blue-700"
+                      onClick={async (e) => {
+                        e.preventDefault()
+                        if (planLoading || isPremium === null || checkingPremiumAction) return
+                        setCheckingPremiumAction(true)
+                        try {
+                          const ud = await supabase?.auth.getUser()
+                          const user = ud?.data?.user || (ud as any)?.user
+                          let premiumNow = isPremium
+                          if (user?.id && !premiumNow) {
+                            try {
+                              const r = await fetch('/api/profile/status', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', 'x-admin-token': 'DEV' },
+                                body: JSON.stringify({ userId: user.id })
+                              })
+                              if (r.ok) {
+                                const j = await r.json()
+                                premiumNow = Boolean(j?.isPremium)
+                                setIsPremium(premiumNow)
+                              }
+                            } catch {}
+                          }
+                          if (premiumNow) {
+                            try { window.open((function () {
+                              const orgaoEnt = getField(detailsItem, ['orgaoEntidade'], {})
+                              const cnpjDet = String(getField(orgaoEnt, ['cnpj'], '')).replace(/\D/g, '')
+                              let anoDet = getField(detailsItem, ['anoCompra'], '')
+                              let seqDet = getField(detailsItem, ['sequencialCompra'], '')
+                              if (!anoDet || !seqDet) {
+                                const idStr = String(getField(detailsItem, ['numeroControlePNCP','id'], ''))
+                                const slashIdx = idStr.lastIndexOf('/')
+                                if (!anoDet && slashIdx !== -1) {
+                                  const a = idStr.slice(slashIdx + 1)
+                                  if (/^\d{4}$/.test(a)) anoDet = a
+                                }
+                                const before = slashIdx !== -1 ? idStr.slice(0, slashIdx) : idStr
+                                const dashIdx = before.lastIndexOf('-')
+                                if (!seqDet && dashIdx !== -1) {
+                                  const seq = before.slice(dashIdx + 1).replace(/^0+/, '')
+                                  if (/^\d+$/.test(seq)) seqDet = seq
+                                }
+                              }
+                              const fallback = String(getField(detailsItem, ['linkEdital','url','link'], 'https://pncp.gov.br/'))
+                              return cnpjDet && anoDet && seqDet
+                                ? `https://pncp.gov.br/app/editais/${cnpjDet}/${anoDet}/${seqDet}`
+                                : fallback
+                            })(), '_blank') } catch {}
+                          } else {
+                            setUpgradeOpen(true)
+                          }
+                        } finally {
+                          setCheckingPremiumAction(false)
+                        }
+                      }}
+                      className={"inline-flex items-center gap-2 rounded-md px-3 py-2 text-xs font-medium text-white " + ((planLoading || isPremium === null || checkingPremiumAction) ? "bg-blue-500 cursor-wait opacity-50 pointer-events-none" : "bg-blue-800 hover:bg-blue-700")}
                     >
-                      Ver Edital
+                      {planLoading || isPremium === null || checkingPremiumAction ? 'Carregando...' : 'Ver Edital'}
                     </a>
                   </div>
                 </div>
