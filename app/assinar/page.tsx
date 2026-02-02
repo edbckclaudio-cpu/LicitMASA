@@ -4,7 +4,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabaseClient'
+import { supabase, buildAuthRedirect } from '@/lib/supabaseClient'
 import { useRouter } from 'next/navigation'
 
 export default function AssinarPage() {
@@ -30,7 +30,7 @@ export default function AssinarPage() {
     try {
       setPurchaseMsg(null)
       if (!supabase) { setPurchaseMsg('Configure o Supabase'); return }
-      const redirectTo = typeof window !== 'undefined' ? `${window.location.origin}/perfil` : '/perfil'
+      const redirectTo = buildAuthRedirect('/perfil')
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: { redirectTo, skipBrowserRedirect: true }
@@ -111,7 +111,7 @@ export default function AssinarPage() {
         const uid = String(user?.id || '')
         if (!uid) {
           try {
-            const redirectTo = typeof window !== 'undefined' ? `${window.location.origin}/perfil?continue=/assinar` : '/perfil'
+            const redirectTo = buildAuthRedirect('/perfil?continue=/assinar')
             const { data, error } = await supabase!.auth.signInWithOAuth({
               provider: 'google',
               options: { redirectTo, skipBrowserRedirect: true }

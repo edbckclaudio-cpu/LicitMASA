@@ -1,7 +1,7 @@
  'use client'
  import { useEffect, useState } from 'react'
  import { useRouter } from 'next/navigation'
- import { supabase, authRedirectTo } from '@/lib/supabaseClient'
+import { supabase, authRedirectTo, buildAuthRedirect } from '@/lib/supabaseClient'
  import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
  import { Button } from '@/components/ui/button'
  
@@ -30,7 +30,7 @@
          const { data: ud } = await supabase.auth.getUser()
          const user = ud?.user
          if (user?.id) return
-         const redirectTo = typeof window !== 'undefined' ? `${window.location.origin}/assinar/google` : authRedirectTo
+        const redirectTo = buildAuthRedirect('/assinar/google')
          const { data, error } = await supabase.auth.signInWithOAuth({
            provider: 'google',
            options: { redirectTo, skipBrowserRedirect: true }

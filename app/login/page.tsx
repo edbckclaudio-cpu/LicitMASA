@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase, authRedirectTo } from '@/lib/supabaseClient'
+import { supabase, authRedirectTo, buildAuthRedirect } from '@/lib/supabaseClient'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import Link from 'next/link'
@@ -11,8 +11,7 @@ export default function LoginPage() {
   const router = useRouter()
   async function signInGoogle() {
     if (!supabase) { setMessage('Configure o Supabase no .env'); return }
-    const redirectTo =
-      typeof window !== 'undefined' ? `${window.location.origin}/perfil` : authRedirectTo
+    const redirectTo = buildAuthRedirect('/perfil')
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
