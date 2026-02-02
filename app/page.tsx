@@ -170,7 +170,14 @@ export default function HomePage() {
       return
     }
     setLoggedIn(true)
-    const { data: prof } = await supabase.from('profiles').select('is_premium, plan').eq('id', user.id).single()
+    const { data: prof } = await supabase.from('profiles').select('is_premium, plan, email').eq('id', user.id).maybeSingle()
+    try {
+      const uemail = user.email || null
+      const pemail = (prof as any)?.email ?? null
+      if (uemail && !pemail) {
+        await supabase.from('profiles').upsert({ id: user.id, email: uemail }, { onConflict: 'id' })
+      }
+    } catch {}
     const allow = String(process.env.NEXT_PUBLIC_PREMIUM_EMAILS || '').toLowerCase().split(',').map((s) => s.trim()).filter(Boolean)
     const email = String(user.email || '').toLowerCase()
     let premium = Boolean(prof?.is_premium) || String(prof?.plan || '').toLowerCase() === 'premium' || allow.includes(email)

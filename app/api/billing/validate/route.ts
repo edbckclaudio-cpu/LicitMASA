@@ -180,7 +180,16 @@ export async function POST(req: Request) {
 
     const supa = adminClient()
     if (!supa) return NextResponse.json({ ok: false, error: 'SERVICE_KEY_MISSING' }, { status: 500 })
-    await supa.from('profiles').upsert({ id: userId, is_premium: true, plan: 'premium' }, { onConflict: 'id' })
+    let userEmail: string | null = null
+    try {
+      const { data: ud } = await (supa as any).auth.admin.getUserById(userId)
+      userEmail = String(ud?.user?.email || '').trim() || null
+      if (!userEmail) {
+        const { data: prof } = await supa.from('profiles').select('email').eq('id', userId).limit(1).maybeSingle()
+        userEmail = (prof as any)?.email ?? null
+      }
+    } catch {}
+    await supa.from('profiles').upsert({ id: userId, is_premium: true, plan: 'premium', email: userEmail }, { onConflict: 'id' })
     return NextResponse.json({ ok: true, data: v2 })
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || 'UNKNOWN' }, { status: 500 })

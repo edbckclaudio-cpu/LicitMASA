@@ -32,6 +32,32 @@ function PerfilContent() {
         return
       }
       try {
+        let premium = false
+        try {
+          const r = await fetch('/api/profile/status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-admin-token': 'DEV' },
+            body: JSON.stringify({ userId: user.id })
+          })
+          if (r.ok) {
+            const j = await r.json()
+            premium = Boolean(j?.isPremium)
+          }
+        } catch {}
+        try {
+          await supabase.from('profiles').upsert(
+            {
+              id: user.id,
+              // @ts-ignore: coluna 'email' pode existir no schema
+              email: user.email || null,
+              is_premium: premium ? true : false,
+              plan: premium ? 'premium' : null
+            },
+            { onConflict: 'id' }
+          )
+        } catch {}
+      } catch {}
+      try {
         const nextUrl = sp.get('continue')
         if (nextUrl) {
           router.replace(nextUrl)
