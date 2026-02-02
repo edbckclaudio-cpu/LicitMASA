@@ -64,6 +64,16 @@ import { supabase, authRedirectTo, buildAuthRedirect } from '@/lib/supabaseClien
        const user = ud?.user
        const uid = String(user?.id || '')
        if (!uid) { setMsg('Entre com sua conta Google'); return }
+      // Evita compra se já for Premium
+      try {
+        const { data: prof } = await supabase!.from('profiles').select('is_premium, plan').eq('id', uid).single()
+        const premium = Boolean(prof?.is_premium) || String(prof?.plan || '').toLowerCase() === 'premium'
+        if (premium) {
+          setMsg('Você já é assinante Premium')
+          try { router.push('/perfil') } catch {}
+          return
+        }
+      } catch {}
        const methodData = [{
          supportedMethods: 'https://play.google.com/billing',
         data: { sku: playProductId, type: 'subs' }

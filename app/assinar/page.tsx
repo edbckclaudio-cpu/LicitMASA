@@ -143,6 +143,16 @@ export default function AssinarPage() {
             return
           }
         }
+        // Verifica se já é premium e evita loop de compra
+        try {
+          const { data: prof } = await supabase!.from('profiles').select('is_premium, plan').eq('id', uid).single()
+          const premium = Boolean(prof?.is_premium) || String(prof?.plan || '').toLowerCase() === 'premium'
+          if (premium) {
+            setPurchaseMsg('Você já é assinante Premium')
+            try { router.push(payUrl) } catch {}
+            return
+          }
+        } catch {}
       }
       const methodData = [{
         supportedMethods: 'https://play.google.com/billing',
