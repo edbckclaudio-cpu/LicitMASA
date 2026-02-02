@@ -20,7 +20,13 @@ export default function LoginPage() {
       if (error) { setMessage('Falha ao iniciar login com Google'); return }
       const url = String(data?.url || '')
       if (url && typeof window !== 'undefined') {
-        window.location.href = url
+        try {
+          const target = new URL(url)
+          target.searchParams.set('redirect_to', redirectTo)
+          window.location.href = target.toString()
+        } catch {
+          window.location.href = url
+        }
         return
       }
       setMessage('Redirecionamento de login indisponível')

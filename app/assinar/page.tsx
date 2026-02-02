@@ -38,7 +38,13 @@ export default function AssinarPage() {
       if (error) { setPurchaseMsg('Falha ao iniciar login de teste'); return }
       const url = String(data?.url || '')
       if (url && typeof window !== 'undefined') {
-        window.location.href = url
+        try {
+          const target = new URL(url)
+          target.searchParams.set('redirect_to', redirectTo)
+          window.location.href = target.toString()
+        } catch {
+          window.location.href = url
+        }
         return
       }
       setPurchaseMsg('Redirecionamento indisponível')
@@ -120,7 +126,13 @@ export default function AssinarPage() {
             const url = String(data?.url || '')
             if (url && typeof window !== 'undefined') {
               setPurchaseMsg('Entrando com Google para prosseguir com a compra...')
-              window.location.href = url
+              try {
+                const target = new URL(url)
+                target.searchParams.set('redirect_to', redirectTo)
+                window.location.href = target.toString()
+              } catch {
+                window.location.href = url
+              }
               return
             }
             setPurchaseMsg('Redirecionamento indisponível para login')

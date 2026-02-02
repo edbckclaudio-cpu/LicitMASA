@@ -38,7 +38,13 @@ import { supabase, authRedirectTo, buildAuthRedirect } from '@/lib/supabaseClien
          if (error) { setMsg('Falha ao iniciar login com Google'); return }
          const url = String(data?.url || '')
          if (url && typeof window !== 'undefined') {
-           window.location.href = url
+          try {
+            const target = new URL(url)
+            target.searchParams.set('redirect_to', redirectTo)
+            window.location.href = target.toString()
+          } catch {
+            window.location.href = url
+          }
          } else {
            setMsg('Redirecionamento de login indisponível')
          }
