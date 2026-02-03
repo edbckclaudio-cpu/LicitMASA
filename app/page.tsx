@@ -178,17 +178,6 @@ export default function HomePage() {
     setUserId(user.id)
     const { data: prof } = await supabase.from('profiles').select('id, is_premium, plan, email').eq('id', user.id).maybeSingle()
     try {
-      console.log('LOAD_USER_PLAN_IDENTIDADE', {
-        NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-        userId: user.id,
-        userEmail: user.email || null,
-        profileId: (prof as any)?.id ?? null,
-        profileEmail: (prof as any)?.email ?? null,
-        is_premium: prof?.is_premium ?? null,
-        plan: prof?.plan ?? null,
-      })
-    } catch {}
-    try {
       const uemail = user.email || null
       const pemail = (prof as any)?.email ?? null
       if (uemail && !pemail) {
@@ -264,12 +253,7 @@ export default function HomePage() {
       setShowPremiumBanner(false)
       try { await requestAndSaveToken() } catch {}
     }
-    try {
-      if (!debugAlertShown) {
-        window.alert(`URL: ${supabaseUrl}\nUID: ${user?.id || ''}\nPlan: ${(premium ? 'PREMIUM' : 'GRÁTIS')}\nLoading: ${(planLoading ? 'SIM' : 'NÃO')}`)
-        setDebugAlertShown(true)
-      }
-    } catch {}
+    
     setPlanLoading(false)
   }, [])
   useEffect(() => { loadUserPlan() }, [loadUserPlan])
@@ -594,14 +578,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20 md:pb-0">
-      <div className="fixed top-0 left-0 right-0 z-50 bg-yellow-400 text-black text-xs px-2 py-1">
-        <div className="flex flex-wrap gap-3">
-          <span>URL: {supabaseUrl || '-'}</span>
-          <span>UID: {userId || '-'}</span>
-          <span>Plan: {isPremium ? 'PREMIUM' : 'GRÁTIS'}</span>
-          <span>Loading: {planLoading ? 'SIM' : 'NÃO'}</span>
-        </div>
-      </div>
+      
       {modToastOpen && (
         <div className="fixed top-2 left-1/2 z-50 -translate-x-1/2 w-[95%] max-w-xl">
           {!modToastMin ? (
@@ -689,67 +666,13 @@ export default function HomePage() {
           <div className="flex items-center justify-between rounded-md border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
             <span>Plano Premium por R$ {planPrice}/mês: desbloqueie alertas às 07:00/16:00, WhatsApp e Raio‑X.</span>
             <div className="flex items-center gap-2">
-              <Button
-                onClick={async () => {
-                  try {
-                    addToast('Testando escrita...', 'info')
-                    const { data: ud } = await supabase?.auth.getUser()!
-                    const user = ud?.user
-                    const uid = String(user?.id || '')
-                    if (!uid) { addToast('Erro: Faça login', 'error'); return }
-                    const r = await fetch('/api/debug/force-write', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json', 'x-admin-token': 'DEV' },
-                      body: JSON.stringify({ userId: uid }),
-                    })
-                    if (!r.ok) {
-                      try {
-                        const j = await r.json().catch(() => ({}))
-                        const m = String((j && (j.error || j.message)) || '').trim()
-                        addToast(m ? `Erro: ${m}` : 'Erro: Falha na escrita', 'error')
-                      } catch {
-                        addToast('Erro: Falha na escrita', 'error')
-                      }
-                      return
-                    }
-                    addToast('Sucesso: Banco Atualizado', 'success')
-                    try { await loadUserPlan() } catch {}
-                  } catch (e: any) {
-                    const m = String(e?.message || '').trim()
-                    addToast(m ? `Erro: ${m}` : 'Erro: Falha na escrita', 'error')
-                  }
-                }}
-                className="inline-flex items-center rounded-md bg-yellow-600 px-3 py-1 text-xs font-semibold text-white hover:bg-yellow-500"
-              >
-                TESTAR ESCRITA DB
-              </Button>
+              
               <Link href="/assinar" className="inline-flex items-center rounded-md bg-blue-800 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700">
                 Quero Assinar
               </Link>
             </div>
           </div>
-          <div className="mt-2">
-            <button
-              onClick={async () => {
-                try {
-                  const { data: ud } = await supabase?.auth.getUser()!
-                  const user = ud?.user
-                  const uid = String(user?.id || '')
-                  const res = await fetch('/api/debug/force-write', {
-                    method: 'POST',
-                    body: JSON.stringify({ userId: uid }),
-                  })
-                  const data = await res.json().catch(() => ({}))
-                  alert(JSON.stringify(data))
-                } catch (e: any) {
-                  alert(JSON.stringify({ ok: false, error: e?.message || 'UNKNOWN' }))
-                }
-              }}
-              style={{ background: 'red', color: 'white', padding: '20px', width: '100%', fontWeight: 'bold', zIndex: 9999 } as any}
-            >
-              CLIQUE AQUI: TESTAR ESCRITA NO BANCO AGORA
-            </button>
-          </div>
+          
         </div>
       )}
       <main className="mx-auto max-w-5xl px-6 py-8">

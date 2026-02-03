@@ -460,19 +460,7 @@ export default function AssinarPage() {
                 <div>SKU: {playProductId || 'N/D'} {skuPrice ? `— ${skuPrice}` : ''}</div>
                 <div>Status da Assinatura: {skuValid ? 'Encontrada/OK' : 'Não encontrada'}</div>
               </div>
-              <div className="mt-4 space-y-2">
-                <label className="block text-xs font-semibold text-slate-700">Número do Pedido (GPA.XXXX...) ou e‑mail da compra</label>
-                <input
-                  value={forceInput}
-                  onChange={(e) => setForceInput(e.target.value)}
-                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-blue-500"
-                  placeholder="Ex.: GPA.1234‑5678‑9012‑34567 ou email@exemplo.com"
-                />
-                <Button onClick={forcePremium} disabled={forceLoading} className="inline-flex w-full items-center justify-center rounded-md bg-blue-800 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700">
-                  {forceLoading ? 'Ativando...' : 'Forçar Premium'}
-                </Button>
-                {forceMsg ? <div className="mt-2 text-center text-xs text-slate-600">{forceMsg}</div> : null}
-              </div>
+              
               <div className="mt-3 text-center text-xs text-slate-500">
                 Cancelamento simples a qualquer momento.
               </div>
