@@ -183,6 +183,15 @@ export default function HomePage() {
     let premium = Boolean(prof?.is_premium) || String(prof?.plan || '').toLowerCase() === 'premium' || allow.includes(email)
     if (!premium) {
       try {
+        if (email) {
+          await fetch('/api/profile/merge', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-admin-token': 'DEV' },
+            body: JSON.stringify({ userId: user.id, email })
+          }).catch(() => {})
+        }
+      } catch {}
+      try {
         const r = await fetch('/api/profile/status', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'x-admin-token': 'DEV' },
