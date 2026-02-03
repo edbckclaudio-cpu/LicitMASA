@@ -202,7 +202,7 @@ export default function AssinarPage() {
       const uid = String(user?.id || '')
       if (!uid) { setForceMsg('Faça login para continuar'); try { router.push('/login') } catch {}; return }
       const inp = String(forceInput || '').trim()
-      if (!inp) { setForceMsg('Informe o Número do Pedido ou e‑mail'); return }
+      if (!inp || !inp.includes('@') || !inp.includes('.')) { setForceMsg('Informe um e‑mail válido'); return }
       const res = await fetch('/api/admin/force-premium', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-admin-token': 'DEV' },

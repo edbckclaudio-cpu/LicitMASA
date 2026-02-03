@@ -145,6 +145,7 @@ export default function HomePage() {
   const [checkingPremiumAction, setCheckingPremiumAction] = useState<boolean>(false)
   const planPrice = process.env.NEXT_PUBLIC_PLAN_PRICE || '49,90'
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+  const playProductId = process.env.NEXT_PUBLIC_PLAY_PRODUCT_ID || ''
   const [showPremiumBanner, setShowPremiumBanner] = useState<boolean>(false)
   const [ordenar, setOrdenar] = useState<'data' | 'valor_desc' | 'valor_asc'>('data')
   const [userId, setUserId] = useState<string | null>(null)
@@ -222,6 +223,36 @@ export default function HomePage() {
             })
           } catch {}
           premium = Boolean(j?.isPremium)
+        }
+      } catch {}
+    }
+    if (!premium) {
+      try {
+        const w: any = typeof window !== 'undefined' ? window : null
+        if (w && 'getDigitalGoodsService' in w && playProductId) {
+          const svc = await w.getDigitalGoodsService('https://play.google.com/billing')
+          let tok: string | null = null
+          try {
+            if (svc && typeof svc.listPurchases === 'function') {
+              const purchases = await svc.listPurchases()
+              const item = Array.isArray(purchases) ? purchases.find((p: any) => String(p?.sku || '') === String(playProductId)) : null
+              tok = String((item && (item.purchaseToken || item.token)) || '')
+            } else if (svc && typeof svc.getPurchases === 'function') {
+              const purchases = await svc.getPurchases([playProductId])
+              const item = Array.isArray(purchases) && purchases.length > 0 ? purchases[0] : null
+              tok = String((item && (item.purchaseToken || item.token)) || '')
+            }
+          } catch {}
+          if (tok) {
+            const vr = await fetch('/api/billing/validate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ purchaseToken: tok, productId: playProductId, userId: user.id })
+            })
+            if (vr.ok) {
+              premium = true
+            }
+          }
         }
       } catch {}
     }
