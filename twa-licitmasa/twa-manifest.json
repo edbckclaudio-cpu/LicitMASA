@@ -20,8 +20,8 @@
     "path": "c:\\LicitMASA\\LicitMASA\\twa-licitmasa\\android.keystore",
     "alias": "android"
   },
-  "appVersionName": "49",
-  "appVersionCode": 49,
+  "appVersionName": "50",
+  "appVersionCode": 50,
   "shortcuts": [],
   "generatorApp": "bubblewrap-cli",
   "webManifestUrl": "https://www.licitmasa.com.br/manifest.webmanifest",
@@ -47,5 +47,5 @@
   "fileHandlers": [],
   "launchHandlerClientMode": "",
   "displayOverride": [],
-  "appVersion": "49"
+  "appVersion": "50"
 }
