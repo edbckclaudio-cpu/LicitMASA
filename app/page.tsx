@@ -144,8 +144,11 @@ export default function HomePage() {
   const [planLoading, setPlanLoading] = useState<boolean>(true)
   const [checkingPremiumAction, setCheckingPremiumAction] = useState<boolean>(false)
   const planPrice = process.env.NEXT_PUBLIC_PLAN_PRICE || '49,90'
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
   const [showPremiumBanner, setShowPremiumBanner] = useState<boolean>(false)
   const [ordenar, setOrdenar] = useState<'data' | 'valor_desc' | 'valor_asc'>('data')
+  const [userId, setUserId] = useState<string | null>(null)
+  const [debugAlertShown, setDebugAlertShown] = useState<boolean>(false)
 
   const hoje = useMemo(() => formatDateYYYYMMDD(new Date()), [])
   const inicio = useMemo(() => {
@@ -163,6 +166,7 @@ export default function HomePage() {
     const user = userData?.user
     if (!user) {
       setLoggedIn(false)
+      setUserId(null)
       setIsPremium(false)
       setShowPremiumBanner(true)
       setTimeout(() => setShowPremiumBanner(false), 5000)
@@ -170,7 +174,19 @@ export default function HomePage() {
       return
     }
     setLoggedIn(true)
-    const { data: prof } = await supabase.from('profiles').select('is_premium, plan, email').eq('id', user.id).maybeSingle()
+    setUserId(user.id)
+    const { data: prof } = await supabase.from('profiles').select('id, is_premium, plan, email').eq('id', user.id).maybeSingle()
+    try {
+      console.log('LOAD_USER_PLAN_IDENTIDADE', {
+        NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+        userId: user.id,
+        userEmail: user.email || null,
+        profileId: (prof as any)?.id ?? null,
+        profileEmail: (prof as any)?.email ?? null,
+        is_premium: prof?.is_premium ?? null,
+        plan: prof?.plan ?? null,
+      })
+    } catch {}
     try {
       const uemail = user.email || null
       const pemail = (prof as any)?.email ?? null
@@ -199,6 +215,12 @@ export default function HomePage() {
         })
         if (r.ok) {
           const j = await r.json()
+          try {
+            console.log('LOAD_USER_PLAN_STATUS', {
+              userId: user.id,
+              isPremiumFromStatus: Boolean(j?.isPremium),
+            })
+          } catch {}
           premium = Boolean(j?.isPremium)
         }
       } catch {}
@@ -211,6 +233,12 @@ export default function HomePage() {
       setShowPremiumBanner(false)
       try { await requestAndSaveToken() } catch {}
     }
+    try {
+      if (!debugAlertShown) {
+        window.alert(`URL: ${supabaseUrl}\nUID: ${user?.id || ''}\nPlan: ${(premium ? 'PREMIUM' : 'GRÁTIS')}\nLoading: ${(planLoading ? 'SIM' : 'NÃO')}`)
+        setDebugAlertShown(true)
+      }
+    } catch {}
     setPlanLoading(false)
   }, [])
   useEffect(() => { loadUserPlan() }, [loadUserPlan])
@@ -535,6 +563,14 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20 md:pb-0">
+      <div className="fixed top-0 left-0 right-0 z-50 bg-yellow-400 text-black text-xs px-2 py-1">
+        <div className="flex flex-wrap gap-3">
+          <span>URL: {supabaseUrl || '-'}</span>
+          <span>UID: {userId || '-'}</span>
+          <span>Plan: {isPremium ? 'PREMIUM' : 'GRÁTIS'}</span>
+          <span>Loading: {planLoading ? 'SIM' : 'NÃO'}</span>
+        </div>
+      </div>
       {modToastOpen && (
         <div className="fixed top-2 left-1/2 z-50 -translate-x-1/2 w-[95%] max-w-xl">
           {!modToastMin ? (
