@@ -11,10 +11,7 @@ function adminClient() {
 export async function POST(req: Request) {
   try {
     const supa = adminClient()
-    if (!supa) return NextResponse.json({ ok: false, error: 'SERVICE_KEY_MISSING' }, { status: 500 })
-    const token = (req.headers.get('x-admin-token') || '').trim()
-    const expected = (process.env.ADMIN_TOKEN || 'DEV').trim()
-    if (!token || token !== expected) return NextResponse.json({ ok: false, error: 'UNAUTHORIZED' }, { status: 401 })
+    if (!supa) return NextResponse.json({ ok: false, error: 'ERRO: CHAVE DE ADMIN AUSENTE' }, { status: 500 })
     const body = await req.json().catch(() => ({} as any))
     const userId = String(body.userId || '').trim()
     if (!userId) return NextResponse.json({ ok: false, error: 'USER_ID_REQUIRED' }, { status: 400 })

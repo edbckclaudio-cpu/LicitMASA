@@ -728,6 +728,28 @@ export default function HomePage() {
               </Link>
             </div>
           </div>
+          <div className="mt-2">
+            <button
+              onClick={async () => {
+                try {
+                  const { data: ud } = await supabase?.auth.getUser()!
+                  const user = ud?.user
+                  const uid = String(user?.id || '')
+                  const res = await fetch('/api/debug/force-write', {
+                    method: 'POST',
+                    body: JSON.stringify({ userId: uid }),
+                  })
+                  const data = await res.json().catch(() => ({}))
+                  alert(JSON.stringify(data))
+                } catch (e: any) {
+                  alert(JSON.stringify({ ok: false, error: e?.message || 'UNKNOWN' }))
+                }
+              }}
+              style={{ background: 'red', color: 'white', padding: '20px', width: '100%', fontWeight: 'bold', zIndex: 9999 } as any}
+            >
+              CLIQUE AQUI: TESTAR ESCRITA NO BANCO AGORA
+            </button>
+          </div>
         </div>
       )}
       <main className="mx-auto max-w-5xl px-6 py-8">
