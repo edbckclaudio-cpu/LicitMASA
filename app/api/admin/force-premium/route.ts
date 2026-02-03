@@ -15,22 +15,38 @@ export async function POST(req: Request) {
     const token = (req.headers.get('x-admin-token') || '').trim()
     const expected = (process.env.ADMIN_TOKEN || 'DEV').trim()
     if (!token || token !== expected) return NextResponse.json({ ok: false, error: 'UNAUTHORIZED' }, { status: 401 })
+
     const body = await req.json().catch(() => ({} as any))
     const userId = String(body.userId || '').trim()
+    const input = String(body.input || '').trim()
     if (!userId) return NextResponse.json({ ok: false, error: 'USER_ID_REQUIRED' }, { status: 400 })
-    const { data, error } = await supa.from('profiles').select('is_premium, plan').eq('id', userId).maybeSingle()
-    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 400 })
-    const premium = Boolean(data?.is_premium) || String(data?.plan || '').toLowerCase() === 'premium'
-    if (premium) {
-      const planStr = String(data?.plan || '').toLowerCase()
-      const needsSync = !(data?.is_premium === true && planStr === 'premium')
-      if (needsSync) {
-        try {
-          await supa.from('profiles').update({ is_premium: true, plan: 'premium' }).eq('id', userId)
-        } catch {}
+    if (!input) return NextResponse.json({ ok: false, error: 'INPUT_REQUIRED' }, { status: 400 })
+
+    let emailToSet: string | null = null
+    try {
+      const lc = input.toLowerCase()
+      if (lc.includes('@') && lc.includes('.')) {
+        emailToSet = input
       }
+    } catch {}
+
+    try {
+      if (emailToSet) {
+        await supa.from('profiles').upsert(
+          { id: userId, is_premium: true, plan: 'premium', email: emailToSet },
+          { onConflict: 'id' }
+        )
+      } else {
+        await supa.from('profiles').upsert(
+          { id: userId, is_premium: true, plan: 'premium' },
+          { onConflict: 'id' }
+        )
+      }
+    } catch (e: any) {
+      return NextResponse.json({ ok: false, error: e?.message || 'UPSERT_FAILED' }, { status: 500 })
     }
-    return NextResponse.json({ ok: true, isPremium: premium, plan: data?.plan || null })
+
+    return NextResponse.json({ ok: true, userId, email: emailToSet })
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || 'UNKNOWN' }, { status: 500 })
   }

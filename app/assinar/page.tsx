@@ -29,6 +29,9 @@ export default function AssinarPage() {
   const [purchaseMsg, setPurchaseMsg] = useState<string | null>(null)
   const [restoreLoading, setRestoreLoading] = useState(false)
   const [restoreMsg, setRestoreMsg] = useState<string | null>(null)
+  const [forceInput, setForceInput] = useState<string>('')
+  const [forceLoading, setForceLoading] = useState(false)
+  const [forceMsg, setForceMsg] = useState<string | null>(null)
   async function assinanteDeTeste() {
     try {
       setPurchaseMsg(null)
@@ -190,6 +193,40 @@ export default function AssinarPage() {
     }
     probe()
   }, [twaAndroid, playProductId])
+  async function forcePremium() {
+    try {
+      setForceMsg(null)
+      setForceLoading(true)
+      const ud = await supabase?.auth.getUser()
+      const user = ud?.data?.user
+      const uid = String(user?.id || '')
+      if (!uid) { setForceMsg('Faça login para continuar'); try { router.push('/login') } catch {}; return }
+      const inp = String(forceInput || '').trim()
+      if (!inp) { setForceMsg('Informe o Número do Pedido ou e‑mail'); return }
+      const res = await fetch('/api/admin/force-premium', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-token': 'DEV' },
+        body: JSON.stringify({ userId: uid, input: inp }),
+      })
+      if (!res.ok) {
+        try {
+          const j = await res.json().catch(() => ({}))
+          const m = String((j && (j.error || j.message)) || '').trim()
+          setForceMsg(m ? `Falha: ${m}` : 'Falha ao ativar Premium')
+        } catch {
+          setForceMsg('Falha ao ativar Premium')
+        }
+        return
+      }
+      setForceMsg('Premium ativado')
+      try { router.push(payUrl) } catch {}
+    } catch (e: any) {
+      const m = String(e?.message || '').trim()
+      setForceMsg(m || 'Erro ao forçar Premium')
+    } finally {
+      setForceLoading(false)
+    }
+  }
   async function purchaseViaPlay() {
     try {
       setPurchaseMsg(null)
@@ -417,6 +454,25 @@ export default function AssinarPage() {
                 </Button>
               </div>
               {restoreMsg ? <div className="mt-2 text-center text-xs text-slate-600">{restoreMsg}</div> : null}
+              <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
+                <div>Android TWA: {twaAndroid ? 'SIM' : 'NÃO'}</div>
+                <div>Digital Goods: {playBillingAvailable ? 'Disponível' : 'Indisponível'}</div>
+                <div>SKU: {playProductId || 'N/D'} {skuPrice ? `— ${skuPrice}` : ''}</div>
+                <div>Status da Assinatura: {skuValid ? 'Encontrada/OK' : 'Não encontrada'}</div>
+              </div>
+              <div className="mt-4 space-y-2">
+                <label className="block text-xs font-semibold text-slate-700">Número do Pedido (GPA.XXXX...) ou e‑mail da compra</label>
+                <input
+                  value={forceInput}
+                  onChange={(e) => setForceInput(e.target.value)}
+                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-blue-500"
+                  placeholder="Ex.: GPA.1234‑5678‑9012‑34567 ou email@exemplo.com"
+                />
+                <Button onClick={forcePremium} disabled={forceLoading} className="inline-flex w-full items-center justify-center rounded-md bg-blue-800 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700">
+                  {forceLoading ? 'Ativando...' : 'Forçar Premium'}
+                </Button>
+                {forceMsg ? <div className="mt-2 text-center text-xs text-slate-600">{forceMsg}</div> : null}
+              </div>
               <div className="mt-3 text-center text-xs text-slate-500">
                 Cancelamento simples a qualquer momento.
               </div>
