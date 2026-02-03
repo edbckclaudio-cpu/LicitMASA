@@ -688,9 +688,45 @@ export default function HomePage() {
         <div className="mx-auto max-w-5xl px-6 pt-2">
           <div className="flex items-center justify-between rounded-md border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
             <span>Plano Premium por R$ {planPrice}/mês: desbloqueie alertas às 07:00/16:00, WhatsApp e Raio‑X.</span>
-            <Link href="/assinar" className="inline-flex items-center rounded-md bg-blue-800 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700">
-              Quero Assinar
-            </Link>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={async () => {
+                  try {
+                    addToast('Testando escrita...', 'info')
+                    const { data: ud } = await supabase?.auth.getUser()!
+                    const user = ud?.user
+                    const uid = String(user?.id || '')
+                    if (!uid) { addToast('Erro: Faça login', 'error'); return }
+                    const r = await fetch('/api/debug/force-write', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json', 'x-admin-token': 'DEV' },
+                      body: JSON.stringify({ userId: uid }),
+                    })
+                    if (!r.ok) {
+                      try {
+                        const j = await r.json().catch(() => ({}))
+                        const m = String((j && (j.error || j.message)) || '').trim()
+                        addToast(m ? `Erro: ${m}` : 'Erro: Falha na escrita', 'error')
+                      } catch {
+                        addToast('Erro: Falha na escrita', 'error')
+                      }
+                      return
+                    }
+                    addToast('Sucesso: Banco Atualizado', 'success')
+                    try { await loadUserPlan() } catch {}
+                  } catch (e: any) {
+                    const m = String(e?.message || '').trim()
+                    addToast(m ? `Erro: ${m}` : 'Erro: Falha na escrita', 'error')
+                  }
+                }}
+                className="inline-flex items-center rounded-md bg-yellow-600 px-3 py-1 text-xs font-semibold text-white hover:bg-yellow-500"
+              >
+                TESTAR ESCRITA DB
+              </Button>
+              <Link href="/assinar" className="inline-flex items-center rounded-md bg-blue-800 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700">
+                Quero Assinar
+              </Link>
+            </div>
           </div>
         </div>
       )}
