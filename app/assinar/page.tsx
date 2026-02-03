@@ -27,6 +27,8 @@ export default function AssinarPage() {
   const [skuPrice, setSkuPrice] = useState<string | null>(null)
   const [purchaseLoading, setPurchaseLoading] = useState(false)
   const [purchaseMsg, setPurchaseMsg] = useState<string | null>(null)
+  const [restoreLoading, setRestoreLoading] = useState(false)
+  const [restoreMsg, setRestoreMsg] = useState<string | null>(null)
   async function assinanteDeTeste() {
     try {
       setPurchaseMsg(null)
@@ -51,6 +53,61 @@ export default function AssinarPage() {
       setPurchaseMsg('Redirecionamento indisponível')
     } catch (e: any) {
       setPurchaseMsg(e?.message || 'Falha no login de teste')
+    }
+  }
+  async function restoreViaPlay() {
+    try {
+      setRestoreMsg(null)
+      setRestoreLoading(true)
+      const ud = await supabase?.auth.getUser()
+      const user = ud?.data?.user
+      const uid = String(user?.id || '')
+      if (!uid) { setRestoreMsg('Faça login para restaurar'); try { router.push('/login') } catch {}; return }
+      const w: any = typeof window !== 'undefined' ? window : null
+      if (!w || !('getDigitalGoodsService' in w)) { setRestoreMsg('Digital Goods indisponível'); return }
+      const svc = await w.getDigitalGoodsService('https://play.google.com/billing')
+      if (!svc) { setRestoreMsg('Serviço de cobrança indisponível'); return }
+      let tok: string | null = null
+      try {
+        if (typeof svc.listPurchases === 'function') {
+          const purchases = await svc.listPurchases()
+          const item = Array.isArray(purchases) ? purchases.find((p: any) => String(p?.sku || '') === String(playProductId)) : null
+          tok = String((item && (item.purchaseToken || item.token)) || '')
+        } else if (typeof svc.getPurchases === 'function') {
+          const purchases = await svc.getPurchases([playProductId])
+          const item = Array.isArray(purchases) && purchases.length > 0 ? purchases[0] : null
+          tok = String((item && (item.purchaseToken || item.token)) || '')
+        }
+      } catch {}
+      if (!tok && (w as any).PaymentRequest) {
+        try {
+          const pr = new (w as any).PaymentRequest([{ supportedMethods: 'https://play.google.com/billing', data: { sku: playProductId, type: 'subs' } }], {})
+          const resp = await pr.show()
+          await resp.complete('success')
+          const details: any = (resp as any)?.details || {}
+          tok = String(details?.purchaseToken || details?.token || details?.purchase_token || '')
+        } catch {}
+      }
+      if (!tok) { setRestoreMsg('Nenhuma assinatura ativa encontrada'); return }
+      const vr = await fetch('/api/billing/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ purchaseToken: tok, productId: playProductId, userId: uid })
+      })
+      if (!vr.ok) {
+        try {
+          const data = await vr.json().catch(() => ({}))
+          const m = String((data && (data.error || data.message)) || '').trim()
+          setRestoreMsg(m ? `Falha na validação: ${m}` : 'Falha na validação')
+        } catch {
+          setRestoreMsg('Falha na validação')
+        }
+      } else {
+        setRestoreMsg('Premium restaurado')
+        try { router.push(payUrl) } catch {}
+      }
+    } finally {
+      setRestoreLoading(false)
     }
   }
   useEffect(() => {
@@ -354,6 +411,12 @@ export default function AssinarPage() {
                 </Link>
               )}
               {purchaseMsg ? <div className="mt-3 text-center text-xs text-slate-600">{purchaseMsg}</div> : null}
+              <div className="mt-3">
+                <Button onClick={restoreViaPlay} disabled={restoreLoading} className="inline-flex w-full items-center justify-center rounded-md bg-green-700 px-3 py-2 text-sm font-medium text-white hover:bg-green-600">
+                  {restoreLoading ? 'Restaurando...' : 'Já sou assinante / Restaurar Compra'}
+                </Button>
+              </div>
+              {restoreMsg ? <div className="mt-2 text-center text-xs text-slate-600">{restoreMsg}</div> : null}
               <div className="mt-3 text-center text-xs text-slate-500">
                 Cancelamento simples a qualquer momento.
               </div>
