@@ -57,8 +57,8 @@ android {
         applicationId "br.com.licitmasa"
         minSdkVersion 23
         targetSdkVersion 35
-        versionCode 58
-        versionName "58"
+        versionCode 59
+        versionName "59"
 
         // The name for the application
         resValue "string", "appName", twaManifest.name
@@ -154,7 +154,7 @@ android {
         release {
             def ksPath = System.getenv('ANDROID_KEYSTORE_PATH') ?: (rootDir.path + File.separator + 'android.keystore')
             def ksAlias = System.getenv('ANDROID_KEYSTORE_ALIAS') ?: 'android'
-            def ksStorePass = System.getenv('ANDROID_KEYSTORE_STORE_PASSWORD') ?: ''
+            def ksStorePass = System.getenv('ANDROID_KEYSTORE_STORE_PASSWORD') ?: 'android'
             def ksKeyPass = System.getenv('ANDROID_KEYSTORE_KEY_PASSWORD') ?: ksStorePass
             storeFile file(ksPath)
             storePassword ksStorePass

@@ -806,6 +806,7 @@ export default function AlertasPage() {
       if (typeof window !== 'undefined') {
         try { window.localStorage.setItem(`user_alerts:${userId}`, JSON.stringify(payload)) } catch {}
         alert('Preferências salvas localmente')
+        try { window.location.reload() } catch {}
         return
       }
       setError('Falha ao salvar preferências')
@@ -813,6 +814,7 @@ export default function AlertasPage() {
     }
     if (data?.id) setSavedId(String(data.id))
     alert('Preferências salvas')
+    try { window.location.reload() } catch {}
   }
 
   const canInteract = !!userId
