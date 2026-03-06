@@ -74,6 +74,17 @@ async function sendPush(externalUserId: string, subject: string, message: string
   const supaUrl = Deno.env.get("SUPABASE_URL") || ""
   const supaKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""
   if (!appId || !apiKey || !externalUserId) return { ok: false }
+  async function validateSubscriptionId(id: string): Promise<boolean> {
+    try {
+      const res = await fetch(`https://api.onesignal.com/apps/${appId}/subscriptions/${encodeURIComponent(id)}`, {
+        method: "GET",
+        headers: { "Authorization": `Basic ${apiKey}` }
+      })
+      return res.ok
+    } catch {
+      return false
+    }
+  }
   const requestBase: any = {
     app_id: appId,
     headings: { en: subject },
@@ -89,11 +100,23 @@ async function sendPush(externalUserId: string, subject: string, message: string
       if (!subId) {
         const { data: ua } = await supa.from("user_alerts").select("fcm_token").eq("user_id", externalUserId).limit(1).maybeSingle()
         const tok = String((ua as any)?.fcm_token || "")
-        if (tok) {
+        if (tok && await validateSubscriptionId(tok)) {
           body = { ...requestBase, include_subscription_ids: [tok] }
+        } else {
+          body = { ...requestBase, include_external_user_ids: [externalUserId] }
         }
       } else {
-        body = { ...requestBase, include_subscription_ids: [subId] }
+        if (await validateSubscriptionId(subId)) {
+          body = { ...requestBase, include_subscription_ids: [subId] }
+        } else {
+          const { data: ua } = await supa.from("user_alerts").select("fcm_token").eq("user_id", externalUserId).limit(1).maybeSingle()
+          const tok = String((ua as any)?.fcm_token || "")
+          if (tok && await validateSubscriptionId(tok)) {
+            body = { ...requestBase, include_subscription_ids: [tok] }
+          } else {
+            body = { ...requestBase, include_external_user_ids: [externalUserId] }
+          }
+        }
       }
     } catch {}
   }

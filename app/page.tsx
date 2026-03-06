@@ -176,6 +176,33 @@ export default function HomePage() {
     }
     setLoggedIn(true)
     setUserId(user.id)
+    // Garantir sincronização do OneSignal ao iniciar/foreground
+    try {
+      const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
+      if (OneSignal && user.id) {
+        try { OneSignal.push?.(() => { try { OneSignal.login?.(user.id) } catch {}; try { OneSignal.setExternalUserId?.(user.id) } catch {} }) } catch {}
+        let pid: string | null = null
+        let attempts = 0
+        while (attempts < 10 && !pid) {
+          try {
+            const p1 = (OneSignal as any)?.User?.pushSubscriptionId
+            const p2 = OneSignal?.User?.PushSubscription?.id
+            const p3 = await OneSignal?.getSubscriptionId?.()
+            pid = String(p1 || p2 || p3 || '') || null
+          } catch {}
+          if (!pid) {
+            try { await OneSignal?.User?.pushSubscription?.optIn?.() } catch {}
+            await new Promise((r) => setTimeout(r, 400))
+          }
+          attempts++
+        }
+        if (pid) {
+          try { await supabase.from('profiles').update({ onesignal_id: String(pid) }).eq('id', user.id) } catch {}
+          try { await supabase.from('user_alerts').upsert({ user_id: user.id, fcm_token: String(pid) }, { onConflict: 'user_id' }) } catch {}
+          try { console.log('[Sync] ID sincronizado com sucesso ao iniciar:', pid) } catch {}
+        }
+      }
+    } catch {}
     const { data: prof } = await supabase.from('profiles').select('id, is_premium, plan, email').eq('id', user.id).maybeSingle()
     try {
       const uemail = user.email || null
