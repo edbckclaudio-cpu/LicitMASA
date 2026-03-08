@@ -70,7 +70,7 @@ async function sendEmail(to: string, subject: string, html: string) {
 
 async function sendPush(externalUserId: string, subject: string, message: string, url?: string) {
   const appId = Deno.env.get("ONESIGNAL_APP_ID")
-  const apiKey = Deno.env.get("ONESIGNAL_API_KEY")
+  const apiKey = Deno.env.get("ONESIGNAL_API_KEY") || Deno.env.get("ONESIGNAL_REST_API_KEY") || ""
   const supaUrl = Deno.env.get("SUPABASE_URL") || ""
   const supaKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""
   if (!appId || !apiKey || !externalUserId) return { ok: false }
@@ -146,15 +146,46 @@ serve(async (req: Request) => {
   const now = new Date()
   const dataFinal = fmt(now)
   const dataInicial = fmt(new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000))
+  // 1) Fonte principal: search_alerts (por item), apenas premium
   const { data: alerts, error } = await supabase
     .from("search_alerts")
     .select("id,user_id,keyword,uf,active,profiles!inner(email,is_premium)")
     .eq("active", true)
     .eq("profiles.is_premium", true)
   if (error) return new Response(JSON.stringify({ ok: false, error: error.message }), { status: 500 })
+  let allAlerts: Array<{ id?: string; user_id: string; keyword: string; uf?: string | null }> = []
+  if (Array.isArray(alerts) && alerts.length > 0) {
+    allAlerts = alerts.map((a: any) => ({ id: String(a.id), user_id: String(a.user_id), keyword: String(a.keyword || ""), uf: a.uf || null }))
+  } else {
+    // 2) Fallback: user_alerts (palavras/ufs) para compatibilidade, apenas premium
+    try {
+      const { data: prefs } = await supabase
+        .from("user_alerts")
+        .select("user_id, keywords, ufs, ativo, push_notificacao")
+        .eq("ativo", true)
+        .eq("push_notificacao", true)
+      const userIds = Array.from(new Set((prefs || []).map((p: any) => String(p.user_id))))
+      if (userIds.length > 0) {
+        const { data: prem } = await supabase.from("profiles").select("id,is_premium").in("id", userIds)
+        const premiumSet = new Set((prem || []).filter((p: any) => p.is_premium).map((p: any) => String(p.id)))
+        for (const p of prefs || []) {
+          const uid = String(p.user_id)
+          if (!premiumSet.has(uid)) continue
+          const kws: string[] = Array.isArray(p.keywords) ? p.keywords.filter((x: any) => typeof x === "string" && x.trim()) : []
+          const ufs: string[] = Array.isArray(p.ufs) ? p.ufs.filter((x: any) => typeof x === "string" && x.trim()) : []
+          if (kws.length === 0) continue
+          if (ufs.length === 0) {
+            for (const k of kws) allAlerts.push({ user_id: uid, keyword: String(k), uf: null })
+          } else {
+            for (const k of kws) for (const uf of ufs) allAlerts.push({ user_id: uid, keyword: String(k), uf: String(uf) })
+          }
+        }
+      }
+    } catch {}
+  }
   let processed = 0
   let notified = 0
-  for (const alert of alerts || []) {
+  for (const alert of allAlerts || []) {
     processed++
     const items = await fetchPNCP({ termo: alert.keyword, uf: alert.uf || undefined, dataInicial, dataFinal })
     const ids = items.map((it: any) => String(it.numeroControlePNCP || it.linkEdital || it.id || `${it.orgao}-${it.objeto}-${it.dataPublicacao}`))
@@ -175,7 +206,12 @@ serve(async (req: Request) => {
       }
     }
     if (newItems.length === 0) continue
-    const to = alert.profiles?.email || ""
+    // Busca e-mail opcionalmente (somente para fallback de canal por e-mail)
+    let to = ""
+    try {
+      const { data: prof } = await supabase.from("profiles").select("email").eq("id", alert.user_id).limit(1).maybeSingle()
+      to = String((prof as any)?.email || "")
+    } catch {}
     if (to) {
       const subject = `Novas publicações: ${alert.keyword}${alert.uf ? ` • ${alert.uf}` : ""}`
       const listHtml = newItems.slice(0, 10).map((it: any) => {
