@@ -117,6 +117,32 @@ async function resolveTokenByEmailOrUserId(email?: string, userId?: string): Pro
   return token || null
 }
 
+async function resolveLatestSubscribedToken(): Promise<string | null> {
+  const supa = admin()
+  if (!supa) return null
+  try {
+    const { data: p } = await supa
+      .from('profiles')
+      .select('onesignal_id, updated_at')
+      .not('onesignal_id', 'is', null)
+      .order('updated_at', { ascending: false })
+      .limit(1)
+    const id = String((p && p[0] && (p[0] as any).onesignal_id) || '')
+    if (id) return id
+  } catch {}
+  try {
+    const { data: ua } = await supa
+      .from('user_alerts')
+      .select('fcm_token, created_at')
+      .not('fcm_token', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(1)
+    const t = String((ua && ua[0] && (ua[0] as any).fcm_token) || '')
+    if (t) return t
+  } catch {}
+  return null
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}))
@@ -140,7 +166,10 @@ export async function POST(req: Request) {
       const r = await sendOneSignalByExternalId(externalId)
       return NextResponse.json({ ok: r.ok, data: r.data }, { status: r.status })
     }
-    const resolved = await resolveTokenByEmailOrUserId(email, userId)
+    let resolved = await resolveTokenByEmailOrUserId(email, userId)
+    if (!resolved) {
+      resolved = await resolveLatestSubscribedToken()
+    }
     if (!resolved) return NextResponse.json({ ok: false, error: 'SUBSCRIPTION_NOT_FOUND' }, { status: 404 })
     const r = await sendOneSignal(resolved)
     return NextResponse.json({ ok: r.ok, data: r.data }, { status: r.status })
@@ -172,7 +201,10 @@ export async function GET(req: Request) {
       const r = await sendOneSignalByExternalId(externalId)
       return NextResponse.json({ ok: r.ok, data: r.data }, { status: r.status })
     }
-    const resolved = await resolveTokenByEmailOrUserId(email, userId)
+    let resolved = await resolveTokenByEmailOrUserId(email, userId)
+    if (!resolved) {
+      resolved = await resolveLatestSubscribedToken()
+    }
     if (!resolved) return NextResponse.json({ ok: false, error: 'SUBSCRIPTION_NOT_FOUND' }, { status: 404 })
     const r = await sendOneSignal(resolved)
     return NextResponse.json({ ok: r.ok, data: r.data }, { status: r.status })
