@@ -171,6 +171,38 @@ async function fetchLatestSubscribedPlayerIdFromOneSignal(): Promise<string | nu
   return null
 }
 
+async function listPlayersFromOneSignal(): Promise<{ ok: boolean; total?: number; count?: number; players?: any[] }>{
+  const appId = '43f9ce9c-8d86-4076-a8b6-30dac8429149'
+  const apiKeyRaw = (process.env.ONESIGNAL_REST_API_KEY || process.env.ONESIGNAL_API_KEY || '').trim()
+  const apiKey = apiKeyRaw.replace(/^(?:Key|Basic)\s+/i, '').trim()
+  if (!appId || !apiKey) return { ok: false }
+  try {
+    const url = `https://api.onesignal.com/players?app_id=${encodeURIComponent(appId)}&limit=50&offset=0`
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Authorization': `Basic ${apiKey}`,
+      }
+    })
+    const json: any = await res.json().catch(() => null)
+    const players: any[] = Array.isArray(json?.players) ? json.players : []
+    const mapped = players.map((p: any) => ({
+      id: String(p?.id || ''),
+      device_type: p?.device_type ?? null,
+      language: p?.language ?? null,
+      external_user_id: p?.external_user_id ?? null,
+      session_count: p?.session_count ?? null,
+      last_active: p?.last_active ?? null,
+      invalid_identifier: Boolean(p?.invalid_identifier || p?.invalidated),
+      enabled: typeof p?.enabled === 'boolean' ? p.enabled : true,
+    }))
+    return { ok: res.ok, total: json?.total_count ?? null, count: mapped.length, players: mapped }
+  } catch {
+    return { ok: false }
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}))
@@ -212,6 +244,7 @@ export async function POST(req: Request) {
 export async function GET(req: Request) {
   try {
     const u = new URL(req.url)
+    const listFlag = String(u.searchParams.get('list') || u.searchParams.get('players') || '')
     const tokenDirect = String(u.searchParams.get('token') || '')
     const subscriptionId = String(u.searchParams.get('subscriptionId') || u.searchParams.get('playerId') || '')
     const externalId = String(u.searchParams.get('externalId') || '')
@@ -220,6 +253,10 @@ export async function GET(req: Request) {
     const adminToken = (req.headers.get('x-admin-token') || '').trim()
     const expected = (process.env.ADMIN_TOKEN || 'DEV').trim()
     if (!adminToken || adminToken !== expected) return NextResponse.json({ ok: false, error: 'UNAUTHORIZED' }, { status: 401 })
+    if (listFlag && listFlag !== '0' && listFlag.toLowerCase() !== 'false') {
+      const list = await listPlayersFromOneSignal()
+      return NextResponse.json(list, { status: list.ok ? 200 : 500 })
+    }
     if (tokenDirect) {
       const r = await sendOneSignal(tokenDirect)
       return NextResponse.json({ ok: r.ok, data: r.data }, { status: r.status })
