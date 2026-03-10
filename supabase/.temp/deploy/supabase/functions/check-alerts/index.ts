@@ -95,8 +95,8 @@ async function sendPush(externalUserId: string, subject: string, message: string
   if (supaUrl && supaKey) {
     try {
       const supa = createClient(supaUrl, supaKey)
-      const { data: prof } = await supa.from("profiles").select("*").eq("id", externalUserId).limit(1).maybeSingle()
-      const subId = String((prof as any)?.subscription_id || (prof as any)?.onesignal_id || "")
+      const { data: prof } = await supa.from("profiles").select("onesignal_id").eq("id", externalUserId).limit(1).maybeSingle()
+      const subId = String((prof as any)?.onesignal_id || "")
       if (!subId) {
         const { data: ua } = await supa.from("user_alerts").select("fcm_token").eq("user_id", externalUserId).limit(1).maybeSingle()
         const tok = String((ua as any)?.fcm_token || "")
@@ -128,14 +128,7 @@ async function sendPush(externalUserId: string, subject: string, message: string
     },
     body: JSON.stringify(body),
   })
-  let txt = ""
-  try { txt = await res.text() } catch {}
-  let js: any = null
-  try { js = JSON.parse(txt) } catch {}
-  try { console.log("OneSignal send status:", res.status) } catch {}
-  try { console.log("OneSignal send body:", txt) } catch {}
-  if (js) { try { console.log("OneSignal send json:", JSON.stringify(js)) } catch {} }
-  return { ok: res.ok, status: res.status, body: txt, json: js }
+  return { ok: res.ok }
 }
 
 function daysUntil(dateStr: string) {
@@ -152,11 +145,7 @@ serve(async (req: Request) => {
   const supabase = createClient(url, key)
   const now = new Date()
   const reqUrl = new URL(req.url)
-  const isPreview = reqUrl.searchParams.get("preview") === "1"
-  const backDays = isPreview ? 7 : 2
   const testMode = reqUrl.searchParams.get("test") === "1"
-  const dataFinal = fmt(now)
-  const dataInicial = fmt(new Date(now.getTime() - backDays * 24 * 60 * 60 * 1000))
   if (testMode) {
     try {
       const appId = Deno.env.get("ONESIGNAL_APP_ID") || ""
@@ -194,6 +183,8 @@ serve(async (req: Request) => {
       return new Response(JSON.stringify({ ok: "TESTE_FINAL_AGORA", error: e?.message || "TEST_FAILED" }), { status: 500 })
     }
   }
+  const dataFinal = fmt(now)
+  const dataInicial = fmt(new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000))
   // 1) Fonte principal: search_alerts (por item), apenas premium
   const { data: alerts, error } = await supabase
     .from("search_alerts")
@@ -233,14 +224,7 @@ serve(async (req: Request) => {
   }
   let processed = 0
   let notified = 0
-  let lastOneSignal: any = null
-  try {
-    console.log(`[check-alerts] total de alertas agregados (allAlerts):`, Array.isArray(allAlerts) ? allAlerts.length : 0)
-  } catch {}
   for (const alert of allAlerts || []) {
-    try {
-      console.log(`[check-alerts] Iniciando busca para o usuário ${alert.user_id} com a palavra "${alert.keyword}"${alert.uf ? ` e UF "${alert.uf}"` : ''}`)
-    } catch {}
     processed++
     const items = await fetchPNCP({ termo: alert.keyword, uf: alert.uf || undefined, dataInicial, dataFinal })
     const ids = items.map((it: any) => String(it.numeroControlePNCP || it.linkEdital || it.id || `${it.orgao}-${it.objeto}-${it.dataPublicacao}`))
@@ -297,7 +281,6 @@ serve(async (req: Request) => {
       let channel: "email" | "push" | "none" = "none"
       let err: string | null = null
       const pr = await sendPush(String(alert.user_id), subject, `Encontradas ${newItems.length} publicações para "${alert.keyword}"`, undefined)
-      lastOneSignal = pr
       if (pr.ok) {
         channel = "push"
         notified++
@@ -315,17 +298,7 @@ serve(async (req: Request) => {
             await supabase.from("sent_alerts").insert(rows)
           }
         } else {
-          try {
-            if (lastOneSignal?.json?.errors || lastOneSignal?.json?.warnings) {
-              err = JSON.stringify(lastOneSignal.json.errors || lastOneSignal.json.warnings)
-            } else if (lastOneSignal?.body) {
-              err = String(lastOneSignal.body)
-            } else {
-              err = `send_push_failed_status_${String(lastOneSignal?.status || 'unknown')}`
-            }
-          } catch {
-            err = "no_channel_or_failed"
-          }
+          err = "no_channel_or_failed"
         }
       }
       await supabase.from("alert_runs").insert({
@@ -354,11 +327,10 @@ serve(async (req: Request) => {
     const subject = `Vencimento: ${String(cert.certificate_name)}`
     const message = `Atenção: sua ${String(cert.certificate_name)} vence em ${dl} dia(s).`
     const pr = await sendPush(String(cert.user_id), subject, message)
-    lastOneSignal = pr
     if (pr.ok) {
       notified++
       await supabase.from("user_certificates").update({ notified: true }).eq("id", cert.id)
     }
   }
-  return new Response(JSON.stringify({ ok: "TESTE_FINAL_AGORA", processed, notified, onesignal: lastOneSignal ? { status: lastOneSignal.status, json: lastOneSignal.json || null, body: lastOneSignal.body || null } : null }), { headers: { "Content-Type": "application/json" } })
+  return new Response(JSON.stringify({ ok: "TESTE_FINAL_AGORA", processed, notified }), { headers: { "Content-Type": "application/json" } })
 })

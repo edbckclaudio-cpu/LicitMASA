@@ -6,6 +6,7 @@ import ServiceWorkerRegister from '@/components/ServiceWorkerRegister'
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.licitmasa.com.br'
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
+  manifest: '/manifest.webmanifest',
   title: 'LicitMASA — Publicações e Alertas',
   description:
     'Pesquise publicações no PNCP, salve favoritos e receba alertas personalizados. Painel Premium do LicitMASA.',

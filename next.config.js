@@ -5,6 +5,7 @@ const nextConfig = {
   async rewrites() {
     return [
       { source: '/OneSignalSDKWorker.js', destination: '/OneSignalSDKWorker.js' },
+      { source: '/manifest.json', destination: '/manifest.webmanifest' },
     ]
   },
   async headers() {
@@ -14,6 +15,19 @@ const nextConfig = {
         headers: [
           { key: 'Content-Type', value: 'application/javascript' },
           { key: 'Service-Worker-Allowed', value: '/' },
+        ],
+      },
+      {
+        source: '/OneSignalSDKUpdaterWorker.js',
+        headers: [
+          { key: 'Content-Type', value: 'application/javascript' },
+          { key: 'Service-Worker-Allowed', value: '/' },
+        ],
+      },
+      {
+        source: '/manifest.json',
+        headers: [
+          { key: 'Content-Type', value: 'application/manifest+json' },
         ],
       },
     ]

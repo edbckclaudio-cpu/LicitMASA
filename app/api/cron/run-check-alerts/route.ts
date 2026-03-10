@@ -14,7 +14,7 @@ function getFunctionsUrl(): string | null {
   }
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
     const fn = getFunctionsUrl()
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SERVICE_ROLE_KEY || ''
@@ -23,16 +23,45 @@ export async function GET() {
     }
     try {
       const preview = String(key).slice(0, 4)
-      console.log('[cron/run-check-alerts] calling:', fn)
+      const inUrl = new URL(req.url)
+      const target = inUrl.search ? `${fn}${inUrl.search}` : fn
+      console.log('[cron/run-check-alerts] calling:', target)
       console.log('[cron/run-check-alerts] key prefix:', preview)
     } catch {}
-    const res = await fetch(fn, {
+    const inUrl = new URL(req.url)
+    const target = inUrl.search ? `${fn}${inUrl.search}` : fn
+    const res = await fetch(target, {
       method: 'GET',
       headers: { Authorization: `Bearer ${key}` },
       cache: 'no-store',
     })
-    const data = await res.json().catch(() => ({}))
-    return NextResponse.json({ ok: res.ok, status: res.status, data })
+    const data = await res.json().catch(() => ({} as any))
+    let onesignal: any = null
+    let onesignal_debug: any = null
+    try {
+      if (data && typeof data === 'object') {
+        if (data.body || data.json) {
+          onesignal = { body: data.body || null, json: data.json || null, status: data.status || null }
+        } else if (data.onesignal) {
+          onesignal = data.onesignal
+        } else if (data.data && (data.data.body || data.data.json || data.data.onesignal)) {
+          onesignal = data.data.onesignal || { body: data.data.body || null, json: data.data.json || null, status: data.data.status || null }
+        }
+        if ((data as any).onesignal_debug) {
+          onesignal_debug = (data as any).onesignal_debug
+        } else if ((data as any).data && (data as any).data.onesignal_debug) {
+          onesignal_debug = (data as any).data.onesignal_debug
+        }
+      }
+    } catch {}
+    return NextResponse.json({
+      ok: res.ok,
+      status: res.status,
+      function_ok: (data as any)?.ok ?? null,
+      onesignal,
+      onesignal_debug: onesignal_debug || null,
+      data
+    })
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || 'UNKNOWN' }, { status: 500 })
   }

@@ -1,10 +1,11 @@
 import type { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
-  return {
+  const m: any = {
     name: 'LicitMASA',
     short_name: 'LicitMASA',
     description: 'Pesquise publicações no PNCP, salve favoritos e receba alertas.',
+    gcm_sender_id: '482941778795',
     start_url: '/',
     scope: '/',
     display: 'standalone',
@@ -18,4 +19,5 @@ export default function manifest(): MetadataRoute.Manifest {
       { src: '/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'maskable' }
     ]
   }
+  return m
 }

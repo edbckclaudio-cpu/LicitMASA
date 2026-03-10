@@ -1,0 +1,16 @@
+{
+  "name": "LicitMASA",
+  "short_name": "LicitMASA",
+  "description": "Pesquise publicações no PNCP, salve favoritos e receba alertas.",
+  "gcm_sender_id": "482941778795",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "theme_color": "#0b5bd7",
+  "background_color": "#ffffff",
+  "lang": "pt-BR",
+  "icons": [
+    { "src": "/icons/icone_L_192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icone_L_512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

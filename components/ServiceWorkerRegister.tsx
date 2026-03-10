@@ -44,6 +44,48 @@ export default function ServiceWorkerRegister() {
           serviceWorkerUpdaterPath: '/OneSignalSDKUpdaterWorker.js'
         })
         try {
+          const ud = await supabase?.auth.getUser()
+          const uid = ud?.data?.user?.id
+          const sync = async () => {
+            try {
+              let pid: string | null = null
+              try {
+                const p1 = (OneSignal as any)?.User?.pushSubscriptionId
+                const p2 = OneSignal?.User?.PushSubscription?.id
+                const p3 = await OneSignal?.getSubscriptionId?.()
+                pid = String(p1 || p2 || p3 || '') || null
+              } catch {}
+              if (!pid) {
+                try { await OneSignal?.User?.pushSubscription?.optIn?.() } catch {}
+                await new Promise((r) => setTimeout(r, 400))
+                try {
+                  const p1b = (OneSignal as any)?.User?.pushSubscriptionId
+                  const p2b = OneSignal?.User?.PushSubscription?.id
+                  const p3b = await OneSignal?.getSubscriptionId?.()
+                  pid = String(p1b || p2b || p3b || '') || null
+                } catch {}
+              }
+              if (uid && pid) {
+                try { if (supabase) await supabase.from('profiles').update({ subscription_id: String(pid) }).eq('id', uid) } catch {}
+                try { if (supabase) await supabase.from('user_alerts').upsert({ user_id: uid, fcm_token: String(pid) }, { onConflict: 'user_id' }) } catch {}
+                try { console.log('OneSignal ID sincronizado:', pid) } catch {}
+              }
+            } catch {}
+          }
+          try { await sync() } catch {}
+          try {
+            OneSignal?.User?.addEventListener?.('subscriptionChange', () => {
+              try { sync() } catch {}
+              try {
+                if (uid) {
+                  try { OneSignal.login?.(uid) } catch {}
+                  try { OneSignal.setExternalUserId?.(uid) } catch {}
+                }
+              } catch {}
+            })
+          } catch {}
+        } catch {}
+        try {
           const hasNotif = !!(OneSignal && (OneSignal as any).Notifications)
           if (!hasNotif) {
             ;(OneSignal as any).Notifications = {}
@@ -71,6 +113,12 @@ export default function ServiceWorkerRegister() {
         } catch {}
         try { (window as any).OneSignalInitialized = true } catch {}
         try { OneSignal?.Debug?.setLogLevel?.('trace') } catch {}
+        try {
+          const pid = (OneSignal as any)?.User?.pushSubscriptionId || await OneSignal?.getSubscriptionId?.()
+          if (pid) { try { console.log('OneSignal SubscriptionId:', String(pid)) } catch {} }
+        } catch {}
+        try { OneSignal?.Slidedown?.promptPush?.() } catch {}
+        try { OneSignal?.Notifications?.requestPermission?.() } catch {}
       } catch (e: any) {
         try { console.log('INIT OneSignal falhou:', e?.message || e) } catch {}
         try { ;(window as any).__ONE_SIGNAL_INIT_ERROR = e?.message || 'INIT_FAILED' } catch {}
@@ -83,6 +131,34 @@ export default function ServiceWorkerRegister() {
         OneSignal.push(function() {
           try { OneSignal.login?.(user.id); try { console.log('4. OneSignal.login executado:', user.id) } catch {} } catch (e: any) { try { console.log('4. OneSignal.login falhou:', e?.message || e) } catch {} }
           try { OneSignal.setExternalUserId(user.id); try { console.log('5. setExternalUserId executado:', user.id) } catch {} } catch (e: any) { try { console.log('5. setExternalUserId falhou:', e?.message || e) } catch {} }
+          try {
+            const sync = async () => {
+              try {
+                let pid: string | null = null
+                try {
+                  const p1 = (OneSignal as any)?.User?.pushSubscriptionId
+                  const p2 = OneSignal?.User?.PushSubscription?.id
+                  const p3 = await OneSignal?.getSubscriptionId?.()
+                  pid = String(p1 || p2 || p3 || '') || null
+                } catch {}
+                if (!pid) {
+                  try { await OneSignal?.User?.pushSubscription?.optIn?.() } catch {}
+                  await new Promise((r) => setTimeout(r, 400))
+                  try {
+                    const p1b = (OneSignal as any)?.User?.pushSubscriptionId
+                    const p2b = OneSignal?.User?.PushSubscription?.id
+                    const p3b = await OneSignal?.getSubscriptionId?.()
+                    pid = String(p1b || p2b || p3b || '') || null
+                  } catch {}
+                }
+                if (pid) {
+                  try { if (supabase) await supabase.from('profiles').update({ subscription_id: String(pid) }).eq('id', user.id) } catch {}
+                  try { if (supabase) await supabase.from('user_alerts').upsert({ user_id: user.id, fcm_token: String(pid) }, { onConflict: 'user_id' }) } catch {}
+                }
+              } catch {}
+            }
+            try { sync() } catch {}
+          } catch {}
         })
       }
     })
@@ -92,6 +168,34 @@ export default function ServiceWorkerRegister() {
         if (uid) {
           try { OneSignal.login?.(uid); try { console.log('6. onAuthChange login OK:', uid) } catch {} } catch (e: any) { try { console.log('6. onAuthChange login falhou:', e?.message || e) } catch {} }
           try { OneSignal.setExternalUserId(uid); try { console.log('7. onAuthChange setExternalUserId OK:', uid) } catch {} } catch (e: any) { try { console.log('7. onAuthChange setExternalUserId falhou:', e?.message || e) } catch {} }
+          try {
+            const sync = async () => {
+              try {
+                let pid: string | null = null
+                try {
+                  const p1 = (OneSignal as any)?.User?.pushSubscriptionId
+                  const p2 = OneSignal?.User?.PushSubscription?.id
+                  const p3 = await OneSignal?.getSubscriptionId?.()
+                  pid = String(p1 || p2 || p3 || '') || null
+                } catch {}
+                if (!pid) {
+                  try { await OneSignal?.User?.pushSubscription?.optIn?.() } catch {}
+                  await new Promise((r) => setTimeout(r, 400))
+                  try {
+                    const p1b = (OneSignal as any)?.User?.pushSubscriptionId
+                    const p2b = OneSignal?.User?.PushSubscription?.id
+                    const p3b = await OneSignal?.getSubscriptionId?.()
+                    pid = String(p1b || p2b || p3b || '') || null
+                  } catch {}
+                }
+                if (pid) {
+                  try { if (supabase) await supabase.from('profiles').update({ subscription_id: String(pid) }).eq('id', uid) } catch {}
+                  try { if (supabase) await supabase.from('user_alerts').upsert({ user_id: uid, fcm_token: String(pid) }, { onConflict: 'user_id' }) } catch {}
+                }
+              } catch {}
+            }
+            try { sync() } catch {}
+          } catch {}
         } else {
           try { OneSignal.removeExternalUserId() } catch {}
         }
