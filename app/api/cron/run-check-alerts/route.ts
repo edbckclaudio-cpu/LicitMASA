@@ -38,6 +38,14 @@ export async function GET(req: Request) {
     const data = await res.json().catch(() => ({} as any))
     let onesignal: any = null
     let onesignal_debug: any = null
+    const rawKey = process.env.ONESIGNAL_REST_API_KEY || process.env.ONESIGNAL_API_KEY || ''
+    const rawAppId = process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || process.env.ONESIGNAL_APP_ID || ''
+    const sk = String(rawKey).trim()
+    const sa = String(rawAppId).trim()
+    const ssk = sk.replace(/^['"]|['"]$/g, '')
+    const ssa = sa.replace(/^['"]|['"]$/g, '')
+    const masked_key = ssk ? `${ssk.slice(0, 4)}...${ssk.slice(-4)}` : ''
+    const masked_app_id = ssa ? `${ssa.slice(0, 4)}...${ssa.slice(-4)}` : ''
     try {
       if (data && typeof data === 'object') {
         if (data.body || data.json) {
@@ -60,6 +68,10 @@ export async function GET(req: Request) {
       function_ok: (data as any)?.ok ?? null,
       onesignal,
       onesignal_debug: onesignal_debug || null,
+      masked_key,
+      masked_app_id,
+      sanitized_key: sk !== ssk,
+      sanitized_app_id: sa !== ssa,
       data
     })
   } catch (e: any) {
