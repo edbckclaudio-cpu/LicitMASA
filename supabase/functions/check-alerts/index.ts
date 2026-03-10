@@ -84,23 +84,26 @@ function maskKey(raw: string): string {
 }
 async function sendPush(externalUserId: string, subject: string, message: string, url?: string) {
   const appId = sanitizeKey(Deno.env.get("ONESIGNAL_APP_ID") || "")
-  const apiKey = sanitizeKey(Deno.env.get("ONESIGNAL_REST_API_KEY") || Deno.env.get("ONESIGNAL_API_KEY") || "")
+  const restKey = sanitizeKey(Deno.env.get("ONESIGNAL_REST_API_KEY") || "")
+  const apiKeyAlt = sanitizeKey(Deno.env.get("ONESIGNAL_API_KEY") || "")
+  const apiKey = restKey || apiKeyAlt
   const supaUrl = Deno.env.get("SUPABASE_URL") || ""
   const supaKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SERVICE_ROLE_KEY") || ""
   if (!appId || !apiKey || !externalUserId) return { ok: false }
-  function oneSignalHeaders(): Record<string,string> {
+  function oneSignalHeaders(key: string): Record<string,string> {
     return {
-      "Authorization": `Basic ${apiKey}`,
+      "Authorization": `Basic ${key}`,
       "Content-Type": "application/json",
       "accept": "application/json",
     }
   }
-  try { console.log("ONESIGNAL_REST_API_KEY(masked):", maskKey(apiKey)) } catch {}
+  try { console.log("ONESIGNAL_REST_API_KEY(masked):", maskKey(restKey)) } catch {}
+  try { if (apiKeyAlt) console.log("ONESIGNAL_API_KEY(masked):", maskKey(apiKeyAlt)) } catch {}
   async function validateSubscriptionId(id: string): Promise<boolean> {
     try {
       const res = await fetch(`https://api.onesignal.com/apps/${appId}/subscriptions/${encodeURIComponent(id)}`, {
         method: "GET",
-        headers: oneSignalHeaders()
+        headers: oneSignalHeaders(apiKey)
       })
       return res.ok
     } catch {
@@ -142,11 +145,21 @@ async function sendPush(externalUserId: string, subject: string, message: string
       }
     } catch {}
   }
-  const res = await fetch("https://api.onesignal.com/notifications", {
+  let keyUsed = apiKey
+  let res = await fetch("https://api.onesignal.com/notifications", {
     method: "POST",
-    headers: oneSignalHeaders(),
+    headers: oneSignalHeaders(apiKey),
     body: JSON.stringify(body),
   })
+  if ((res.status === 401 || res.status === 403) && restKey && apiKeyAlt && restKey !== apiKeyAlt) {
+    try { console.log("OneSignal auth failed with REST key, retrying with API key") } catch {}
+    keyUsed = apiKeyAlt
+    res = await fetch("https://api.onesignal.com/notifications", {
+      method: "POST",
+      headers: oneSignalHeaders(apiKeyAlt),
+      body: JSON.stringify(body),
+    })
+  }
   let txt = ""
   try { txt = await res.text() } catch {}
   let js: any = null
@@ -154,7 +167,7 @@ async function sendPush(externalUserId: string, subject: string, message: string
   try { console.log("OneSignal send status:", res.status) } catch {}
   try { console.log("OneSignal send body:", txt) } catch {}
   if (js) { try { console.log("OneSignal send json:", JSON.stringify(js)) } catch {} }
-  return { ok: res.ok, status: res.status, body: txt, json: js }
+  return { ok: res.ok, status: res.status, body: txt, json: js, masked_key_used: maskKey(keyUsed) }
 }
 
 function daysUntil(dateStr: string) {
@@ -179,19 +192,23 @@ serve(async (req: Request) => {
   if (testMode) {
     try {
       const rawAppId = Deno.env.get("ONESIGNAL_APP_ID") || ""
-      const rawKey = Deno.env.get("ONESIGNAL_REST_API_KEY") || Deno.env.get("ONESIGNAL_API_KEY") || ""
+      const rawKeyRest = Deno.env.get("ONESIGNAL_REST_API_KEY") || ""
+      const rawKeyApi = Deno.env.get("ONESIGNAL_API_KEY") || ""
       const appId = sanitizeKey(rawAppId)
-      const apiKey = sanitizeKey(rawKey)
+      const keyRest = sanitizeKey(rawKeyRest)
+      const keyApi = sanitizeKey(rawKeyApi)
+      const apiKey = keyRest || keyApi
       const override = reqUrl.searchParams.get("sub") || ""
       const testId = override || "8e7fd9b6-3ca2-4d4d-9a0b-9ba41be05d9d"
-      function oneSignalHeaders(): Record<string,string> {
+      function oneSignalHeaders(k: string): Record<string,string> {
         return {
-          "Authorization": `Basic ${apiKey}`,
+          "Authorization": `Basic ${k}`,
           "Content-Type": "application/json",
           "accept": "application/json",
         }
       }
-      try { console.log("ONESIGNAL_REST_API_KEY(masked):", maskKey(apiKey)) } catch {}
+      try { if (keyRest) console.log("ONESIGNAL_REST_API_KEY(masked):", maskKey(keyRest)) } catch {}
+      try { if (keyApi) console.log("ONESIGNAL_API_KEY(masked):", maskKey(keyApi)) } catch {}
       try { console.log("ONESIGNAL_APP_ID(masked):", maskKey(appId)) } catch {}
       const body = {
         app_id: appId,
@@ -200,11 +217,21 @@ serve(async (req: Request) => {
         include_subscription_ids: [testId],
         url: "https://pncp.gov.br/"
       }
-      const res = await fetch("https://api.onesignal.com/notifications", {
+      let keyUsed = apiKey
+      let res = await fetch("https://api.onesignal.com/notifications", {
         method: "POST",
-        headers: oneSignalHeaders(),
+        headers: oneSignalHeaders(apiKey),
         body: JSON.stringify(body),
       })
+      if ((res.status === 401 || res.status === 403) && keyRest && keyApi && keyRest !== keyApi) {
+        try { console.log("OneSignal test: auth failed with REST key, retrying with API key") } catch {}
+        keyUsed = keyApi
+        res = await fetch("https://api.onesignal.com/notifications", {
+          method: "POST",
+          headers: oneSignalHeaders(keyApi),
+          body: JSON.stringify(body),
+        })
+      }
       const txt = await res.text()
       let parsed: any = null
       try { parsed = JSON.parse(txt) } catch {}
@@ -217,8 +244,9 @@ serve(async (req: Request) => {
         status: res.status,
         error: topError ?? null,
          masked_key: maskKey(apiKey),
+         masked_key_used: maskKey(keyUsed),
          masked_app_id: maskKey(appId),
-         sanitized_key: rawKey !== apiKey,
+         sanitized_key: (rawKeyRest || rawKeyApi) !== apiKey,
          sanitized_app_id: rawAppId !== appId,
         onesignal_json: parsed || null,
         onesignal_debug: parsed || txt,
