@@ -143,6 +143,34 @@ async function resolveLatestSubscribedToken(): Promise<string | null> {
   return null
 }
 
+async function fetchLatestSubscribedPlayerIdFromOneSignal(): Promise<string | null> {
+  const appId = '43f9ce9c-8d86-4076-a8b6-30dac8429149'
+  const apiKeyRaw = (process.env.ONESIGNAL_REST_API_KEY || process.env.ONESIGNAL_API_KEY || '').trim()
+  const apiKey = apiKeyRaw.replace(/^(?:Key|Basic)\s+/i, '').trim()
+  if (!appId || !apiKey) return null
+  try {
+    const url = `https://api.onesignal.com/players?app_id=${encodeURIComponent(appId)}&limit=50&offset=0`
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Authorization': `Basic ${apiKey}`,
+      }
+    })
+    const json: any = await res.json().catch(() => null)
+    const players: any[] = Array.isArray(json?.players) ? json.players : []
+    for (const p of players) {
+      const pid = String(p?.id || '')
+      const invalid = Boolean(p?.invalid_identifier || p?.invalidated)
+      const enabled = typeof p?.enabled === 'boolean' ? p.enabled : true
+      if (pid && !invalid && enabled) {
+        return pid
+      }
+    }
+  } catch {}
+  return null
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}))
@@ -169,6 +197,9 @@ export async function POST(req: Request) {
     let resolved = await resolveTokenByEmailOrUserId(email, userId)
     if (!resolved) {
       resolved = await resolveLatestSubscribedToken()
+    }
+    if (!resolved) {
+      resolved = await fetchLatestSubscribedPlayerIdFromOneSignal()
     }
     if (!resolved) return NextResponse.json({ ok: false, error: 'SUBSCRIPTION_NOT_FOUND' }, { status: 404 })
     const r = await sendOneSignal(resolved)
@@ -204,6 +235,9 @@ export async function GET(req: Request) {
     let resolved = await resolveTokenByEmailOrUserId(email, userId)
     if (!resolved) {
       resolved = await resolveLatestSubscribedToken()
+    }
+    if (!resolved) {
+      resolved = await fetchLatestSubscribedPlayerIdFromOneSignal()
     }
     if (!resolved) return NextResponse.json({ ok: false, error: 'SUBSCRIPTION_NOT_FOUND' }, { status: 404 })
     const r = await sendOneSignal(resolved)
