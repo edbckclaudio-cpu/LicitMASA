@@ -44,8 +44,21 @@ export async function GET(req: Request) {
     const sa = String(rawAppId).trim()
     const ssk = sk.replace(/^['"]|['"]$/g, '')
     const ssa = sa.replace(/^['"]|['"]$/g, '')
-    const masked_key = ssk ? `${ssk.slice(0, 4)}...${ssk.slice(-4)}` : ''
-    const masked_app_id = ssa ? `${ssa.slice(0, 4)}...${ssa.slice(-4)}` : ''
+    let masked_key = ssk ? `${ssk.slice(0, 4)}...${ssk.slice(-4)}` : ''
+    let masked_app_id = ssa ? `${ssa.slice(0, 4)}...${ssa.slice(-4)}` : ''
+    try {
+      const fnMaskedKey =
+        (data as any)?.data?.masked_key_used ||
+        (data as any)?.data?.masked_key ||
+        (data as any)?.masked_key ||
+        ''
+      const fnMaskedApp =
+        (data as any)?.data?.masked_app_id ||
+        (data as any)?.masked_app_id ||
+        ''
+      if (fnMaskedKey) masked_key = String(fnMaskedKey)
+      if (fnMaskedApp) masked_app_id = String(fnMaskedApp)
+    } catch {}
     try {
       if (data && typeof data === 'object') {
         if (data.body || data.json) {
