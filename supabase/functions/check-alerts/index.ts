@@ -68,17 +68,39 @@ async function sendEmail(to: string, subject: string, html: string) {
   return { ok: res.ok }
 }
 
+function sanitizeKey(raw: string): string {
+  let s = String(raw || "").trim()
+  if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
+    s = s.slice(1, -1)
+  }
+  return s
+}
+function maskKey(raw: string): string {
+  const s = String(raw || "")
+  if (!s) return ""
+  const start = s.slice(0, 4)
+  const end = s.slice(-4)
+  return `${start}...${end}`
+}
 async function sendPush(externalUserId: string, subject: string, message: string, url?: string) {
-  const appId = Deno.env.get("ONESIGNAL_APP_ID")
-  const apiKey = Deno.env.get("ONESIGNAL_REST_API_KEY") || Deno.env.get("ONESIGNAL_API_KEY") || ""
+  const appId = sanitizeKey(Deno.env.get("ONESIGNAL_APP_ID") || "")
+  const apiKey = sanitizeKey(Deno.env.get("ONESIGNAL_REST_API_KEY") || Deno.env.get("ONESIGNAL_API_KEY") || "")
   const supaUrl = Deno.env.get("SUPABASE_URL") || ""
   const supaKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SERVICE_ROLE_KEY") || ""
   if (!appId || !apiKey || !externalUserId) return { ok: false }
+  function oneSignalHeaders(): Record<string,string> {
+    return {
+      "Authorization": `Basic ${apiKey}`,
+      "Content-Type": "application/json",
+      "accept": "application/json",
+    }
+  }
+  try { console.log("ONESIGNAL_REST_API_KEY(masked):", maskKey(apiKey)) } catch {}
   async function validateSubscriptionId(id: string): Promise<boolean> {
     try {
       const res = await fetch(`https://api.onesignal.com/apps/${appId}/subscriptions/${encodeURIComponent(id)}`, {
         method: "GET",
-        headers: { "Authorization": `Basic ${apiKey}` }
+        headers: oneSignalHeaders()
       })
       return res.ok
     } catch {
@@ -122,10 +144,7 @@ async function sendPush(externalUserId: string, subject: string, message: string
   }
   const res = await fetch("https://api.onesignal.com/notifications", {
     method: "POST",
-    headers: {
-      "Authorization": `Basic ${apiKey}`,
-      "Content-Type": "application/json",
-    },
+    headers: oneSignalHeaders(),
     body: JSON.stringify(body),
   })
   let txt = ""
@@ -159,10 +178,21 @@ serve(async (req: Request) => {
   const dataInicial = fmt(new Date(now.getTime() - backDays * 24 * 60 * 60 * 1000))
   if (testMode) {
     try {
-      const appId = Deno.env.get("ONESIGNAL_APP_ID") || ""
-      const apiKey = Deno.env.get("ONESIGNAL_REST_API_KEY") || Deno.env.get("ONESIGNAL_API_KEY") || ""
+      const rawAppId = Deno.env.get("ONESIGNAL_APP_ID") || ""
+      const rawKey = Deno.env.get("ONESIGNAL_REST_API_KEY") || Deno.env.get("ONESIGNAL_API_KEY") || ""
+      const appId = sanitizeKey(rawAppId)
+      const apiKey = sanitizeKey(rawKey)
       const override = reqUrl.searchParams.get("sub") || ""
       const testId = override || "8e7fd9b6-3ca2-4d4d-9a0b-9ba41be05d9d"
+      function oneSignalHeaders(): Record<string,string> {
+        return {
+          "Authorization": `Basic ${apiKey}`,
+          "Content-Type": "application/json",
+          "accept": "application/json",
+        }
+      }
+      try { console.log("ONESIGNAL_REST_API_KEY(masked):", maskKey(apiKey)) } catch {}
+      try { console.log("ONESIGNAL_APP_ID(masked):", maskKey(appId)) } catch {}
       const body = {
         app_id: appId,
         headings: { en: "Teste de Conexão LicitMASA" },
@@ -172,7 +202,7 @@ serve(async (req: Request) => {
       }
       const res = await fetch("https://api.onesignal.com/notifications", {
         method: "POST",
-        headers: { "Authorization": `Basic ${apiKey}`, "Content-Type": "application/json" },
+        headers: oneSignalHeaders(),
         body: JSON.stringify(body),
       })
       const txt = await res.text()
@@ -186,6 +216,10 @@ serve(async (req: Request) => {
         ok: "TESTE_FINAL_AGORA",
         status: res.status,
         error: topError ?? null,
+         masked_key: maskKey(apiKey),
+         masked_app_id: maskKey(appId),
+         sanitized_key: rawKey !== apiKey,
+         sanitized_app_id: rawAppId !== appId,
         onesignal_json: parsed || null,
         onesignal_debug: parsed || txt,
         body: parsed || txt
