@@ -17,10 +17,15 @@ function getFunctionsUrl(): string | null {
 export async function GET() {
   try {
     const fn = getFunctionsUrl()
-    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SERVICE_ROLE_KEY || ''
     if (!fn || !key) {
       return NextResponse.json({ ok: false, error: 'CONFIG_MISSING' }, { status: 500 })
     }
+    try {
+      const preview = String(key).slice(0, 4)
+      console.log('[cron/run-check-alerts] calling:', fn)
+      console.log('[cron/run-check-alerts] key prefix:', preview)
+    } catch {}
     const res = await fetch(fn, {
       method: 'GET',
       headers: { Authorization: `Bearer ${key}` },
