@@ -143,10 +143,10 @@ export async function GET() {
         let subscriptionId: string | null = null
         let externalId: string | null = null
         try {
-          const { data: prof } = await supa.from('profiles').select('id,onesignal_id').eq('id', userId).limit(1).maybeSingle()
+          const { data: prof } = await supa.from('profiles').select('id,onesignal_id,email').eq('id', userId).limit(1).maybeSingle()
           const pid = String((prof as any)?.onesignal_id || '')
           if (pid) subscriptionId = pid
-          externalId = userId
+          externalId = String((prof as any)?.email || userId)
         } catch {}
         let sent: { ok: boolean, status: number } = { ok: false, status: 0 }
         if (subscriptionId) {

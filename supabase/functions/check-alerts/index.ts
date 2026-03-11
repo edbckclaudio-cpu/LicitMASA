@@ -120,13 +120,26 @@ async function sendPush(externalUserId: string, subject: string, message: string
   if (supaUrl && supaKey) {
     try {
       const supa = createClient(supaUrl, supaKey)
-      const { data: prof } = await supa.from("profiles").select("*").eq("id", externalUserId).limit(1).maybeSingle()
+      const useEmail = /@/.test(externalUserId)
+      let prof: any = null
+      if (useEmail) {
+        const byEmail = await supa.from("profiles").select("id,subscription_id,onesignal_id,email").eq("email", externalUserId).limit(1).maybeSingle()
+        prof = byEmail?.data || null
+      } else {
+        const byId = await supa.from("profiles").select("id,subscription_id,onesignal_id,email").eq("id", externalUserId).limit(1).maybeSingle()
+        prof = byId?.data || null
+      }
       const subId = String((prof as any)?.subscription_id || (prof as any)?.onesignal_id || "")
+      const userIdForUa = String((prof as any)?.id || (useEmail ? "" : externalUserId) || "")
       if (!subId) {
-        const { data: ua } = await supa.from("user_alerts").select("fcm_token").eq("user_id", externalUserId).limit(1).maybeSingle()
-        const tok = String((ua as any)?.fcm_token || "")
-        if (tok && await validateSubscriptionId(tok)) {
-          body = { ...requestBase, include_subscription_ids: [tok] }
+        if (userIdForUa) {
+          const { data: ua } = await supa.from("user_alerts").select("fcm_token").eq("user_id", userIdForUa).limit(1).maybeSingle()
+          const tok = String((ua as any)?.fcm_token || "")
+          if (tok && await validateSubscriptionId(tok)) {
+            body = { ...requestBase, include_subscription_ids: [tok] }
+          } else {
+            body = { ...requestBase, include_external_user_ids: [externalUserId] }
+          }
         } else {
           body = { ...requestBase, include_external_user_ids: [externalUserId] }
         }
@@ -134,10 +147,14 @@ async function sendPush(externalUserId: string, subject: string, message: string
         if (await validateSubscriptionId(subId)) {
           body = { ...requestBase, include_subscription_ids: [subId] }
         } else {
-          const { data: ua } = await supa.from("user_alerts").select("fcm_token").eq("user_id", externalUserId).limit(1).maybeSingle()
-          const tok = String((ua as any)?.fcm_token || "")
-          if (tok && await validateSubscriptionId(tok)) {
-            body = { ...requestBase, include_subscription_ids: [tok] }
+          if (userIdForUa) {
+            const { data: ua } = await supa.from("user_alerts").select("fcm_token").eq("user_id", userIdForUa).limit(1).maybeSingle()
+            const tok = String((ua as any)?.fcm_token || "")
+            if (tok && await validateSubscriptionId(tok)) {
+              body = { ...requestBase, include_subscription_ids: [tok] }
+            } else {
+              body = { ...requestBase, include_external_user_ids: [externalUserId] }
+            }
           } else {
             body = { ...requestBase, include_external_user_ids: [externalUserId] }
           }
@@ -605,7 +622,7 @@ serve(async (req: Request) => {
       `
     let channel: "email" | "push" | "none" = "none"
     let err: string | null = null
-    const pr = await sendPush(String(alert.user_id), subject, `Encontradas ${newItems.length} publicações para "${alert.keyword}"`, undefined)
+    const pr = await sendPush((to || String(alert.user_id)), subject, `Encontradas ${newItems.length} publicações para "${alert.keyword}"`, undefined)
     lastOneSignal = pr
     if (pr.ok) {
       channel = "push"

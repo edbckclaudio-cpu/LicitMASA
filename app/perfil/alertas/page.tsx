@@ -55,6 +55,8 @@ export default function AlertasPage() {
   const [swWorkerReachable, setSwWorkerReachable] = useState<string>('desconhecido')
   const [swManualRegMsg, setSwManualRegMsg] = useState<string | null>(null)
   const [assetLinksStatus, setAssetLinksStatus] = useState<string>('desconhecido')
+  const [diagRunning, setDiagRunning] = useState<boolean>(false)
+  const [diagItems, setDiagItems] = useState<Array<{ id: string, label: string, ok: boolean, detail?: string }>>([])
   
   const isGranted = useMemo(() => (permOS === 'granted' || permWeb === 'granted' || !!osPlayerId), [permOS, permWeb, osPlayerId])
 
@@ -85,7 +87,10 @@ export default function AlertasPage() {
         const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
         if (OneSignal) {
           await OneSignal?.login?.(user.id)
-          await OneSignal?.setExternalUserId?.(user.id)
+          try {
+            const ext = user.email || user.id
+            await OneSignal?.setExternalUserId?.(ext)
+          } catch {}
           try {
             const extNow = OneSignal?.User?.externalId
             if (extNow) setOsExternalId(String(extNow))
@@ -265,6 +270,105 @@ export default function AlertasPage() {
   }, [userId])
   
 
+  async function runDiagnostics() {
+    try {
+      setDiagRunning(true)
+      const results: Array<{ id: string, label: string, ok: boolean, detail?: string }> = []
+      // 1) Conexão Base
+      try {
+        const envUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+        const envKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+        const baseOk = Boolean(envUrl && envKey && supabase)
+        results.push({
+          id: 'base',
+          label: 'Conexão Supabase (URL/KEY no cliente)',
+          ok: baseOk,
+          detail: `URL: ${envUrl ? 'ok' : 'faltando'} | KEY: ${envKey ? 'ok' : 'faltando'}`
+        })
+      } catch (e: any) {
+        results.push({ id: 'base', label: 'Conexão Supabase (URL/KEY no cliente)', ok: false, detail: String(e?.message || e) })
+      }
+      // 2) Verificação de Profile
+      let uid: string | null = null
+      try {
+        const ud = await supabase?.auth.getUser()
+        uid = ud?.data?.user?.id || null
+        if (!uid) {
+          results.push({ id: 'profile', label: 'Profile (select pelo uid atual)', ok: false, detail: 'Usuário não logado' })
+        } else {
+          const sel = await supabase!.from('profiles').select('id').eq('id', uid).limit(1).maybeSingle()
+          const ok = Boolean((sel as any)?.data?.id)
+          const detail = ok ? `id=${(sel as any)?.data?.id}` : ((sel as any)?.error?.message || 'Não encontrado')
+          results.push({ id: 'profile', label: 'Profile (select pelo uid atual)', ok, detail })
+        }
+      } catch (e: any) {
+        results.push({ id: 'profile', label: 'Profile (select pelo uid atual)', ok: false, detail: String(e?.message || e) })
+      }
+      // 3) Status OneSignal
+      try {
+        const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
+        let externalId: string | null = null
+        let subscriptionId: string | null = null
+        try { externalId = OneSignal?.User?.externalId || null } catch {}
+        if (!externalId) { try { externalId = await OneSignal?.getExternalUserId?.() } catch {} }
+        try { subscriptionId = OneSignal?.User?.PushSubscription?.id || null } catch {}
+        if (!subscriptionId) { try { subscriptionId = await OneSignal?.getSubscriptionId?.() } catch {} }
+        const ok = Boolean(externalId || subscriptionId)
+        let detail = ''
+        try {
+          const { data: u } = await supabase!.auth.getUser()
+          const email = String(u?.user?.email || '')
+          const uidNow = String(u?.user?.id || '')
+          detail = `externalId: ${externalId || '—'} (uid esperado: ${uidNow}); subscriptionId: ${subscriptionId || '—'}; email: ${email || '—'}`
+        } catch {
+          detail = `externalId: ${externalId || '—'}; subscriptionId: ${subscriptionId || '—'}`
+        }
+        results.push({ id: 'onesignal', label: 'OneSignal (externalId/subscriptionId)', ok, detail })
+      } catch (e: any) {
+        results.push({ id: 'onesignal', label: 'OneSignal (externalId/subscriptionId)', ok: false, detail: String(e?.message || e) })
+      }
+      // 4) Teste de Escrita Real (INSERT e DELETE efêmero)
+      try {
+        if (!uid) {
+          const ud = await supabase?.auth.getUser()
+          uid = ud?.data?.user?.id || null
+        }
+        if (!uid) {
+          results.push({ id: 'write', label: 'Escrita efêmera em search_alerts', ok: false, detail: 'Usuário não logado' })
+        } else {
+          const temp = `TESTE_DIAGNOSTICO_${Date.now()}`
+          const ins = await supabase!.from('search_alerts').insert({ user_id: uid, keyword: temp, active: false } as any)
+          if ((ins as any)?.error) {
+            const msg = String((ins as any).error?.message || 'INSERT_ERROR')
+            const code = String((ins as any).error?.code || '')
+            results.push({ id: 'write', label: 'Escrita efêmera em search_alerts', ok: false, detail: `${msg}${code ? ` (code: ${code})` : ''}` })
+          } else {
+            try { await supabase!.from('search_alerts').delete().eq('user_id', uid).eq('keyword', temp) } catch {}
+            results.push({ id: 'write', label: 'Escrita efêmera em search_alerts', ok: true, detail: 'INSERT/DELETE ok' })
+          }
+        }
+      } catch (e: any) {
+        const msg = String(e?.message || e)
+        results.push({ id: 'write', label: 'Escrita efêmera em search_alerts', ok: false, detail: msg })
+      }
+      setDiagItems(results)
+    } catch {
+      setDiagItems((prev) => prev.length ? prev : [{ id: 'fatal', label: 'Erro ao rodar diagnóstico', ok: false, detail: 'Desconhecido' }])
+    } finally {
+      setDiagRunning(false)
+    }
+  }
+
+  async function handleTestAndDiagnose() {
+    try {
+      setTestLoading(true)
+      await runDiagnostics()
+      await sendTestNotification()
+    } finally {
+      setTestLoading(false)
+    }
+  }
+
   async function sendTestNotification() {
     try {
       setUiMsg(null)
@@ -441,7 +545,7 @@ export default function AlertasPage() {
   const saveSubscriptionIdToProfile = useCallback(async (id: string) => {
     try {
       if (supabase && userId && id) {
-        await supabase.from('profiles').update({ onesignal_id: String(id) }).eq('id', userId)
+        await supabase.from('profiles').update({ onesignal_id: String(id), subscription_id: String(id) }).eq('id', userId)
         await supabase.from('user_alerts').upsert({ user_id: userId, fcm_token: String(id) }, { onConflict: 'user_id' })
       }
     } catch {}
@@ -487,7 +591,18 @@ export default function AlertasPage() {
         setUiMsg('Você já está recebendo alertas!')
         try {
           if (userId) {
-            OneSignal.push(function() { try { OneSignal.login?.(userId) } catch {}; try { OneSignal.setExternalUserId(userId) } catch {} })
+            OneSignal.push(function() { 
+              try { 
+                (async () => { 
+                  try { 
+                    const ud = await supabase?.auth.getUser()
+                    const ext = String(ud?.data?.user?.email || userId)
+                    try { OneSignal.login?.(ext) } catch {} 
+                    try { OneSignal.setExternalUserId(ext) } catch {} 
+                  } catch {}
+                })()
+              } catch {}
+            })
           }
           try {
             const ext = OneSignal?.User?.externalId
@@ -551,7 +666,18 @@ export default function AlertasPage() {
         setUiMsg('Alertas ativados! ✅')
         try {
           if (userId) {
-            OneSignal.push(function() { try { OneSignal.login?.(userId) } catch {}; try { OneSignal.setExternalUserId(userId) } catch {} })
+            OneSignal.push(function() { 
+              try { 
+                (async () => { 
+                  try { 
+                    const ud = await supabase?.auth.getUser()
+                    const ext = String(ud?.data?.user?.email || userId)
+                    try { OneSignal.login?.(ext) } catch {} 
+                    try { OneSignal.setExternalUserId(ext) } catch {} 
+                  } catch {}
+                })()
+              } catch {}
+            })
           }
           try {
             const ext = OneSignal?.User?.externalId
@@ -829,6 +955,44 @@ export default function AlertasPage() {
   const canInteract = !!userId
   const subscribed = !!osPlayerId || permOS === 'granted' || permWeb === 'granted'
 
+  async function resyncNotifications() {
+    try {
+      setError(null)
+      setUiMsg(null)
+      const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
+      if (!OneSignal) { setError('OneSignal não carregado'); return }
+      try { await OneSignal?.Notifications?.requestPermission?.() } catch {}
+      let ext: string | null = null
+      try {
+        const ud = await supabase?.auth.getUser()
+        ext = String(ud?.data?.user?.email || ud?.data?.user?.id || '')
+      } catch {}
+      if (ext) {
+        try { OneSignal.login?.(ext) } catch {}
+        try { OneSignal.setExternalUserId?.(ext) } catch {}
+        try { setOsExternalId(ext) } catch {}
+      }
+      let pid: string | null = null
+      try { pid = (OneSignal as any)?.User?.pushSubscriptionId || null } catch {}
+      if (!pid) { try { pid = await OneSignal?.getSubscriptionId?.() } catch {} }
+      if (!pid) {
+        try { await OneSignal?.User?.pushSubscription?.optIn?.() } catch {}
+        try { pid = (OneSignal as any)?.User?.pushSubscriptionId || null } catch {}
+        if (!pid) { try { pid = await OneSignal?.getSubscriptionId?.() } catch {} }
+      }
+      if (pid) {
+        try { setOsPlayerId(String(pid)) } catch {}
+        try { await saveSubscriptionIdToProfile(String(pid)) } catch {}
+        try { await refreshOneSignalInfo() } catch {}
+        setUiMsg('Alertas sincronizados com sucesso!')
+      } else {
+        setError('Não foi possível obter o ID de inscrição do OneSignal')
+      }
+    } catch (e: any) {
+      setError(String(e?.message || e))
+    }
+  }
+
   async function deactivateAlerts() {
     try {
       const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
@@ -936,6 +1100,15 @@ export default function AlertasPage() {
                         remover
                       </button>
                     ))}
+                  </div>
+                  <div className="pt-2">
+                    <Button
+                      onClick={resyncNotifications}
+                      title="Use este botão se você não estiver recebendo avisos de novas licitações. Isso sincroniza as notificações com este dispositivo e não altera seu plano de pagamento."
+                      className="bg-amber-600 text-white hover:bg-amber-700 text-xs"
+                    >
+                      🔔 Reativar Alertas neste Aparelho
+                    </Button>
                   </div>
                 </div>
                 <div className="grid gap-3">
@@ -1104,10 +1277,27 @@ export default function AlertasPage() {
                     id: 'diag-acoes',
                     title: <span>Ações de teste</span>,
                     content: (
-                      <div className="flex flex-wrap gap-2">
-                        <Button onClick={sendTestNotification} disabled={testLoading} className="bg-blue-600 text-white hover:bg-blue-700 text-xs">
-                          {testLoading ? '...' : 'Enviar Teste'}
-                        </Button>
+                      <div>
+                        <div className="flex flex-wrap gap-2">
+                          <Button onClick={handleTestAndDiagnose} disabled={testLoading || diagRunning} className="bg-blue-600 text-white hover:bg-blue-700 text-xs">
+                            {(testLoading || diagRunning) ? '...' : 'Enviar Teste / Diagnóstico'}
+                          </Button>
+                        </div>
+                        <div className="mt-3">
+                          {diagItems && diagItems.length > 0 && (
+                            <ul className="space-y-1 text-sm">
+                              {diagItems.map((it) => (
+                                <li key={it.id} className="flex items-start gap-2">
+                                  <span className="mt-[2px]">{it.ok ? '✅' : '❌'}</span>
+                                  <span>
+                                    <span className="font-medium">{it.label}</span>
+                                    {it.detail ? <span className="text-gray-600"> — {it.detail}</span> : null}
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
                       </div>
                     ),
                   },

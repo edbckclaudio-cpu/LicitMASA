@@ -245,8 +245,9 @@ export default function ServiceWorkerRegister() {
           } catch {}
         })();
         OneSignal.push(function() {
-          try { OneSignal.login?.(user.id); try { console.log('4. OneSignal.login executado:', user.id) } catch {} } catch (e: any) { try { console.log('4. OneSignal.login falhou:', e?.message || e) } catch {} }
-          try { OneSignal.setExternalUserId(user.id); try { console.log('5. setExternalUserId executado:', user.id) } catch {} } catch (e: any) { try { console.log('5. setExternalUserId falhou:', e?.message || e) } catch {} }
+          const ext = user.email || user.id
+          try { OneSignal.login?.(ext); try { console.log('4. OneSignal.login executado:', ext) } catch {} } catch (e: any) { try { console.log('4. OneSignal.login falhou:', e?.message || e) } catch {} }
+          try { OneSignal.setExternalUserId(ext); try { console.log('5. setExternalUserId executado:', ext) } catch {} } catch (e: any) { try { console.log('5. setExternalUserId falhou:', e?.message || e) } catch {} }
           try {
             const sync = async () => {
               try {
@@ -336,8 +337,9 @@ export default function ServiceWorkerRegister() {
               } catch (e:any) { try { console.error('[EnsureProfile:auth] select throw:', e?.message || e) } catch {} }
             } catch {}
           })();
-          try { OneSignal.login?.(uid); try { console.log('6. onAuthChange login OK:', uid) } catch {} } catch (e: any) { try { console.log('6. onAuthChange login falhou:', e?.message || e) } catch {} }
-          try { OneSignal.setExternalUserId(uid); try { console.log('7. onAuthChange setExternalUserId OK:', uid) } catch {} } catch (e: any) { try { console.log('7. onAuthChange setExternalUserId falhou:', e?.message || e) } catch {} }
+          const ext = (session?.user?.email || uid) as string
+          try { OneSignal.login?.(ext); try { console.log('6. onAuthChange login OK:', ext) } catch {} } catch (e: any) { try { console.log('6. onAuthChange login falhou:', e?.message || e) } catch {} }
+          try { OneSignal.setExternalUserId(ext); try { console.log('7. onAuthChange setExternalUserId OK:', ext) } catch {} } catch (e: any) { try { console.log('7. onAuthChange setExternalUserId falhou:', e?.message || e) } catch {} }
           try {
             const sync = async () => {
               try {

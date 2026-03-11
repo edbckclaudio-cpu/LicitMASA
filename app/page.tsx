@@ -180,7 +180,8 @@ export default function HomePage() {
     try {
       const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
       if (OneSignal && user.id) {
-        try { OneSignal.push?.(() => { try { OneSignal.login?.(user.id) } catch {}; try { OneSignal.setExternalUserId?.(user.id) } catch {} }) } catch {}
+        const ext = (user.email || user.id) as string
+        try { OneSignal.push?.(() => { try { OneSignal.login?.(ext) } catch {}; try { OneSignal.setExternalUserId?.(ext) } catch {} }) } catch {}
         let pid: string | null = null
         let attempts = 0
         while (attempts < 10 && !pid) {
