@@ -97,6 +97,31 @@ export async function GET(req: Request) {
         }
       }
     } catch {}
+    // Correção: se inspeção e o perfil vier null apesar do userId existir,
+    // consultamos diretamente usando NEXT_PUBLIC_SUPABASE_URL + SERVICE_ROLE_KEY
+    try {
+      const inUrl3 = new URL(req.url)
+      const inspect = inUrl3.searchParams.get('inspect') === '1'
+      const email = String(inUrl3.searchParams.get('email') || '').trim().toLowerCase()
+      const hasUserId = !!((data as any)?.userId)
+      const hasNullProfile = ((data as any)?.profile ?? null) === null
+      if (inspect && hasUserId && email && hasNullProfile) {
+        const pubUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+        const svcKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SERVICE_ROLE_KEY || ''
+        if (pubUrl && svcKey) {
+          const { createClient } = await import('@supabase/supabase-js')
+          const supa = createClient(pubUrl, svcKey)
+          const uid = String((data as any).userId)
+          const prof = await supa.from('profiles').select('id,email,subscription_id,onesignal_id').eq('id', uid).limit(1).maybeSingle()
+          const sAlerts = await supa.from('search_alerts').select('id,keyword,uf,active,created_at').eq('user_id', uid).order('created_at', { ascending: false })
+          const uAlerts = await supa.from('user_alerts').select('keywords,ufs,fcm_token,ativo,push_notificacao,updated_at').eq('user_id', uid).limit(1).maybeSingle()
+          if (!data || typeof data !== 'object') data = {}
+          ;(data as any).profile = prof?.data || null
+          ;(data as any).search_alerts = Array.isArray(sAlerts?.data) ? sAlerts?.data : []
+          ;(data as any).user_alerts = uAlerts?.data || null
+        }
+      }
+    } catch {}
     return NextResponse.json({
       ok: res.ok,
       status: res.status,
