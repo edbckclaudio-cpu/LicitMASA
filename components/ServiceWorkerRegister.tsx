@@ -221,6 +221,29 @@ export default function ServiceWorkerRegister() {
       const user = ud?.data?.user
       try { console.log('3. Utilizador Supabase:', user?.id || null) } catch {}
       if (user?.id) {
+        // Garantir criação do profile imediatamente, independente do OneSignal
+        (async () => {
+          try {
+            try {
+              const u1 = await supabase!.from('profiles').upsert({ id: user.id, // @ts-ignore
+                email: user.email || null }, { onConflict: 'id' })
+              if ((u1 as any)?.error) { try { console.error('[EnsureProfile:init] upsert error:', (u1 as any).error) } catch {} }
+            } catch (e:any) { try { console.error('[EnsureProfile:init] upsert throw:', e?.message || e) } catch {} }
+            try {
+              const { data } = await supabase!.from('profiles').select('id').eq('id', user.id).maybeSingle()
+              if (!data?.id && user.email) {
+                try {
+                  const r = await fetch('/api/profile/merge', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'x-admin-token': 'DEV' },
+                    body: JSON.stringify({ userId: user.id, email: user.email })
+                  })
+                  try { console.log('[EnsureProfile:init] merge status:', r.status) } catch {}
+                } catch (e:any) { try { console.error('[EnsureProfile:init] merge throw:', e?.message || e) } catch {} }
+              }
+            } catch (e:any) { try { console.error('[EnsureProfile:init] select throw:', e?.message || e) } catch {} }
+          } catch {}
+        })();
         OneSignal.push(function() {
           try { OneSignal.login?.(user.id); try { console.log('4. OneSignal.login executado:', user.id) } catch {} } catch (e: any) { try { console.log('4. OneSignal.login falhou:', e?.message || e) } catch {} }
           try { OneSignal.setExternalUserId(user.id); try { console.log('5. setExternalUserId executado:', user.id) } catch {} } catch (e: any) { try { console.log('5. setExternalUserId falhou:', e?.message || e) } catch {} }
@@ -289,6 +312,30 @@ export default function ServiceWorkerRegister() {
       const uid = session?.user?.id
       OneSignal.push(function() {
         if (uid) {
+          // Garantir criação do profile no evento de autenticação, antes do OneSignal
+          (async () => {
+            try {
+              const email = session?.user?.email || null
+              try {
+                const u1 = await supabase!.from('profiles').upsert({ id: uid, // @ts-ignore
+                  email: email || null }, { onConflict: 'id' })
+                if ((u1 as any)?.error) { try { console.error('[EnsureProfile:auth] upsert error:', (u1 as any).error) } catch {} }
+              } catch (e:any) { try { console.error('[EnsureProfile:auth] upsert throw:', e?.message || e) } catch {} }
+              try {
+                const { data } = await supabase!.from('profiles').select('id').eq('id', uid).maybeSingle()
+                if (!data?.id && email) {
+                  try {
+                    const r = await fetch('/api/profile/merge', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json', 'x-admin-token': 'DEV' },
+                      body: JSON.stringify({ userId: uid, email })
+                    })
+                    try { console.log('[EnsureProfile:auth] merge status:', r.status) } catch {}
+                  } catch (e:any) { try { console.error('[EnsureProfile:auth] merge throw:', e?.message || e) } catch {} }
+                }
+              } catch (e:any) { try { console.error('[EnsureProfile:auth] select throw:', e?.message || e) } catch {} }
+            } catch {}
+          })();
           try { OneSignal.login?.(uid); try { console.log('6. onAuthChange login OK:', uid) } catch {} } catch (e: any) { try { console.log('6. onAuthChange login falhou:', e?.message || e) } catch {} }
           try { OneSignal.setExternalUserId(uid); try { console.log('7. onAuthChange setExternalUserId OK:', uid) } catch {} } catch (e: any) { try { console.log('7. onAuthChange setExternalUserId falhou:', e?.message || e) } catch {} }
           try {
