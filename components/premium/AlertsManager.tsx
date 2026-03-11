@@ -68,6 +68,29 @@ export function AlertsManager() {
     }, 0);
     return () => clearTimeout(t);
   }, []);
+  useEffect(() => {
+    const migrateIfNeeded = async () => {
+      if (!supabase) return
+      const { data: userData } = await supabase.auth.getUser();
+      const user = userData?.user;
+      if (!user) return
+      try {
+        const prefs = await supabase.from("user_alerts").select("keywords").eq("user_id", user.id).limit(1).maybeSingle()
+        const keywords: string[] = Array.isArray(prefs.data?.keywords) ? prefs.data!.keywords.filter((x: any) => typeof x === "string" && x.trim()).map((s: string) => s.trim()) : []
+        if (!keywords.length) return
+        const existing = await supabase.from("search_alerts").select("keyword").eq("user_id", user.id).eq("active", true)
+        const have = new Set<string>((existing.data || []).map((r: any) => String(r.keyword || "").trim().toLowerCase()).filter(Boolean))
+        const missing = keywords.filter((k) => !have.has(String(k).toLowerCase()))
+        if (!missing.length) return
+        const rows = missing.map((k) => ({ user_id: user.id, keyword: k, active: true }))
+        try { await supabase.from("search_alerts").insert(rows) } catch {}
+        await loadAlerts()
+      } catch {}
+    }
+    if (source === "prefs") {
+      migrateIfNeeded()
+    }
+  }, [source])
 
   const handleAddAlert = async () => {
     if (!newKeyword.trim()) return;
@@ -81,6 +104,16 @@ export function AlertsManager() {
       setError("Entre para criar alertas");
       return;
     }
+    try {
+      await supabase.from("profiles").upsert(
+        {
+          id: user.id,
+          // @ts-ignore
+          email: user.email || null,
+        } as any,
+        { onConflict: "id" }
+      );
+    } catch {}
     if (!isPremium && alerts.length >= 3 && source === "table") {
       setError("Limite de 3 alertas no plano gratuito");
       return;

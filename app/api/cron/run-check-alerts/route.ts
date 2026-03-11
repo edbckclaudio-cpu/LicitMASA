@@ -35,7 +35,29 @@ export async function GET(req: Request) {
       headers: { Authorization: `Bearer ${key}` },
       cache: 'no-store',
     })
-    const data = await res.json().catch(() => ({} as any))
+    let data = await res.json().catch(() => ({} as any))
+    try {
+      const inUrl2 = new URL(req.url)
+      const inspect = inUrl2.searchParams.get('inspect') === '1'
+      const email = String(inUrl2.searchParams.get('email') || '').trim().toLowerCase()
+      const admin = String(inUrl2.searchParams.get('admin') || '').trim()
+      if (inspect && email && admin) {
+        const msg = String((data as any)?.error || (data as any)?.data?.error || '')
+        const notFound = (!res.ok && res.status === 404) && /USER_NOT_FOUND/i.test(msg)
+        if (notFound) {
+          try {
+            await fetch(`${new URL(req.url).origin}/api/admin/inspect-user?admin=${encodeURIComponent(admin)}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email }),
+              cache: 'no-store',
+            }).catch(() => null)
+            const res2 = await fetch(target, { method: 'GET', headers: { Authorization: `Bearer ${key}` }, cache: 'no-store' })
+            data = await res2.json().catch(() => ({} as any))
+          } catch {}
+        }
+      }
+    } catch {}
     let onesignal: any = null
     let onesignal_debug: any = null
     const rawKey = process.env.ONESIGNAL_REST_API_KEY || process.env.ONESIGNAL_API_KEY || ''

@@ -6,6 +6,29 @@ export default function ServiceWorkerRegister() {
   const [canInstall, setCanInstall] = useState(false)
   const [promptEvent, setPromptEvent] = useState<any>(null)
 
+  const getSubIdWithRetry = async (): Promise<string | null> => {
+    try {
+      const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
+      let pid: string | null = null
+      const tryRead = async () => {
+        try {
+          const p1 = (OneSignal as any)?.User?.pushSubscriptionId
+          const p2 = OneSignal?.User?.PushSubscription?.id
+          const p3 = await OneSignal?.getSubscriptionId?.()
+          pid = String(p1 || p2 || p3 || '') || null
+        } catch {}
+        return pid
+      }
+      for (let i = 0; i < 10; i++) {
+        const got = await tryRead()
+        if (got) return got
+        try { await OneSignal?.User?.pushSubscription?.optIn?.() } catch {}
+        await new Promise((r) => setTimeout(r, 800))
+      }
+      return pid
+    } catch { return null }
+  }
+
   useEffect(() => {
     if (typeof window === 'undefined') return
   }, [])
@@ -46,8 +69,63 @@ export default function ServiceWorkerRegister() {
         try {
           const ud = await supabase?.auth.getUser()
           const uid = ud?.data?.user?.id
+          const uemail = ud?.data?.user?.email || null
+          const getSubIdWithRetry = async (): Promise<string | null> => {
+            try {
+              let pid: string | null = null
+              const tryRead = async () => {
+                try {
+                  const p1 = (OneSignal as any)?.User?.pushSubscriptionId
+                  const p2 = OneSignal?.User?.PushSubscription?.id
+                  const p3 = await OneSignal?.getSubscriptionId?.()
+                  pid = String(p1 || p2 || p3 || '') || null
+                } catch {}
+                return pid
+              }
+              for (let i = 0; i < 10; i++) {
+                const got = await tryRead()
+                if (got) return got
+                try { await OneSignal?.User?.pushSubscription?.optIn?.() } catch {}
+                await new Promise((r) => setTimeout(r, 800))
+              }
+              return pid
+            } catch { return null }
+          }
+          const ensureProfile = async () => {
+            try {
+              if (supabase && uid) {
+                try { await supabase.from('profiles').upsert({ id: uid, // @ts-ignore
+                  email: uemail || null }, { onConflict: 'id' }) } catch {}
+                try {
+                  const { data } = await supabase.from('profiles').select('id').eq('id', uid).maybeSingle()
+                  if (!data?.id && uemail) {
+                    await fetch('/api/profile/merge', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json', 'x-admin-token': 'DEV' },
+                      body: JSON.stringify({ userId: uid, email: uemail })
+                    }).catch(() => {})
+                  }
+                } catch {}
+              }
+            } catch {}
+          }
+          const migrateAlertsToTable = async () => {
+            try {
+              if (!supabase || !uid) return
+              const prefs = await supabase.from('user_alerts').select('keywords').eq('user_id', uid).limit(1).maybeSingle()
+              const keywords: string[] = Array.isArray(prefs.data?.keywords) ? prefs.data!.keywords.filter((x: any) => typeof x === 'string' && x.trim()).map((s: string) => s.trim()) : []
+              if (!keywords.length) return
+              const existing = await supabase.from('search_alerts').select('keyword').eq('user_id', uid).eq('active', true)
+              const have = new Set<string>((existing.data || []).map((r: any) => String(r.keyword || '').trim().toLowerCase()).filter(Boolean))
+              const missing = keywords.filter((k) => !have.has(String(k).toLowerCase()))
+              if (!missing.length) return
+              const rows = missing.map((k) => ({ user_id: uid, keyword: k, active: true }))
+              try { await supabase.from('search_alerts').insert(rows) } catch {}
+            } catch {}
+          }
           const sync = async () => {
             try {
+              await ensureProfile()
               let pid: string | null = null
               try {
                 const p1 = (OneSignal as any)?.User?.pushSubscriptionId
@@ -56,20 +134,20 @@ export default function ServiceWorkerRegister() {
                 pid = String(p1 || p2 || p3 || '') || null
               } catch {}
               if (!pid) {
-                try { await OneSignal?.User?.pushSubscription?.optIn?.() } catch {}
-                await new Promise((r) => setTimeout(r, 400))
-                try {
-                  const p1b = (OneSignal as any)?.User?.pushSubscriptionId
-                  const p2b = OneSignal?.User?.PushSubscription?.id
-                  const p3b = await OneSignal?.getSubscriptionId?.()
-                  pid = String(p1b || p2b || p3b || '') || null
-                } catch {}
+                pid = await getSubIdWithRetry()
               }
               if (uid && pid) {
-                try { if (supabase) await supabase.from('profiles').update({ subscription_id: String(pid) }).eq('id', uid) } catch {}
+                try {
+                  if (supabase) {
+                    try { await supabase.from('profiles').upsert({ id: uid, // @ts-ignore
+                      email: ud?.data?.user?.email || null }, { onConflict: 'id' }) } catch {}
+                    await supabase.from('profiles').update({ subscription_id: String(pid), onesignal_id: String(pid) }).eq('id', uid)
+                  }
+                } catch {}
                 try { if (supabase) await supabase.from('user_alerts').upsert({ user_id: uid, fcm_token: String(pid) }, { onConflict: 'user_id' }) } catch {}
                 try { console.log('OneSignal ID sincronizado:', pid) } catch {}
               }
+              await migrateAlertsToTable()
             } catch {}
           }
           try { await sync() } catch {}
@@ -134,6 +212,22 @@ export default function ServiceWorkerRegister() {
           try {
             const sync = async () => {
               try {
+                try {
+                  if (supabase) {
+                    try { await supabase.from('profiles').upsert({ id: user.id, // @ts-ignore
+                      email: user.email || null }, { onConflict: 'id' }) } catch {}
+                    try {
+                      const { data } = await supabase.from('profiles').select('id').eq('id', user.id).maybeSingle()
+                      if (!data?.id && user.email) {
+                        await fetch('/api/profile/merge', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json', 'x-admin-token': 'DEV' },
+                          body: JSON.stringify({ userId: user.id, email: user.email })
+                        }).catch(() => {})
+                      }
+                    } catch {}
+                  }
+                } catch {}
                 let pid: string | null = null
                 try {
                   const p1 = (OneSignal as any)?.User?.pushSubscriptionId
@@ -142,19 +236,33 @@ export default function ServiceWorkerRegister() {
                   pid = String(p1 || p2 || p3 || '') || null
                 } catch {}
                 if (!pid) {
-                  try { await OneSignal?.User?.pushSubscription?.optIn?.() } catch {}
-                  await new Promise((r) => setTimeout(r, 400))
-                  try {
-                    const p1b = (OneSignal as any)?.User?.pushSubscriptionId
-                    const p2b = OneSignal?.User?.PushSubscription?.id
-                    const p3b = await OneSignal?.getSubscriptionId?.()
-                    pid = String(p1b || p2b || p3b || '') || null
-                  } catch {}
+                  pid = await getSubIdWithRetry()
                 }
                 if (pid) {
-                  try { if (supabase) await supabase.from('profiles').update({ subscription_id: String(pid) }).eq('id', user.id) } catch {}
+                  try {
+                    if (supabase) {
+                      try { await supabase.from('profiles').upsert({ id: user.id, // @ts-ignore
+                        email: user.email || null }, { onConflict: 'id' }) } catch {}
+                      await supabase.from('profiles').update({ subscription_id: String(pid), onesignal_id: String(pid) }).eq('id', user.id)
+                    }
+                  } catch {}
                   try { if (supabase) await supabase.from('user_alerts').upsert({ user_id: user.id, fcm_token: String(pid) }, { onConflict: 'user_id' }) } catch {}
                 }
+                try {
+                  if (supabase) {
+                    const prefs = await supabase.from('user_alerts').select('keywords').eq('user_id', user.id).limit(1).maybeSingle()
+                    const keywords: string[] = Array.isArray(prefs.data?.keywords) ? prefs.data!.keywords.filter((x: any) => typeof x === 'string' && x.trim()).map((s: string) => s.trim()) : []
+                    if (keywords.length) {
+                      const existing = await supabase.from('search_alerts').select('keyword').eq('user_id', user.id).eq('active', true)
+                      const have = new Set<string>((existing.data || []).map((r: any) => String(r.keyword || '').trim().toLowerCase()).filter(Boolean))
+                      const missing = keywords.filter((k) => !have.has(String(k).toLowerCase()))
+                      if (missing.length) {
+                        const rows = missing.map((k) => ({ user_id: user.id, keyword: k, active: true }))
+                        try { await supabase.from('search_alerts').insert(rows) } catch {}
+                      }
+                    }
+                  }
+                } catch {}
               } catch {}
             }
             try { sync() } catch {}
@@ -171,6 +279,23 @@ export default function ServiceWorkerRegister() {
           try {
             const sync = async () => {
               try {
+                try {
+                  const email = session?.user?.email || null
+                  if (supabase) {
+                    try { await supabase.from('profiles').upsert({ id: uid, // @ts-ignore
+                      email: email || null }, { onConflict: 'id' }) } catch {}
+                    try {
+                      const { data } = await supabase.from('profiles').select('id').eq('id', uid).maybeSingle()
+                      if (!data?.id && email) {
+                        await fetch('/api/profile/merge', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json', 'x-admin-token': 'DEV' },
+                          body: JSON.stringify({ userId: uid, email })
+                        }).catch(() => {})
+                      }
+                    } catch {}
+                  }
+                } catch {}
                 let pid: string | null = null
                 try {
                   const p1 = (OneSignal as any)?.User?.pushSubscriptionId
@@ -179,19 +304,32 @@ export default function ServiceWorkerRegister() {
                   pid = String(p1 || p2 || p3 || '') || null
                 } catch {}
                 if (!pid) {
-                  try { await OneSignal?.User?.pushSubscription?.optIn?.() } catch {}
-                  await new Promise((r) => setTimeout(r, 400))
-                  try {
-                    const p1b = (OneSignal as any)?.User?.pushSubscriptionId
-                    const p2b = OneSignal?.User?.PushSubscription?.id
-                    const p3b = await OneSignal?.getSubscriptionId?.()
-                    pid = String(p1b || p2b || p3b || '') || null
-                  } catch {}
+                  pid = await getSubIdWithRetry()
                 }
                 if (pid) {
-                  try { if (supabase) await supabase.from('profiles').update({ subscription_id: String(pid) }).eq('id', uid) } catch {}
+                try {
+                  if (supabase) {
+                    try { await supabase.from('profiles').upsert({ id: uid }, { onConflict: 'id' }) } catch {}
+                    await supabase.from('profiles').update({ subscription_id: String(pid), onesignal_id: String(pid) }).eq('id', uid)
+                  }
+                } catch {}
                   try { if (supabase) await supabase.from('user_alerts').upsert({ user_id: uid, fcm_token: String(pid) }, { onConflict: 'user_id' }) } catch {}
                 }
+                try {
+                  if (supabase) {
+                    const prefs = await supabase.from('user_alerts').select('keywords').eq('user_id', uid).limit(1).maybeSingle()
+                    const keywords: string[] = Array.isArray(prefs.data?.keywords) ? prefs.data!.keywords.filter((x: any) => typeof x === 'string' && x.trim()).map((s: string) => s.trim()) : []
+                    if (keywords.length) {
+                      const existing = await supabase.from('search_alerts').select('keyword').eq('user_id', uid).eq('active', true)
+                      const have = new Set<string>((existing.data || []).map((r: any) => String(r.keyword || '').trim().toLowerCase()).filter(Boolean))
+                      const missing = keywords.filter((k) => !have.has(String(k).toLowerCase()))
+                      if (missing.length) {
+                        const rows = missing.map((k) => ({ user_id: uid, keyword: k, active: true }))
+                        try { await supabase.from('search_alerts').insert(rows) } catch {}
+                      }
+                    }
+                  }
+                } catch {}
               } catch {}
             }
             try { sync() } catch {}

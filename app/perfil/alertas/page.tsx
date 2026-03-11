@@ -813,6 +813,15 @@ export default function AlertasPage() {
       return
     }
     if (data?.id) setSavedId(String(data.id))
+    try {
+      const existing = await supabase.from('search_alerts').select('keyword').eq('user_id', userId).eq('active', true)
+      const have = new Set<string>((existing.data || []).map((r: any) => String(r.keyword || '').trim().toLowerCase()).filter(Boolean))
+      const toAdd = (keywords || []).map((k) => String(k || '').trim()).filter(Boolean).filter((k) => !have.has(k.toLowerCase()))
+      if (toAdd.length) {
+        const rows = toAdd.map((k) => ({ user_id: userId, keyword: k, active: true }))
+        try { await supabase.from('search_alerts').insert(rows) } catch {}
+      }
+    } catch {}
     alert('Preferências salvas')
     try { window.location.reload() } catch {}
   }

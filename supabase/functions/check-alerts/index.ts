@@ -184,6 +184,207 @@ serve(async (req: Request) => {
   const supabase = createClient(url, key)
   const now = new Date()
   const reqUrl = new URL(req.url)
+  if (reqUrl.searchParams.get("inspect") === "1") {
+    const admin = String(reqUrl.searchParams.get("admin") || "")
+    const expected = String(Deno.env.get("ADMIN_TOKEN") || "DEV")
+    if (admin !== expected) {
+      return new Response(JSON.stringify({ ok: false, error: "UNAUTHORIZED" }), { status: 401 })
+    }
+    const email = String(reqUrl.searchParams.get("email") || "").trim().toLowerCase()
+    const q = String(reqUrl.searchParams.get("q") || "").trim().toLowerCase()
+    let cfg: any = {}
+    try {
+      const u = new URL(url)
+      const host = u.hostname
+      const ref = host.split(".")[0]
+      cfg = { url_host: host, project_ref: ref || null }
+    } catch { cfg = { url_host: null, project_ref: null } }
+    let uid: string | null = null
+    let profile: any = null
+    if (email) {
+      const { data } = await supabase.from("profiles").select("id,email,subscription_id,onesignal_id").eq("email", email).limit(1).maybeSingle()
+      if (data?.id) { uid = String(data.id); profile = data }
+    }
+    if (!uid && q) {
+      const { data } = await supabase.from("profiles").select("id,email,subscription_id,onesignal_id").ilike("email", `%${q}%`).limit(1)
+      if (data && data[0]?.id) { uid = String(data[0].id); profile = data[0] }
+    }
+    if (!uid && email) {
+      const { data } = await supabase.from("profiles").select("id,email,subscription_id,onesignal_id").ilike("email", `%${email}%`).limit(1)
+      if (data && data[0]?.id) { uid = String(data[0].id); profile = data[0] }
+    }
+    if (!uid && email) {
+      const local = email.split("@")[0]
+      if (local) {
+        const { data } = await supabase.from("profiles").select("id,email,subscription_id,onesignal_id").ilike("email", `%${local}%`).limit(1)
+        if (data && data[0]?.id) { uid = String(data[0].id); profile = data[0] }
+      }
+    }
+    if (!uid && email) {
+      try {
+        const authClient = createClient(url, key, { db: { schema: "auth" } } as any)
+        const { data: authUser } = await authClient.from("users").select("id,email").eq("email", email).limit(1).maybeSingle()
+        if (authUser?.id) {
+          uid = String(authUser.id)
+          try {
+            await supabase.from("profiles").upsert({ id: uid, email }, { onConflict: "id" })
+            const { data: prof2 } = await supabase.from("profiles").select("id,email,subscription_id,onesignal_id").eq("id", uid).limit(1).maybeSingle()
+            profile = prof2 || null
+          } catch {}
+        }
+      } catch {}
+    }
+    if (!uid) {
+      let near: any[] = []
+      let probeErr: string | null = null
+      try {
+        const local = String(email).split("@")[0]
+        if (local) {
+          const probe = await supabase.from("profiles").select("id,email").ilike("email", `%${local}%`).limit(5)
+          near = Array.isArray(probe.data) ? probe.data : []
+          if (probe.error) probeErr = String(probe.error.message || "SELECT_ERROR")
+        }
+      } catch {}
+      if (!uid && near.length > 0 && near[0]?.id) {
+        uid = String(near[0].id)
+        try {
+          const { data: prof2 } = await supabase.from("profiles").select("id,email,subscription_id,onesignal_id").eq("id", uid).limit(1).maybeSingle()
+          profile = prof2 || null
+        } catch {}
+      }
+      if (!uid) {
+        return new Response(JSON.stringify({ ok: false, error: "USER_NOT_FOUND", diag: { email, near, config: cfg, probe_error: probeErr } }), { status: 404 })
+      }
+    }
+    if (!profile) {
+      const { data } = await supabase.from("profiles").select("id,email,subscription_id,onesignal_id").eq("id", uid).limit(1).maybeSingle()
+      profile = data || null
+    }
+    let { data: sAlerts, error: sErr } = await supabase.from("search_alerts").select("id,keyword,uf,active,created_at").eq("user_id", uid).order("created_at", { ascending: false })
+    const { data: uAlerts } = await supabase.from("user_alerts").select("keywords,ufs,fcm_token,ativo,push_notificacao,updated_at").eq("user_id", uid).limit(1).maybeSingle()
+    let diagInsertErr: string | null = null
+    try {
+      const doNormalize = String(reqUrl.searchParams.get("normalize") || "") === "1"
+      if (doNormalize && Array.isArray(sAlerts) && sAlerts.length) {
+        const byLower: Record<string, string> = {}
+        for (const r of sAlerts) {
+          const k = String((r as any)?.keyword || "")
+          byLower[k.trim().toLowerCase()] = String((r as any)?.id)
+        }
+        for (const r of sAlerts) {
+          const id = String((r as any)?.id || "")
+          const k = String((r as any)?.keyword || "").trim()
+          if (!id || !k) continue
+          if (/%[0-9A-Fa-f]{2}/.test(k)) {
+            try {
+              const dec = decodeURIComponent(k)
+              if (dec && dec !== k) {
+                const exists = !!byLower[dec.trim().toLowerCase()]
+                if (exists) {
+                  await supabase.from("search_alerts").delete().eq("id", id)
+                } else {
+                  await supabase.from("search_alerts").update({ keyword: dec }).eq("id", id)
+                }
+              }
+            } catch {}
+          }
+        }
+        const reload = await supabase.from("search_alerts").select("id,keyword,uf,active,created_at").eq("user_id", uid).order("created_at", { ascending: false })
+        if (Array.isArray(reload.data)) sAlerts = reload.data
+      }
+    } catch {}
+    try {
+      const kw = Array.isArray((uAlerts as any)?.keywords) ? ((uAlerts as any).keywords as any[]).map((x) => String(x || "").trim()).filter((s) => !!s) : []
+      const have = new Set<string>(Array.isArray(sAlerts) ? sAlerts.map((r: any) => String(r.keyword || "").trim().toLowerCase()).filter(Boolean) : [])
+      const missing = kw.filter((k) => !have.has(k.toLowerCase()))
+      if (missing.length > 0) {
+        const rows = missing.map((k) => ({ user_id: uid, keyword: k, active: true }))
+        try { 
+          const r2 = await supabase.from("search_alerts").insert(rows as any)
+          if (r2.error) diagInsertErr = String(r2.error.message || "INSERT_ERROR")
+        } catch (e2: any) { diagInsertErr = String(e2?.message || "INSERT_THROWN") }
+        const reload = await supabase.from("search_alerts").select("id,keyword,uf,active,created_at").eq("user_id", uid).order("created_at", { ascending: false })
+        if (Array.isArray(reload.data)) sAlerts = reload.data
+      }
+    } catch {}
+    try {
+      let kwParam = String(reqUrl.searchParams.get("kw") || "").trim()
+      try { if (/%[0-9A-Fa-f]{2}/.test(kwParam)) kwParam = decodeURIComponent(kwParam) } catch {}
+      if (kwParam) {
+        const parts = kwParam.split(/[,\s]+/).map((s) => s.trim()).filter(Boolean)
+        if (parts.length > 0) {
+          const have = new Set<string>(Array.isArray(sAlerts) ? sAlerts.map((r: any) => String(r.keyword || "").trim().toLowerCase()).filter(Boolean) : [])
+          const add = parts.filter((k) => !have.has(k.toLowerCase()))
+          if (add.length > 0) {
+            const rows = add.map((k) => ({ user_id: uid, keyword: k, active: true }))
+            try { 
+              const r2 = await supabase.from("search_alerts").insert(rows as any)
+              if (r2.error) diagInsertErr = String(r2.error.message || "INSERT_ERROR")
+            } catch (e2: any) { diagInsertErr = String(e2?.message || "INSERT_THROWN") }
+            const reload = await supabase.from("search_alerts").select("id,keyword,uf,active,created_at").eq("user_id", uid).order("created_at", { ascending: false })
+            if (Array.isArray(reload.data)) sAlerts = reload.data
+          }
+        }
+      }
+    } catch {}
+    return new Response(JSON.stringify({
+      ok: true,
+      userId: uid,
+      profile: profile || null,
+      search_alerts: sAlerts || [],
+      user_alerts: uAlerts || null,
+      fallback_used: Boolean(!sAlerts || (Array.isArray(sAlerts) && sAlerts.length === 0)),
+      select_error: sErr ? String(sErr.message || "SELECT_ERROR") : null,
+      insert_error: diagInsertErr
+    }), { headers: { "Content-Type": "application/json" } })
+  }
+  if (reqUrl.searchParams.get("runs") === "1") {
+    const admin = String(reqUrl.searchParams.get("admin") || "")
+    const expected = String(Deno.env.get("ADMIN_TOKEN") || "DEV")
+    if (admin !== expected) {
+      return new Response(JSON.stringify({ ok: false, error: "UNAUTHORIZED" }), { status: 401 })
+    }
+    let uid = String(reqUrl.searchParams.get("userId") || "")
+    const email = String(reqUrl.searchParams.get("email") || "")
+    const q = String(reqUrl.searchParams.get("q") || "")
+    if (!uid) {
+      if (email) {
+        const { data: prof } = await supabase.from("profiles").select("id,email,updated_at").eq("email", email).order("updated_at", { ascending: false }).limit(1).maybeSingle()
+        uid = String((prof as any)?.id || "")
+      } else if (q) {
+        const { data: profs } = await supabase.from("profiles").select("id,email,updated_at").ilike("email", `%${q}%`).order("updated_at", { ascending: false }).limit(5)
+        uid = String((profs && profs[0] && (profs[0] as any).id) || "")
+      }
+    }
+    const all = String(reqUrl.searchParams.get("all") || "") === "1"
+    let data: any[] | null = null
+    let error: any = null
+    if (all && !uid) {
+      const q = await supabase
+        .from("alert_runs")
+        .select("created_at,keyword,uf,found_count,notified_count,channel,error,user_id")
+        .order("created_at", { ascending: false })
+        .limit(20)
+      data = q.data || []
+      error = q.error || null
+    } else {
+      if (!uid) {
+        return new Response(JSON.stringify({ ok: false, error: "USER_NOT_FOUND" }), { status: 404 })
+      }
+      const q = await supabase
+        .from("alert_runs")
+        .select("created_at,keyword,uf,found_count,notified_count,channel,error")
+        .eq("user_id", uid)
+        .order("created_at", { ascending: false })
+        .limit(20)
+      data = q.data || []
+      error = q.error || null
+    }
+    if (error) {
+      return new Response(JSON.stringify({ ok: false, error: error.message }), { status: 500 })
+    }
+    return new Response(JSON.stringify({ ok: true, userId: uid || null, rows: data || [] }), { headers: { "Content-Type": "application/json" } })
+  }
   const isPreview = reqUrl.searchParams.get("preview") === "1"
   const backDays = isPreview ? 7 : 2
   const testMode = reqUrl.searchParams.get("test") === "1"
@@ -299,6 +500,21 @@ serve(async (req: Request) => {
   try {
     console.log(`[check-alerts] total de alertas agregados (allAlerts):`, Array.isArray(allAlerts) ? allAlerts.length : 0)
   } catch {}
+  try {
+    const filterUserId = String(reqUrl.searchParams.get("userId") || "").trim()
+    const filterEmail = String(reqUrl.searchParams.get("email") || "").trim().toLowerCase()
+    let targetUserId = filterUserId
+    if (!targetUserId && filterEmail) {
+      try {
+        const { data: prof } = await supabase.from("profiles").select("id,email").eq("email", filterEmail).limit(1).maybeSingle()
+        targetUserId = String((prof as any)?.id || "")
+      } catch {}
+    }
+    if (targetUserId) {
+      allAlerts = (allAlerts || []).filter(a => String(a.user_id) === targetUserId)
+      try { console.log(`[check-alerts] filtrando por usuário ${targetUserId}; total após filtro: ${allAlerts.length}`) } catch {}
+    }
+  } catch {}
   for (const alert of allAlerts || []) {
     try {
       console.log(`[check-alerts] Iniciando busca para o usuário ${alert.user_id} com a palavra "${alert.keyword}"${alert.uf ? ` e UF "${alert.uf}"` : ''}`)
@@ -306,7 +522,23 @@ serve(async (req: Request) => {
     processed++
     const items = await fetchPNCP({ termo: alert.keyword, uf: alert.uf || undefined, dataInicial, dataFinal })
     const ids = items.map((it: any) => String(it.numeroControlePNCP || it.linkEdital || it.id || `${it.orgao}-${it.objeto}-${it.dataPublicacao}`))
-    if (ids.length === 0) continue
+    if (ids.length === 0) {
+      try {
+        if (alert.id) {
+          await supabase.from("alert_runs").insert({
+            alert_id: alert.id,
+            user_id: alert.user_id,
+            keyword: alert.keyword,
+            uf: alert.uf || null,
+            found_count: 0,
+            notified_count: 0,
+            channel: "none",
+            error: null,
+          })
+        }
+      } catch {}
+      continue
+    }
     const { data: already } = await supabase
       .from("sent_alerts")
       .select("pncp_id")
@@ -322,24 +554,39 @@ serve(async (req: Request) => {
         newIds.push(id)
       }
     }
-    if (newItems.length === 0) continue
-    // Busca e-mail opcionalmente (somente para fallback de canal por e-mail)
+    if (newItems.length === 0) {
+      try {
+        if (alert.id) {
+          await supabase.from("alert_runs").insert({
+            alert_id: alert.id,
+            user_id: alert.user_id,
+            keyword: alert.keyword,
+            uf: alert.uf || null,
+            found_count: 0,
+            notified_count: 0,
+            channel: "none",
+            error: null,
+          })
+        }
+      } catch {}
+      continue
+    }
+    // Busca e-mail opcionalmente (fallback de canal por e-mail)
     let to = ""
     try {
       const { data: prof } = await supabase.from("profiles").select("email").eq("id", alert.user_id).limit(1).maybeSingle()
       to = String((prof as any)?.email || "")
     } catch {}
-    if (to) {
-      const subject = `Novas publicações: ${alert.keyword}${alert.uf ? ` • ${alert.uf}` : ""}`
-      const listHtml = newItems.slice(0, 10).map((it: any) => {
-        const modalidade = String(pick(it, ["modalidade","modalidadeContratacao","modalidadeCompra","descricaoModalidade"], "Modalidade"))
-        const orgao = String(pick(it, ["orgao","orgaoPublico","nomeUnidadeAdministrativa","uasgNome","entidade"], "Órgão"))
-        const objeto = String(pick(it, ["objeto","descricao","resumo","texto"], "Objeto"))
-        const valor = currencyBRL(pick(it, ["valorEstimado","valorTotalEstimado","valor","valorContratacao"], 0))
-        const dataPub = String(pick(it, ["dataPublicacao","dataInclusao","data"], "")).slice(0, 10)
-        const edital = String(pick(it, ["linkEdital","url","link"], ""))
-        const link = edital || `https://pncp.gov.br/`
-        return `
+    const subject = `Novas publicações: ${alert.keyword}${alert.uf ? ` • ${alert.uf}` : ""}`
+    const listHtml = newItems.slice(0, 10).map((it: any) => {
+      const modalidade = String(pick(it, ["modalidade","modalidadeContratacao","modalidadeCompra","descricaoModalidade"], "Modalidade"))
+      const orgao = String(pick(it, ["orgao","orgaoPublico","nomeUnidadeAdministrativa","uasgNome","entidade"], "Órgão"))
+      const objeto = String(pick(it, ["objeto","descricao","resumo","texto"], "Objeto"))
+      const valor = currencyBRL(pick(it, ["valorEstimado","valorTotalEstimado","valor","valorContratacao"], 0))
+      const dataPub = String(pick(it, ["dataPublicacao","dataInclusao","data"], "")).slice(0, 10)
+      const edital = String(pick(it, ["linkEdital","url","link"], ""))
+      const link = edital || `https://pncp.gov.br/`
+      return `
           <li style="margin-bottom:12px">
             <div style="font-weight:600;color:#0f1e45">${modalidade} • ${orgao}</div>
             <div style="color:#333">${objeto}</div>
@@ -347,8 +594,8 @@ serve(async (req: Request) => {
             <div><a href="${link}" target="_blank" style="color:#0b5bd7;text-decoration:none">Ver edital</a></div>
           </li>
         `
-      }).join("")
-      const html = `
+    }).join("")
+    const html = `
         <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Helvetica,Arial,sans-serif;max-width:640px;margin:0 auto;padding:16px">
           <h2 style="margin:0 0 8px;color:#0f1e45">Alertas PNCP</h2>
           <p style="margin:0 0 12px;color:#333">Encontramos ${newItems.length} novas publicações nos últimos 3 dias para "<strong>${alert.keyword}</strong>" ${alert.uf ? `em <strong>${alert.uf}</strong>` : ""}.</p>
@@ -356,51 +603,62 @@ serve(async (req: Request) => {
           <p style="margin-top:16px;color:#666;font-size:12px">Você está recebendo este alerta porque ativou monitoramento no LicitAção.</p>
         </div>
       `
-      let channel: "email" | "push" | "none" = "none"
-      let err: string | null = null
-      const pr = await sendPush(String(alert.user_id), subject, `Encontradas ${newItems.length} publicações para "${alert.keyword}"`, undefined)
-      lastOneSignal = pr
-      if (pr.ok) {
-        channel = "push"
+    let channel: "email" | "push" | "none" = "none"
+    let err: string | null = null
+    const pr = await sendPush(String(alert.user_id), subject, `Encontradas ${newItems.length} publicações para "${alert.keyword}"`, undefined)
+    lastOneSignal = pr
+    if (pr.ok) {
+      channel = "push"
+      notified++
+      const rows = newIds.map((pncp_id) => ({ user_id: alert.user_id, pncp_id }))
+      if (rows.length > 0) {
+        await supabase.from("sent_alerts").insert(rows)
+      }
+    } else if (to) {
+      const er = await sendEmail(to, subject, html)
+      if (er.ok) {
+        channel = "email"
         notified++
         const rows = newIds.map((pncp_id) => ({ user_id: alert.user_id, pncp_id }))
         if (rows.length > 0) {
           await supabase.from("sent_alerts").insert(rows)
         }
       } else {
-        const er = await sendEmail(to, subject, html)
-        if (er.ok) {
-          channel = "email"
-          notified++
-          const rows = newIds.map((pncp_id) => ({ user_id: alert.user_id, pncp_id }))
-          if (rows.length > 0) {
-            await supabase.from("sent_alerts").insert(rows)
+        try {
+          if (lastOneSignal?.json?.errors || lastOneSignal?.json?.warnings) {
+            err = JSON.stringify(lastOneSignal.json.errors || lastOneSignal.json.warnings)
+          } else if (lastOneSignal?.body) {
+            err = String(lastOneSignal.body)
+          } else {
+            err = `send_push_failed_status_${String(lastOneSignal?.status || 'unknown')}`
           }
-        } else {
-          try {
-            if (lastOneSignal?.json?.errors || lastOneSignal?.json?.warnings) {
-              err = JSON.stringify(lastOneSignal.json.errors || lastOneSignal.json.warnings)
-            } else if (lastOneSignal?.body) {
-              err = String(lastOneSignal.body)
-            } else {
-              err = `send_push_failed_status_${String(lastOneSignal?.status || 'unknown')}`
-            }
-          } catch {
-            err = "no_channel_or_failed"
-          }
+        } catch {
+          err = "no_channel_or_failed"
         }
       }
-      await supabase.from("alert_runs").insert({
-        alert_id: alert.id,
-        user_id: alert.user_id,
-        keyword: alert.keyword,
-        uf: alert.uf || null,
-        found_count: newItems.length,
-        notified_count: channel === "none" ? 0 : newIds.length,
-        channel,
-        error: err,
-      })
+    } else {
+      try {
+        if (lastOneSignal?.json?.errors || lastOneSignal?.json?.warnings) {
+          err = JSON.stringify(lastOneSignal.json.errors || lastOneSignal.json.warnings)
+        } else if (lastOneSignal?.body) {
+          err = String(lastOneSignal.body)
+        } else {
+          err = `send_push_failed_status_${String(lastOneSignal?.status || 'unknown')}`
+        }
+      } catch {
+        err = "no_channel_or_failed"
+      }
     }
+    await supabase.from("alert_runs").insert({
+      alert_id: alert.id,
+      user_id: alert.user_id,
+      keyword: alert.keyword,
+      uf: alert.uf || null,
+      found_count: newItems.length,
+      notified_count: channel === "none" ? 0 : newIds.length,
+      channel,
+      error: err,
+    })
   }
   const startISO = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())).toISOString().slice(0, 10)
   const endISO = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate() + 5)).toISOString().slice(0, 10)
