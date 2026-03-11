@@ -24,3 +24,10 @@ export function buildAuthRedirect(path: string = '/perfil') {
     return `${(siteEnv || 'https://www.licitmasa.com.br')}${clean}`
   }
 }
+
+try {
+  const mask = (s: string) => s ? `${s.slice(0, 4)}...${s.slice(-3)}` : ''
+  const host = typeof window !== 'undefined' ? window.location.hostname : ''
+  console.log('[SupabaseClient] url set:', !!url, 'key len:', key ? key.length : 0, 'host:', host, 'url prefix:', url ? url.slice(0, 30) : '')
+  if (!supabase) console.error('[SupabaseClient] supabase client is null. Check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.')
+} catch {}

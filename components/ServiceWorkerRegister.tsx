@@ -70,6 +70,10 @@ export default function ServiceWorkerRegister() {
           const ud = await supabase?.auth.getUser()
           const uid = ud?.data?.user?.id
           const uemail = ud?.data?.user?.email || null
+          try {
+            const hasClient = !!supabase
+            console.log('Auto-Sync status:', { hasClient, uid, uemail })
+          } catch {}
           const getSubIdWithRetry = async (): Promise<string | null> => {
             try {
               let pid: string | null = null
@@ -139,12 +143,23 @@ export default function ServiceWorkerRegister() {
               if (uid && pid) {
                 try {
                   if (supabase) {
-                    try { await supabase.from('profiles').upsert({ id: uid, // @ts-ignore
-                      email: ud?.data?.user?.email || null }, { onConflict: 'id' }) } catch {}
-                    await supabase.from('profiles').update({ subscription_id: String(pid), onesignal_id: String(pid) }).eq('id', uid)
+                    try { 
+                      const u1 = await supabase.from('profiles').upsert({ id: uid, // @ts-ignore
+                        email: ud?.data?.user?.email || null }, { onConflict: 'id' })
+                      if ((u1 as any)?.error) { try { console.error('profiles upsert error:', (u1 as any).error) } catch {} }
+                    } catch (e:any) { try { console.error('profiles upsert throw:', e?.message || e) } catch {} }
+                    try {
+                      const u2 = await supabase.from('profiles').update({ subscription_id: String(pid), onesignal_id: String(pid) }).eq('id', uid)
+                      if ((u2 as any)?.error) { try { console.error('profiles update subId error:', (u2 as any).error) } catch {} }
+                    } catch (e:any) { try { console.error('profiles update subId throw:', e?.message || e) } catch {} }
                   }
                 } catch {}
-                try { if (supabase) await supabase.from('user_alerts').upsert({ user_id: uid, fcm_token: String(pid) }, { onConflict: 'user_id' }) } catch {}
+                try { 
+                  if (supabase) {
+                    const u3 = await supabase.from('user_alerts').upsert({ user_id: uid, fcm_token: String(pid) }, { onConflict: 'user_id' })
+                    if ((u3 as any)?.error) { try { console.error('user_alerts upsert fcm_token error:', (u3 as any).error) } catch {} }
+                  }
+                } catch (e:any) { try { console.error('user_alerts upsert fcm_token throw:', e?.message || e) } catch {} }
                 try { console.log('OneSignal ID sincronizado:', pid) } catch {}
               }
               await migrateAlertsToTable()

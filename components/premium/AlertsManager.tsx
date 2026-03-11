@@ -95,7 +95,8 @@ export function AlertsManager() {
   const handleAddAlert = async () => {
     if (!newKeyword.trim()) return;
     if (!supabase) {
-      setError("Configure o Supabase no .env");
+      setError("Supabase não configurado");
+      try { console.error('Supabase client is null; verifique NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY') } catch {}
       return;
     }
     const { data: userData } = await supabase.auth.getUser();
@@ -105,7 +106,7 @@ export function AlertsManager() {
       return;
     }
     try {
-      await supabase.from("profiles").upsert(
+      const up1 = await supabase.from("profiles").upsert(
         {
           id: user.id,
           // @ts-ignore
@@ -113,7 +114,8 @@ export function AlertsManager() {
         } as any,
         { onConflict: "id" }
       );
-    } catch {}
+      if ((up1 as any)?.error) { try { console.error('profiles upsert error:', (up1 as any).error) } catch {} }
+    } catch (e:any) { try { console.error('profiles upsert throw:', e?.message || e) } catch {} }
     if (!isPremium && alerts.length >= 3 && source === "table") {
       setError("Limite de 3 alertas no plano gratuito");
       return;
@@ -125,10 +127,9 @@ export function AlertsManager() {
         user_id: user.id,
         keyword: newKeyword.trim(),
         active: true,
-      })
-      .select("id, keyword, uf")
-      .single();
-    if (ins.error || !ins.data) {
+      } as any);
+    if (ins.error) {
+      try { console.error("search_alerts insert error:", ins.error) } catch {}
       const nextKeywords = Array.from(new Set([...(alerts.map((a) => a.keyword)), newKeyword.trim().toLowerCase()]));
       const prefs = await supabase
         .from("user_alerts")
@@ -136,7 +137,7 @@ export function AlertsManager() {
         .select("keywords")
         .maybeSingle();
       if (prefs.error || !prefs.data) {
-        setError("Falha ao criar alerta");
+        setError(ins.error?.message || "Falha ao criar alerta");
         setIsLoading(false);
         return;
       }
@@ -146,8 +147,12 @@ export function AlertsManager() {
       setIsLoading(false);
       return;
     }
-    setAlerts([{ id: String(ins.data.id), keyword: String(ins.data.keyword || ""), uf: ins.data.uf || undefined }, ...alerts]);
-    setSource("table");
+    try {
+      await loadAlerts();
+      setSource("table");
+    } catch {
+      setSource("table");
+    }
     setNewKeyword("");
     setIsLoading(false);
   };
