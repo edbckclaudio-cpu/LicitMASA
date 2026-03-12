@@ -26,9 +26,6 @@ export async function POST(req: Request) {
       await supa.from('search_alerts').delete().eq('user_id', userId)
     } catch {}
     try {
-      await supa.from('user_alerts').delete().eq('user_id', userId)
-    } catch {}
-    try {
       await supa.from('user_certificates').delete().eq('user_id', userId)
     } catch {}
     try {
@@ -45,4 +42,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: e?.message || 'UNKNOWN' }, { status: 500 })
   }
 }
-

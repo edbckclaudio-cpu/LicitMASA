@@ -181,7 +181,7 @@ export default function HomePage() {
       const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
       if (OneSignal && user.id) {
         const ext = (user.email || user.id) as string
-        try { OneSignal.push?.(() => { try { OneSignal.login?.(ext) } catch {}; try { OneSignal.setExternalUserId?.(ext) } catch {} }) } catch {}
+        try { OneSignal.push?.(() => { try { OneSignal.login?.(ext) } catch {} }) } catch {}
         let pid: string | null = null
         let attempts = 0
         while (attempts < 10 && !pid) {
@@ -198,8 +198,7 @@ export default function HomePage() {
           attempts++
         }
         if (pid) {
-          try { await supabase.from('profiles').update({ onesignal_id: String(pid) }).eq('id', user.id) } catch {}
-          try { await supabase.from('user_alerts').upsert({ user_id: user.id, fcm_token: String(pid) }, { onConflict: 'user_id' }) } catch {}
+          try { await supabase.from('profiles').update({ subscription_id: String(pid) }).eq('id', user.id) } catch {}
           try { console.log('[Sync] ID sincronizado com sucesso ao iniciar:', pid) } catch {}
         }
       }

@@ -92,7 +92,7 @@ async function resolveTokenByEmailOrUserId(email?: string, userId?: string): Pro
   if (!uid && email) {
     const { data } = await supa
       .from('profiles')
-      .select('id,email,onesignal_id')
+      .select('id,email,subscription_id')
       .eq('email', String(email).trim().toLowerCase())
       .limit(1)
       .maybeSingle()
@@ -101,20 +101,12 @@ async function resolveTokenByEmailOrUserId(email?: string, userId?: string): Pro
   if (!uid) return null
   const { data: prof } = await supa
     .from('profiles')
-    .select('onesignal_id')
+    .select('subscription_id')
     .eq('id', uid)
     .limit(1)
     .maybeSingle()
-  const onesignalId = String((prof as any)?.onesignal_id || '')
-  if (onesignalId) return onesignalId
-  const { data: ua } = await supa
-    .from('user_alerts')
-    .select('fcm_token')
-    .eq('user_id', uid)
-    .limit(1)
-    .maybeSingle()
-  const token = String((ua as any)?.fcm_token || '')
-  return token || null
+  const subId = String((prof as any)?.subscription_id || '')
+  return subId || null
 }
 
 async function resolveLatestSubscribedToken(): Promise<string | null> {
@@ -123,22 +115,12 @@ async function resolveLatestSubscribedToken(): Promise<string | null> {
   try {
     const { data: p } = await supa
       .from('profiles')
-      .select('onesignal_id, updated_at')
-      .not('onesignal_id', 'is', null)
+      .select('subscription_id, updated_at')
+      .not('subscription_id', 'is', null)
       .order('updated_at', { ascending: false })
       .limit(1)
-    const id = String((p && p[0] && (p[0] as any).onesignal_id) || '')
+    const id = String((p && p[0] && (p[0] as any).subscription_id) || '')
     if (id) return id
-  } catch {}
-  try {
-    const { data: ua } = await supa
-      .from('user_alerts')
-      .select('fcm_token, created_at')
-      .not('fcm_token', 'is', null)
-      .order('created_at', { ascending: false })
-      .limit(1)
-    const t = String((ua && ua[0] && (ua[0] as any).fcm_token) || '')
-    if (t) return t
   } catch {}
   return null
 }

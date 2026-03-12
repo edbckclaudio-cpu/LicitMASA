@@ -47,15 +47,8 @@ export function AlertsManager() {
       .eq("active", true)
       .order("created_at", { ascending: false });
     if (sel.error) {
-      const prefs = await supabase
-        .from("user_alerts")
-        .select("keywords")
-        .eq("user_id", user.id)
-        .limit(1)
-        .maybeSingle();
-      const kws = Array.isArray(prefs.data?.keywords) ? prefs.data!.keywords.filter((x: any) => typeof x === "string") : [];
-      setAlerts(kws.map((k: string) => ({ id: k, keyword: k })));
-      setSource("prefs");
+      setAlerts([]);
+      setSource("table");
       return;
     }
     setAlerts((sel.data || []).map((a: any) => ({ id: String(a.id), keyword: String(a.keyword || ""), uf: a.uf || undefined })));
@@ -68,29 +61,7 @@ export function AlertsManager() {
     }, 0);
     return () => clearTimeout(t);
   }, []);
-  useEffect(() => {
-    const migrateIfNeeded = async () => {
-      if (!supabase) return
-      const { data: userData } = await supabase.auth.getUser();
-      const user = userData?.user;
-      if (!user) return
-      try {
-        const prefs = await supabase.from("user_alerts").select("keywords").eq("user_id", user.id).limit(1).maybeSingle()
-        const keywords: string[] = Array.isArray(prefs.data?.keywords) ? prefs.data!.keywords.filter((x: any) => typeof x === "string" && x.trim()).map((s: string) => s.trim()) : []
-        if (!keywords.length) return
-        const existing = await supabase.from("search_alerts").select("keyword").eq("user_id", user.id).eq("active", true)
-        const have = new Set<string>((existing.data || []).map((r: any) => String(r.keyword || "").trim().toLowerCase()).filter(Boolean))
-        const missing = keywords.filter((k) => !have.has(String(k).toLowerCase()))
-        if (!missing.length) return
-        const rows = missing.map((k) => ({ user_id: user.id, keyword: k, active: true }))
-        try { await supabase.from("search_alerts").insert(rows) } catch {}
-        await loadAlerts()
-      } catch {}
-    }
-    if (source === "prefs") {
-      migrateIfNeeded()
-    }
-  }, [source])
+  useEffect(() => {}, [source])
 
   const handleAddAlert = async () => {
     if (!newKeyword.trim()) return;
@@ -130,20 +101,7 @@ export function AlertsManager() {
       } as any);
     if (ins.error) {
       try { console.error("search_alerts insert error:", ins.error) } catch {}
-      const nextKeywords = Array.from(new Set([...(alerts.map((a) => a.keyword)), newKeyword.trim().toLowerCase()]));
-      const prefs = await supabase
-        .from("user_alerts")
-        .upsert({ user_id: user.id, keywords: nextKeywords }, { onConflict: "user_id" })
-        .select("keywords")
-        .maybeSingle();
-      if (prefs.error || !prefs.data) {
-        setError(ins.error?.message || "Falha ao criar alerta");
-        setIsLoading(false);
-        return;
-      }
-      setAlerts(nextKeywords.map((k: string) => ({ id: k, keyword: k })));
-      setSource("prefs");
-      setNewKeyword("");
+      setError(ins.error?.message || "Falha ao criar alerta");
       setIsLoading(false);
       return;
     }
@@ -168,7 +126,6 @@ export function AlertsManager() {
         setAlerts(alerts.filter((a) => a.id !== id));
       } else {
         const next = alerts.filter((a) => a.id !== id).map((a) => a.keyword);
-        await supabase.from("user_alerts").upsert({ user_id: userId, keywords: next }, { onConflict: "user_id" });
         setAlerts(next.map((k: string) => ({ id: k, keyword: k })));
       }
     } catch {

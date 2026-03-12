@@ -29,12 +29,8 @@ export async function requestAndSaveToken(): Promise<string | null> {
     const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY || ''
     const token = await getToken(messaging, { vapidKey }).catch(() => null)
     if (!token || !supabase) return token
-    const { data: userData } = await supabase.auth.getUser()
-    const user = userData?.user
-    if (!user) return token
-    await supabase
-      .from('user_alerts')
-      .upsert({ user_id: user.id, fcm_token: token }, { onConflict: 'user_id' })
+    // Integração original com user_alerts desativada neste projeto (tabela ausente).
+    // Mantemos apenas a solicitação do token para eventuais usos locais.
     return token
   } catch {
     return null

@@ -87,12 +87,12 @@ export async function GET() {
     if (!supa) {
       return NextResponse.json({ ok: false, error: 'SERVICE_KEY_MISSING' }, { status: 500 })
     }
-    const { data: alerts, error } = await supa
-      .from('user_alerts')
-      .select('id,user_id,keywords,ufs,valor_minimo,ativo')
-      .eq('ativo', true)
+    const { data: rows, error } = await supa
+      .from('search_alerts')
+      .select('id,user_id,keyword,uf,active')
+      .eq('active', true)
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 })
-    const userIds = (alerts || []).map((a: any) => String(a.user_id || '')).filter(Boolean)
+    const userIds = Array.from(new Set((rows || []).map((r: any) => String(r.user_id || '')).filter(Boolean)))
     const { data: profs } = await supa
       .from('profiles')
       .select('id,email,is_premium,plan')
@@ -109,13 +109,24 @@ export async function GET() {
     const dataInicial = formatDateYYYYMMDD(new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000))
     let processed = 0
     const out: Array<{ alert_id: string, user_id: string, found: number, push?: { ok: boolean, status: number } }> = []
-    for (const alert of alerts || []) {
-      const premium = premiumByUser[String((alert as any).user_id)] === true
+    const grouped: Record<string, { keywords: Set<string>, ufs: Set<string> }> = {}
+    for (const r of rows || []) {
+      const uid = String((r as any).user_id || '')
+      if (!uid) continue
+      if (!premiumByUser[uid]) continue
+      if (!grouped[uid]) grouped[uid] = { keywords: new Set(), ufs: new Set() }
+      const kw = String((r as any).keyword || '').trim()
+      const uf = ((r as any).uf || null) ? String((r as any).uf) : null
+      if (kw) grouped[uid].keywords.add(kw)
+      if (uf) grouped[uid].ufs.add(uf)
+    }
+    for (const uid of Object.keys(grouped)) {
+      const premium = premiumByUser[uid] === true
       if (!premium) continue
       processed++
-      const kws: string[] = Array.isArray((alert as any).keywords) ? (alert as any).keywords : []
-      const ufs: string[] = Array.isArray((alert as any).ufs) ? (alert as any).ufs : []
-      const minValue = Number((alert as any).valor_minimo || 0)
+      const kws: string[] = Array.from(grouped[uid].keywords)
+      const ufs: string[] = Array.from(grouped[uid].ufs)
+      const minValue = 0
       let totalFound = 0
       const combos = (kws.length ? kws : [undefined]).flatMap((k) => (ufs.length ? ufs : [undefined]).map((u) => ({ k, u })))
       for (const combo of combos) {
@@ -139,12 +150,12 @@ export async function GET() {
       }
       let pushRes: { ok: boolean, status: number } | undefined = undefined
       if (totalFound > 0) {
-        const userId = String((alert as any).user_id || '')
+        const userId = uid
         let subscriptionId: string | null = null
         let externalId: string | null = null
         try {
-          const { data: prof } = await supa.from('profiles').select('id,onesignal_id,email').eq('id', userId).limit(1).maybeSingle()
-          const pid = String((prof as any)?.onesignal_id || '')
+          const { data: prof } = await supa.from('profiles').select('id,subscription_id,email').eq('id', userId).limit(1).maybeSingle()
+          const pid = String((prof as any)?.subscription_id || '')
           if (pid) subscriptionId = pid
           externalId = String((prof as any)?.email || userId)
         } catch {}
@@ -158,7 +169,7 @@ export async function GET() {
         }
         pushRes = sent
       }
-      out.push({ alert_id: String((alert as any).id), user_id: String((alert as any).user_id), found: totalFound, push: pushRes })
+      out.push({ alert_id: null as any, user_id: uid, found: totalFound, push: pushRes })
     }
     return NextResponse.json({ ok: true, processed, results: out })
   } catch (e: any) {

@@ -33,3 +33,6 @@ twa-licitmasa/release.keystore
 
 .vercel
 .env*.local
+.env.local.bak2
+*.bak
+*.bak2

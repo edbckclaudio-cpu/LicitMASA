@@ -112,19 +112,17 @@ export async function GET(req: Request) {
           const { createClient } = await import('@supabase/supabase-js')
           const supa = createClient(pubUrl, svcKey)
           const uid = String((data as any).userId)
-          let prof = await supa.from('profiles').select('id,email,subscription_id,onesignal_id').eq('id', uid).limit(1).maybeSingle()
+          let prof = await supa.from('profiles').select('id,email,subscription_id').eq('id', uid).limit(1).maybeSingle()
           if (!prof?.data?.id && email) {
             try {
               await supa.from('profiles').upsert({ id: uid, email }, { onConflict: 'id' })
             } catch {}
-            prof = await supa.from('profiles').select('id,email,subscription_id,onesignal_id').eq('id', uid).limit(1).maybeSingle()
+            prof = await supa.from('profiles').select('id,email,subscription_id').eq('id', uid).limit(1).maybeSingle()
           }
           const sAlerts = await supa.from('search_alerts').select('id,keyword,uf,active,created_at').eq('user_id', uid).order('created_at', { ascending: false })
-          const uAlerts = await supa.from('user_alerts').select('keywords,ufs,fcm_token,ativo,push_notificacao,updated_at').eq('user_id', uid).limit(1).maybeSingle()
           if (!data || typeof data !== 'object') data = {}
           ;(data as any).profile = prof?.data || null
           ;(data as any).search_alerts = Array.isArray(sAlerts?.data) ? sAlerts?.data : []
-          ;(data as any).user_alerts = uAlerts?.data || null
         }
       }
     } catch {}

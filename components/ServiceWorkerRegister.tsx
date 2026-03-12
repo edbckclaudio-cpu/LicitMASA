@@ -31,24 +31,40 @@ export default function ServiceWorkerRegister() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return
+    try { (window as any).__supabase = supabase } catch {}
   }, [])
   useEffect(() => {
     if (typeof window === 'undefined') return
-    if ('serviceWorker' in navigator) {
-      const isProd = process.env.NODE_ENV === 'production'
-      const host = typeof location !== 'undefined' ? location.hostname : ''
-      const isLocalhost = /^(localhost|127\.0\.0\.1)$/i.test(host)
-      if (!isProd && isLocalhost) {
-        navigator.serviceWorker.getRegistrations()
-          .then((regs) => Promise.all(regs.map((r) => r.unregister())))
-          .catch(() => {})
-        if (window.caches) {
-          caches.keys().then((keys) => {
-            keys.forEach((k) => caches.delete(k))
-          }).catch(() => {})
+    (async () => {
+      try {
+        const purgeKey = 'sw_purged_v1'
+        const already = typeof localStorage !== 'undefined' ? localStorage.getItem(purgeKey) : '0'
+        if ('serviceWorker' in navigator) {
+          const regs = await navigator.serviceWorker.getRegistrations().catch(() => [])
+          let changed = false
+          for (const r of regs) {
+            try {
+              const url = String((r.active && (r.active as any).scriptURL) || (r.installing && (r.installing as any).scriptURL) || (r.waiting && (r.waiting as any).scriptURL) || '')
+              const isOneSignal = /OneSignalSDKWorker\.js/i.test(url)
+              if (!isOneSignal) {
+                await r.unregister().catch(() => null)
+                changed = true
+              }
+            } catch {}
+          }
+          if (changed && already !== '1') {
+            try {
+              if (window.caches) {
+                const names = await caches.keys().catch(() => [])
+                for (const n of names || []) { try { await caches.delete(n) } catch {} }
+              }
+            } catch {}
+            try { localStorage.setItem(purgeKey, '1') } catch {}
+            try { location.reload() } catch {}
+          }
         }
-      }
-    }
+      } catch {}
+    })()
   }, [])
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -116,7 +132,8 @@ export default function ServiceWorkerRegister() {
           const migrateAlertsToTable = async () => {
             try {
               if (!supabase || !uid) return
-              const prefs = await supabase.from('user_alerts').select('keywords').eq('user_id', uid).limit(1).maybeSingle()
+                // evitar 404: tabela user_alerts não disponível neste projeto
+                const prefs = { data: null } as any
               const keywords: string[] = Array.isArray(prefs.data?.keywords) ? prefs.data!.keywords.filter((x: any) => typeof x === 'string' && x.trim()).map((s: string) => s.trim()) : []
               if (!keywords.length) return
               const existing = await supabase.from('search_alerts').select('keyword').eq('user_id', uid).eq('active', true)
@@ -142,24 +159,22 @@ export default function ServiceWorkerRegister() {
               }
               if (uid && pid) {
                 try {
-                  if (supabase) {
-                    try { 
-                      const u1 = await supabase.from('profiles').upsert({ id: uid, // @ts-ignore
-                        email: ud?.data?.user?.email || null }, { onConflict: 'id' })
-                      if ((u1 as any)?.error) { try { console.error('profiles upsert error:', (u1 as any).error) } catch {} }
-                    } catch (e:any) { try { console.error('profiles upsert throw:', e?.message || e) } catch {} }
-                    try {
-                      const u2 = await supabase.from('profiles').update({ subscription_id: String(pid), onesignal_id: String(pid) }).eq('id', uid)
-                      if ((u2 as any)?.error) { try { console.error('profiles update subId error:', (u2 as any).error) } catch {} }
-                    } catch (e:any) { try { console.error('profiles update subId throw:', e?.message || e) } catch {} }
+                  const sess = await supabase!.auth.getSession()
+                  const jwt = String(sess?.data?.session?.access_token || '')
+                  if (jwt) {
+                    const r = await fetch('/api/profile/sync-subscription', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${jwt}` },
+                      body: JSON.stringify({ subscriptionId: String(pid) })
+                    })
+                    if (!r.ok) {
+                      try { console.error('sync-subscription failed status:', r.status) } catch {}
+                    }
                   }
                 } catch {}
                 try { 
-                  if (supabase) {
-                    const u3 = await supabase.from('user_alerts').upsert({ user_id: uid, fcm_token: String(pid) }, { onConflict: 'user_id' })
-                    if ((u3 as any)?.error) { try { console.error('user_alerts upsert fcm_token error:', (u3 as any).error) } catch {} }
-                  }
-                } catch (e:any) { try { console.error('user_alerts upsert fcm_token throw:', e?.message || e) } catch {} }
+                  // intentionally no-op: fcm_token column may not exist; rely on profiles subscription_id/onesignal_id
+                } catch {}
                 try { console.log('OneSignal ID sincronizado:', pid) } catch {}
               }
               await migrateAlertsToTable()
@@ -172,7 +187,6 @@ export default function ServiceWorkerRegister() {
               try {
                 if (uid) {
                   try { OneSignal.login?.(uid) } catch {}
-                  try { OneSignal.setExternalUserId?.(uid) } catch {}
                 }
               } catch {}
             })
@@ -247,7 +261,7 @@ export default function ServiceWorkerRegister() {
         OneSignal.push(function() {
           const ext = user.email || user.id
           try { OneSignal.login?.(ext); try { console.log('4. OneSignal.login executado:', ext) } catch {} } catch (e: any) { try { console.log('4. OneSignal.login falhou:', e?.message || e) } catch {} }
-          try { OneSignal.setExternalUserId(ext); try { console.log('5. setExternalUserId executado:', ext) } catch {} } catch (e: any) { try { console.log('5. setExternalUserId falhou:', e?.message || e) } catch {} }
+          
           try {
             const sync = async () => {
               try {
@@ -279,17 +293,21 @@ export default function ServiceWorkerRegister() {
                 }
                 if (pid) {
                   try {
-                    if (supabase) {
-                      try { await supabase.from('profiles').upsert({ id: user.id, // @ts-ignore
-                        email: user.email || null }, { onConflict: 'id' }) } catch {}
-                      await supabase.from('profiles').update({ subscription_id: String(pid), onesignal_id: String(pid) }).eq('id', user.id)
+                    const sess = await supabase!.auth.getSession()
+                    const jwt = String(sess?.data?.session?.access_token || '')
+                    if (jwt) {
+                      await fetch('/api/profile/sync-subscription', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${jwt}` },
+                        body: JSON.stringify({ subscriptionId: String(pid) })
+                      }).catch(() => {})
                     }
                   } catch {}
-                  try { if (supabase) await supabase.from('user_alerts').upsert({ user_id: user.id, fcm_token: String(pid) }, { onConflict: 'user_id' }) } catch {}
                 }
                 try {
                   if (supabase) {
-                    const prefs = await supabase.from('user_alerts').select('keywords').eq('user_id', user.id).limit(1).maybeSingle()
+                  // evitar 404: tabela user_alerts não disponível neste projeto
+                  const prefs = { data: null } as any
                     const keywords: string[] = Array.isArray(prefs.data?.keywords) ? prefs.data!.keywords.filter((x: any) => typeof x === 'string' && x.trim()).map((s: string) => s.trim()) : []
                     if (keywords.length) {
                       const existing = await supabase.from('search_alerts').select('keyword').eq('user_id', user.id).eq('active', true)
@@ -339,7 +357,7 @@ export default function ServiceWorkerRegister() {
           })();
           const ext = (session?.user?.email || uid) as string
           try { OneSignal.login?.(ext); try { console.log('6. onAuthChange login OK:', ext) } catch {} } catch (e: any) { try { console.log('6. onAuthChange login falhou:', e?.message || e) } catch {} }
-          try { OneSignal.setExternalUserId(ext); try { console.log('7. onAuthChange setExternalUserId OK:', ext) } catch {} } catch (e: any) { try { console.log('7. onAuthChange setExternalUserId falhou:', e?.message || e) } catch {} }
+          
           try {
             const sync = async () => {
               try {
@@ -371,17 +389,22 @@ export default function ServiceWorkerRegister() {
                   pid = await getSubIdWithRetry()
                 }
                 if (pid) {
-                try {
-                  if (supabase) {
-                    try { await supabase.from('profiles').upsert({ id: uid }, { onConflict: 'id' }) } catch {}
-                    await supabase.from('profiles').update({ subscription_id: String(pid), onesignal_id: String(pid) }).eq('id', uid)
-                  }
-                } catch {}
-                  try { if (supabase) await supabase.from('user_alerts').upsert({ user_id: uid, fcm_token: String(pid) }, { onConflict: 'user_id' }) } catch {}
+                  try {
+                    const sess = await supabase!.auth.getSession()
+                    const jwt = String(sess?.data?.session?.access_token || '')
+                    if (jwt) {
+                      await fetch('/api/profile/sync-subscription', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${jwt}` },
+                        body: JSON.stringify({ subscriptionId: String(pid) })
+                      }).catch(() => {})
+                    }
+                  } catch {}
                 }
                 try {
                   if (supabase) {
-                    const prefs = await supabase.from('user_alerts').select('keywords').eq('user_id', uid).limit(1).maybeSingle()
+                  // evitar 404: tabela user_alerts não disponível neste projeto
+                  const prefs = { data: null } as any
                     const keywords: string[] = Array.isArray(prefs.data?.keywords) ? prefs.data!.keywords.filter((x: any) => typeof x === 'string' && x.trim()).map((s: string) => s.trim()) : []
                     if (keywords.length) {
                       const existing = await supabase.from('search_alerts').select('keyword').eq('user_id', uid).eq('active', true)
@@ -399,7 +422,7 @@ export default function ServiceWorkerRegister() {
             try { sync() } catch {}
           } catch {}
         } else {
-          try { OneSignal.removeExternalUserId() } catch {}
+          try { OneSignal.logout?.() } catch {}
         }
       })
     })

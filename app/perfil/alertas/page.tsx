@@ -71,13 +71,13 @@ export default function AlertasPage() {
       const user = userData?.user
       if (!user) { router.push('/login'); return }
       setUserId(user.id)
-      const { data: prof, error: profErr } = await supabase.from('profiles').select('is_premium, plan, onesignal_id').eq('id', user.id).single()
+      const { data: prof, error: profErr } = await supabase.from('profiles').select('is_premium, plan, subscription_id, email').eq('id', user.id).single()
       const allow = String(process.env.NEXT_PUBLIC_PREMIUM_EMAILS || '').toLowerCase().split(',').map((s) => s.trim()).filter(Boolean)
       const email = String(user.email || '').toLowerCase()
       const premium = Boolean(prof?.is_premium) || String(prof?.plan || '').toLowerCase() === 'premium' || allow.includes(email)
       setIsPremium(premium)
       try {
-        const pidFromProfile = String((prof as any)?.onesignal_id || '')
+        const pidFromProfile = String((prof as any)?.subscription_id || '')
         if (pidFromProfile) {
           setProfileOnesignalId(pidFromProfile)
           setDbPlayerId(pidFromProfile)
@@ -86,11 +86,8 @@ export default function AlertasPage() {
       try {
         const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
         if (OneSignal) {
-          await OneSignal?.login?.(user.id)
-          try {
-            const ext = user.email || user.id
-            await OneSignal?.setExternalUserId?.(ext)
-          } catch {}
+          const ext = user.email || user.id
+          await OneSignal?.login?.(ext)
           try {
             const extNow = OneSignal?.User?.externalId
             if (extNow) setOsExternalId(String(extNow))
@@ -101,25 +98,8 @@ export default function AlertasPage() {
           } catch {}
         }
       } catch {}
-      const { data, error: uaErr } = await supabase.from('user_alerts').select('id,keywords,ufs,valor_minimo,push_notificacao,ativo').eq('user_id', user.id).limit(1).maybeSingle()
-      if (data) {
-        setSavedId(String(data.id))
-        setKeywords(Array.isArray(data.keywords) ? data.keywords.filter((x: any) => typeof x === 'string') : [])
-        setUfs(Array.isArray(data.ufs) ? data.ufs.filter((x: any) => typeof x === 'string') : [])
-        setMinValue(data.valor_minimo ? String(data.valor_minimo) : '')
-        setAtivo(Boolean(data.ativo))
-        setPushOn(Boolean(data.push_notificacao))
-        try {
-          if (supabase) {
-            const { data: tok } = await supabase.from('user_alerts').select('fcm_token').eq('user_id', user.id).limit(1).maybeSingle()
-            const t = String((tok as any)?.fcm_token || '')
-            if (t) {
-              setOsPlayerId(t)
-              setDbPlayerId(t)
-            }
-          }
-        } catch {}
-      } else if (typeof window !== 'undefined') {
+      // Evitar 404 na ausência da tabela user_alerts neste projeto: usar apenas localStorage
+      if (typeof window !== 'undefined') {
         try {
           const raw = window.localStorage.getItem(`user_alerts:${user.id}`) || ''
           const j = raw ? JSON.parse(raw) : null
@@ -165,12 +145,17 @@ export default function AlertasPage() {
       const run = async () => {
         if (supabase && userId && osPlayerId) {
           try {
-            await supabase.from('profiles').update({ onesignal_id: String(osPlayerId) }).eq('id', userId)
+            const sess = await supabase.auth.getSession()
+            const jwt = String(sess?.data?.session?.access_token || '')
+            if (jwt) {
+              const r = await fetch('/api/profile/sync-subscription', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${jwt}` },
+                body: JSON.stringify({ subscriptionId: String(osPlayerId) })
+              })
+              if (r.ok) { try { setDbPlayerId(String(osPlayerId)) } catch {} }
+            }
           } catch {}
-          try {
-            await supabase.from('user_alerts').upsert({ user_id: userId, fcm_token: String(osPlayerId) }, { onConflict: 'user_id' })
-          } catch {}
-          try { setDbPlayerId(String(osPlayerId)) } catch {}
         }
       }
       run()
@@ -258,8 +243,8 @@ export default function AlertasPage() {
       if (!pid && userId) {
         try {
           if (supabase) {
-            const { data: tok } = await supabase.from('user_alerts').select('fcm_token').eq('user_id', userId).limit(1).maybeSingle()
-            const t = String((tok as any)?.fcm_token || '')
+            const { data: prof2 } = await supabase.from('profiles').select('subscription_id').eq('id', userId).limit(1).maybeSingle()
+            const t = String((prof2 as any)?.subscription_id || '')
             if (t) setOsPlayerId(t || null)
           }
         } catch {}
@@ -404,8 +389,8 @@ export default function AlertasPage() {
       if (!playerIdToUse) {
         try {
           if (supabase) {
-            const { data: prof } = await supabase.from('profiles').select('onesignal_id').eq('id', userId).limit(1).maybeSingle()
-            const p = String((prof as any)?.onesignal_id || '')
+            const { data: prof } = await supabase.from('profiles').select('subscription_id').eq('id', userId).limit(1).maybeSingle()
+            const p = String((prof as any)?.subscription_id || '')
             if (p) playerIdToUse = p
             if (!p) {
               const got = await ensureSubscriptionReady()
@@ -417,8 +402,8 @@ export default function AlertasPage() {
       if (!playerIdToUse) {
         try {
           if (supabase) {
-            const { data: tok } = await supabase.from('user_alerts').select('fcm_token').eq('user_id', userId).limit(1).maybeSingle()
-            const t = String((tok as any)?.fcm_token || '')
+            const { data: prof2 } = await supabase.from('profiles').select('subscription_id').eq('id', userId).limit(1).maybeSingle()
+            const t = String((prof2 as any)?.subscription_id || '')
             if (t) playerIdToUse = t
           }
         } catch {}
@@ -545,8 +530,7 @@ export default function AlertasPage() {
   const saveSubscriptionIdToProfile = useCallback(async (id: string) => {
     try {
       if (supabase && userId && id) {
-        await supabase.from('profiles').update({ onesignal_id: String(id), subscription_id: String(id) }).eq('id', userId)
-        await supabase.from('user_alerts').upsert({ user_id: userId, fcm_token: String(id) }, { onConflict: 'user_id' })
+        await supabase.from('profiles').update({ subscription_id: String(id) }).eq('id', userId)
       }
     } catch {}
   }, [userId])
@@ -598,7 +582,6 @@ export default function AlertasPage() {
                     const ud = await supabase?.auth.getUser()
                     const ext = String(ud?.data?.user?.email || userId)
                     try { OneSignal.login?.(ext) } catch {} 
-                    try { OneSignal.setExternalUserId(ext) } catch {} 
                   } catch {}
                 })()
               } catch {}
@@ -673,7 +656,6 @@ export default function AlertasPage() {
                     const ud = await supabase?.auth.getUser()
                     const ext = String(ud?.data?.user?.email || userId)
                     try { OneSignal.login?.(ext) } catch {} 
-                    try { OneSignal.setExternalUserId(ext) } catch {} 
                   } catch {}
                 })()
               } catch {}
@@ -927,18 +909,10 @@ export default function AlertasPage() {
       ativo: ativo,
       push_notificacao: pushOn,
     } as any
-    const { data, error } = await supabase.from('user_alerts').upsert(payload, { onConflict: 'user_id' }).select('id').maybeSingle()
-    if (error) {
-      if (typeof window !== 'undefined') {
-        try { window.localStorage.setItem(`user_alerts:${userId}`, JSON.stringify(payload)) } catch {}
-        alert('Preferências salvas localmente')
-        try { window.location.reload() } catch {}
-        return
-      }
-      setError('Falha ao salvar preferências')
-      return
+    // Tabela user_alerts não está disponível neste projeto; persistir localmente e garantir palavras-chave ativas em search_alerts
+    if (typeof window !== 'undefined') {
+      try { window.localStorage.setItem(`user_alerts:${userId}`, JSON.stringify(payload)) } catch {}
     }
-    if (data?.id) setSavedId(String(data.id))
     try {
       const existing = await supabase.from('search_alerts').select('keyword').eq('user_id', userId).eq('active', true)
       const have = new Set<string>((existing.data || []).map((r: any) => String(r.keyword || '').trim().toLowerCase()).filter(Boolean))
@@ -955,13 +929,50 @@ export default function AlertasPage() {
   const canInteract = !!userId
   const subscribed = !!osPlayerId || permOS === 'granted' || permWeb === 'granted'
 
+  async function ensureOneSignalReady(): Promise<any> {
+    const appId = (process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || (typeof window !== 'undefined' ? (window as any).ONESIGNAL_APP_ID : '') || '') as string
+    const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
+    if (!OneSignal) return null
+    try {
+      const hasCore = !!(OneSignal && OneSignal.User && OneSignal.Notifications)
+      if (hasCore) return OneSignal
+    } catch {}
+    if (OneSignal && typeof OneSignal.init === 'function' && appId) {
+      try {
+        await OneSignal.init({
+          appId,
+          allowLocalhostAsSecureOrigin: true,
+          serviceWorkerPath: '/OneSignalSDKWorker.js',
+          serviceWorkerUpdaterPath: '/OneSignalSDKUpdaterWorker.js',
+        })
+      } catch {}
+    }
+    return (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
+  }
+
   async function resyncNotifications() {
     try {
       setError(null)
       setUiMsg(null)
-      const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
+      try {
+        const host = typeof location !== 'undefined' ? location.hostname.toLowerCase() : ''
+        if (host === 'licitmasa.com.br') {
+          try {
+            const url = new URL(location.href)
+            url.hostname = 'www.licitmasa.com.br'
+            url.protocol = 'https:'
+            location.href = url.toString()
+          } catch {}
+          setError('Acesse o site com www para sincronizar alertas')
+          return
+        }
+      } catch {}
+      let OneSignal: any = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
       if (!OneSignal) { setError('OneSignal não carregado'); return }
-      try { await OneSignal?.Notifications?.requestPermission?.() } catch {}
+      try {
+        OneSignal = await ensureOneSignalReady()
+      } catch {}
+      if (!OneSignal) { setError('OneSignal indisponível'); return }
       let ext: string | null = null
       try {
         const ud = await supabase?.auth.getUser()
@@ -969,9 +980,10 @@ export default function AlertasPage() {
       } catch {}
       if (ext) {
         try { OneSignal.login?.(ext) } catch {}
-        try { OneSignal.setExternalUserId?.(ext) } catch {}
+        
         try { setOsExternalId(ext) } catch {}
       }
+      try { await OneSignal?.Notifications?.requestPermission?.() } catch {}
       let pid: string | null = null
       try { pid = (OneSignal as any)?.User?.pushSubscriptionId || null } catch {}
       if (!pid) { try { pid = await OneSignal?.getSubscriptionId?.() } catch {} }
@@ -982,8 +994,46 @@ export default function AlertasPage() {
       }
       if (pid) {
         try { setOsPlayerId(String(pid)) } catch {}
-        try { await saveSubscriptionIdToProfile(String(pid)) } catch {}
-        try { await refreshOneSignalInfo() } catch {}
+        let savedOk = false
+        try { await saveSubscriptionIdToProfile(String(pid)); savedOk = true } catch {}
+        try {
+          const { data: prof } = await supabase!.from('profiles').select('subscription_id').eq('id', userId!).maybeSingle()
+          const subNow = String((prof as any)?.subscription_id || '')
+          if (!subNow) { savedOk = false }
+        } catch {}
+        try {
+          const sess = await supabase!.auth.getSession()
+          const jwt = String(sess?.data?.session?.access_token || '')
+          if (jwt) {
+            const r = await fetch('/api/profile/sync-subscription', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${jwt}` },
+              body: JSON.stringify({ subscriptionId: String(pid) })
+            })
+            if (!r.ok) {
+              const txt = await r.text().catch(() => '')
+              setError(`Falha ao salvar no servidor (${r.status}): ${txt || '—'}`)
+              try { alert(`Falha ao salvar no servidor (${r.status}): ${txt || '—'}`) } catch {}
+            } else {
+              savedOk = true
+            }
+          }
+        } catch {}
+        if (!savedOk) {
+          try {
+            await fetch('/api/admin/sync-onesignal', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'x-admin-token': 'DEV' },
+              body: JSON.stringify({ userId, email: ext || undefined, subscriptionId: String(pid) })
+            })
+          } catch {}
+        }
+        try { 
+          await refreshOneSignalInfo()
+          const { data: prof3 } = await supabase!.from('profiles').select('subscription_id').eq('id', userId!).maybeSingle()
+          const subNow2 = String((prof3 as any)?.subscription_id || '')
+          if (!subNow2) setError('subscription_id não foi preenchido no servidor')
+        } catch {}
         setUiMsg('Alertas sincronizados com sucesso!')
       } else {
         setError('Não foi possível obter o ID de inscrição do OneSignal')

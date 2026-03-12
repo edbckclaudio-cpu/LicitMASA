@@ -123,42 +123,17 @@ async function sendPush(externalUserId: string, subject: string, message: string
       const useEmail = /@/.test(externalUserId)
       let prof: any = null
       if (useEmail) {
-        const byEmail = await supa.from("profiles").select("id,subscription_id,onesignal_id,email").eq("email", externalUserId).limit(1).maybeSingle()
+        const byEmail = await supa.from("profiles").select("id,subscription_id,email").eq("email", externalUserId).limit(1).maybeSingle()
         prof = byEmail?.data || null
       } else {
-        const byId = await supa.from("profiles").select("id,subscription_id,onesignal_id,email").eq("id", externalUserId).limit(1).maybeSingle()
+        const byId = await supa.from("profiles").select("id,subscription_id,email").eq("id", externalUserId).limit(1).maybeSingle()
         prof = byId?.data || null
       }
-      const subId = String((prof as any)?.subscription_id || (prof as any)?.onesignal_id || "")
-      const userIdForUa = String((prof as any)?.id || (useEmail ? "" : externalUserId) || "")
-      if (!subId) {
-        if (userIdForUa) {
-          const { data: ua } = await supa.from("user_alerts").select("fcm_token").eq("user_id", userIdForUa).limit(1).maybeSingle()
-          const tok = String((ua as any)?.fcm_token || "")
-          if (tok && await validateSubscriptionId(tok)) {
-            body = { ...requestBase, include_subscription_ids: [tok] }
-          } else {
-            body = { ...requestBase, include_external_user_ids: [externalUserId] }
-          }
-        } else {
-          body = { ...requestBase, include_external_user_ids: [externalUserId] }
-        }
+      const subId = String((prof as any)?.subscription_id || "")
+      if (subId && await validateSubscriptionId(subId)) {
+        body = { ...requestBase, include_subscription_ids: [subId] }
       } else {
-        if (await validateSubscriptionId(subId)) {
-          body = { ...requestBase, include_subscription_ids: [subId] }
-        } else {
-          if (userIdForUa) {
-            const { data: ua } = await supa.from("user_alerts").select("fcm_token").eq("user_id", userIdForUa).limit(1).maybeSingle()
-            const tok = String((ua as any)?.fcm_token || "")
-            if (tok && await validateSubscriptionId(tok)) {
-              body = { ...requestBase, include_subscription_ids: [tok] }
-            } else {
-              body = { ...requestBase, include_external_user_ids: [externalUserId] }
-            }
-          } else {
-            body = { ...requestBase, include_external_user_ids: [externalUserId] }
-          }
-        }
+        body = { ...requestBase, include_external_user_ids: [externalUserId] }
       }
     } catch {}
   }
@@ -219,21 +194,21 @@ serve(async (req: Request) => {
     let uid: string | null = null
     let profile: any = null
     if (email) {
-      const { data } = await supabase.from("profiles").select("id,email,subscription_id,onesignal_id").eq("email", email).limit(1).maybeSingle()
+      const { data } = await supabase.from("profiles").select("id,email,subscription_id").eq("email", email).limit(1).maybeSingle()
       if (data?.id) { uid = String(data.id); profile = data }
     }
     if (!uid && q) {
-      const { data } = await supabase.from("profiles").select("id,email,subscription_id,onesignal_id").ilike("email", `%${q}%`).limit(1)
+      const { data } = await supabase.from("profiles").select("id,email,subscription_id").ilike("email", `%${q}%`).limit(1)
       if (data && data[0]?.id) { uid = String(data[0].id); profile = data[0] }
     }
     if (!uid && email) {
-      const { data } = await supabase.from("profiles").select("id,email,subscription_id,onesignal_id").ilike("email", `%${email}%`).limit(1)
+      const { data } = await supabase.from("profiles").select("id,email,subscription_id").ilike("email", `%${email}%`).limit(1)
       if (data && data[0]?.id) { uid = String(data[0].id); profile = data[0] }
     }
     if (!uid && email) {
       const local = email.split("@")[0]
       if (local) {
-        const { data } = await supabase.from("profiles").select("id,email,subscription_id,onesignal_id").ilike("email", `%${local}%`).limit(1)
+        const { data } = await supabase.from("profiles").select("id,email,subscription_id").ilike("email", `%${local}%`).limit(1)
         if (data && data[0]?.id) { uid = String(data[0].id); profile = data[0] }
       }
     }
@@ -245,7 +220,7 @@ serve(async (req: Request) => {
           uid = String(authUser.id)
           try {
             await supabase.from("profiles").upsert({ id: uid, email }, { onConflict: "id" })
-            const { data: prof2 } = await supabase.from("profiles").select("id,email,subscription_id,onesignal_id").eq("id", uid).limit(1).maybeSingle()
+            const { data: prof2 } = await supabase.from("profiles").select("id,email,subscription_id").eq("id", uid).limit(1).maybeSingle()
             profile = prof2 || null
           } catch {}
         }
@@ -265,7 +240,7 @@ serve(async (req: Request) => {
       if (!uid && near.length > 0 && near[0]?.id) {
         uid = String(near[0].id)
         try {
-          const { data: prof2 } = await supabase.from("profiles").select("id,email,subscription_id,onesignal_id").eq("id", uid).limit(1).maybeSingle()
+          const { data: prof2 } = await supabase.from("profiles").select("id,email,subscription_id").eq("id", uid).limit(1).maybeSingle()
           profile = prof2 || null
         } catch {}
       }
@@ -274,11 +249,10 @@ serve(async (req: Request) => {
       }
     }
     if (!profile) {
-      const { data } = await supabase.from("profiles").select("id,email,subscription_id,onesignal_id").eq("id", uid).limit(1).maybeSingle()
+      const { data } = await supabase.from("profiles").select("id,email,subscription_id").eq("id", uid).limit(1).maybeSingle()
       profile = data || null
     }
     let { data: sAlerts, error: sErr } = await supabase.from("search_alerts").select("id,keyword,uf,active,created_at").eq("user_id", uid).order("created_at", { ascending: false })
-    const { data: uAlerts } = await supabase.from("user_alerts").select("keywords,ufs,fcm_token,ativo,push_notificacao,updated_at").eq("user_id", uid).limit(1).maybeSingle()
     let diagInsertErr: string | null = null
     try {
       const doNormalize = String(reqUrl.searchParams.get("normalize") || "") === "1"
@@ -310,20 +284,7 @@ serve(async (req: Request) => {
         if (Array.isArray(reload.data)) sAlerts = reload.data
       }
     } catch {}
-    try {
-      const kw = Array.isArray((uAlerts as any)?.keywords) ? ((uAlerts as any).keywords as any[]).map((x) => String(x || "").trim()).filter((s) => !!s) : []
-      const have = new Set<string>(Array.isArray(sAlerts) ? sAlerts.map((r: any) => String(r.keyword || "").trim().toLowerCase()).filter(Boolean) : [])
-      const missing = kw.filter((k) => !have.has(k.toLowerCase()))
-      if (missing.length > 0) {
-        const rows = missing.map((k) => ({ user_id: uid, keyword: k, active: true }))
-        try { 
-          const r2 = await supabase.from("search_alerts").insert(rows as any)
-          if (r2.error) diagInsertErr = String(r2.error.message || "INSERT_ERROR")
-        } catch (e2: any) { diagInsertErr = String(e2?.message || "INSERT_THROWN") }
-        const reload = await supabase.from("search_alerts").select("id,keyword,uf,active,created_at").eq("user_id", uid).order("created_at", { ascending: false })
-        if (Array.isArray(reload.data)) sAlerts = reload.data
-      }
-    } catch {}
+    try {} catch {}
     try {
       let kwParam = String(reqUrl.searchParams.get("kw") || "").trim()
       try { if (/%[0-9A-Fa-f]{2}/.test(kwParam)) kwParam = decodeURIComponent(kwParam) } catch {}
@@ -349,7 +310,6 @@ serve(async (req: Request) => {
       userId: uid,
       profile: profile || null,
       search_alerts: sAlerts || [],
-      user_alerts: uAlerts || null,
       fallback_used: Boolean(!sAlerts || (Array.isArray(sAlerts) && sAlerts.length === 0)),
       select_error: sErr ? String(sErr.message || "SELECT_ERROR") : null,
       insert_error: diagInsertErr
@@ -485,31 +445,7 @@ serve(async (req: Request) => {
   if (Array.isArray(alerts) && alerts.length > 0) {
     allAlerts = alerts.map((a: any) => ({ id: String(a.id), user_id: String(a.user_id), keyword: String(a.keyword || ""), uf: a.uf || null }))
   } else {
-    // 2) Fallback: user_alerts (palavras/ufs) para compatibilidade, apenas premium
-    try {
-      const { data: prefs } = await supabase
-        .from("user_alerts")
-        .select("user_id, keywords, ufs, ativo, push_notificacao")
-        .eq("ativo", true)
-        .eq("push_notificacao", true)
-      const userIds = Array.from(new Set((prefs || []).map((p: any) => String(p.user_id))))
-      if (userIds.length > 0) {
-        const { data: prem } = await supabase.from("profiles").select("id,is_premium").in("id", userIds)
-        const premiumSet = new Set((prem || []).filter((p: any) => p.is_premium).map((p: any) => String(p.id)))
-        for (const p of prefs || []) {
-          const uid = String(p.user_id)
-          if (!premiumSet.has(uid)) continue
-          const kws: string[] = Array.isArray(p.keywords) ? p.keywords.filter((x: any) => typeof x === "string" && x.trim()) : []
-          const ufs: string[] = Array.isArray(p.ufs) ? p.ufs.filter((x: any) => typeof x === "string" && x.trim()) : []
-          if (kws.length === 0) continue
-          if (ufs.length === 0) {
-            for (const k of kws) allAlerts.push({ user_id: uid, keyword: String(k), uf: null })
-          } else {
-            for (const k of kws) for (const uf of ufs) allAlerts.push({ user_id: uid, keyword: String(k), uf: String(uf) })
-          }
-        }
-      }
-    } catch {}
+    try {} catch {}
   }
   let processed = 0
   let notified = 0
