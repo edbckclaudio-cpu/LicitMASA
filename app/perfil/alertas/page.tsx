@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useMemo, useState, useCallback } from 'react'
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -43,7 +43,7 @@ export default function AlertasPage() {
   const [swRegistered, setSwRegistered] = useState<boolean>(false)
   const [swScope, setSwScope] = useState<string | null>(null)
   const [lastPayloadSent, setLastPayloadSent] = useState<any>(null)
-  const [showDebug, setShowDebug] = useState(true)
+  const [showDebug, setShowDebug] = useState(false)
   const [lastSentExternalId, setLastSentExternalId] = useState<string | null>(null)
   const [lastSentPlayerId, setLastSentPlayerId] = useState<string | null>(null)
   const [lastSentUserId, setLastSentUserId] = useState<string | null>(null)
@@ -928,6 +928,19 @@ export default function AlertasPage() {
 
   const canInteract = !!userId
   const subscribed = !!osPlayerId || permOS === 'granted' || permWeb === 'granted'
+  const [clickCount, setClickCount] = useState(0)
+  const clickTimerRef = useRef<any>(null)
+  function onHiddenPinClick() {
+    const next = clickCount + 1
+    setClickCount(next)
+    if (clickTimerRef.current) { try { clearTimeout(clickTimerRef.current) } catch {} }
+    clickTimerRef.current = setTimeout(() => { try { setClickCount(0) } catch {} }, 2000)
+    if (next >= 6) {
+      setShowDebug(true)
+      setClickCount(0)
+      try { clearTimeout(clickTimerRef.current) } catch {}
+    }
+  }
 
   async function ensureOneSignalReady(): Promise<any> {
     const appId = (process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || (typeof window !== 'undefined' ? (window as any).ONESIGNAL_APP_ID : '') || '') as string
@@ -1332,9 +1345,15 @@ export default function AlertasPage() {
                           <Button onClick={handleTestAndDiagnose} disabled={testLoading || diagRunning} className="bg-blue-600 text-white hover:bg-blue-700 text-xs">
                             {(testLoading || diagRunning) ? '...' : 'Enviar Teste / Diagnóstico'}
                           </Button>
+                          <span
+                            aria-hidden
+                            onClick={onHiddenPinClick}
+                            className="ml-1 inline-block h-3 w-3 rounded-full bg-white"
+                            title=""
+                          />
                         </div>
                         <div className="mt-3">
-                          {diagItems && diagItems.length > 0 && (
+                          {showDebug && diagItems && diagItems.length > 0 && (
                             <ul className="space-y-1 text-sm">
                               {diagItems.map((it) => (
                                 <li key={it.id} className="flex items-start gap-2">
