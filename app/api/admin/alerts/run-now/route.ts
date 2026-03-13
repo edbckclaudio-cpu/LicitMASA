@@ -34,6 +34,7 @@ async function handleRun(req: Request) {
     const allFlag = (url.searchParams.get('all') || '').toLowerCase()
     const limitParam = Number(url.searchParams.get('limit') || '50')
     const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 200) : 50
+    const skipFn = ((url.searchParams.get('skipFn') || '').toLowerCase() === '1')
     let cleared: number | null = null
     let clearedTotal: number | null = null
     if (clear === '1' && (email || userId)) {
@@ -54,17 +55,24 @@ async function handleRun(req: Request) {
     if (email) qs.set('email', email)
     if (preview === '1') qs.set('preview', '1')
     const fnUrl = `https://${projectRef}.functions.supabase.co/check-alerts${qs.toString() ? `?${qs.toString()}` : ''}`
-    const res = await fetch(fnUrl, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${serviceKey}`,
-        'apikey': serviceKey,
-        'accept': 'application/json',
-      }
-    })
-    const text = await res.text()
+    let resOk = true
+    let resStatus = 200
     let json: any = null
-    try { json = JSON.parse(text) } catch {}
+    let text: string | null = null
+    if (!skipFn) {
+      const res = await fetch(fnUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${serviceKey}`,
+          'apikey': serviceKey,
+          'accept': 'application/json',
+        }
+      })
+      resOk = res.ok
+      resStatus = res.status
+      text = await res.text()
+      try { json = JSON.parse(text) } catch {}
+    }
     let fallback: any = null
     let fallbackBulk: any = null
     try {
@@ -89,6 +97,7 @@ async function handleRun(req: Request) {
           .from('profiles')
           .select('id,email,subscription_id,updated_at')
           .or('is_premium.eq.true,plan.eq.premium')
+          .not('subscription_id', 'is', null)
           .order('updated_at', { ascending: false })
           .limit(limit)
         let okCount = 0
@@ -135,15 +144,15 @@ async function handleRun(req: Request) {
       }
     } catch {}
     return NextResponse.json({
-      ok: res.ok,
-      status: res.status,
+      ok: resOk,
+      status: resStatus,
       body: json || text || null,
       fallback_push: fallback,
       fallback_bulk: fallbackBulk,
       cleared,
       cleared_total: clearedTotal,
       function_url: fnUrl.replace(projectRef, projectRef.slice(0, 3) + '...' + projectRef.slice(-3)),
-    }, { status: res.ok ? 200 : 500 })
+    }, { status: resOk ? 200 : 500 })
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || 'TRIGGER_FAILED' }, { status: 500 })
   }
