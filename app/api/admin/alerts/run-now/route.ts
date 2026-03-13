@@ -64,6 +64,7 @@ async function handleRun(req: Request) {
     const preview = url.searchParams.get('preview') || ''
     const clear = url.searchParams.get('clear') || ''
     const allFlag = (url.searchParams.get('all') || '').toLowerCase()
+    const anyFlag = (url.searchParams.get('any') || '').toLowerCase()
     const limitParam = Number(url.searchParams.get('limit') || '50')
     const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 200) : 50
     const skipFn = ((url.searchParams.get('skipFn') || '').toLowerCase() === '1')
@@ -128,16 +129,28 @@ async function handleRun(req: Request) {
         const sendRes = await sendOneSignalDirect(subId, ext)
         fallback = { ok: sendRes.ok, status: sendRes.status, body: sendRes.data }
       }
-      // Fallback em lote quando all=1
-      if (allFlag && allFlag !== '0' && allFlag !== 'false') {
+      // Fallback em lote quando all=1 (premium) ou any=1 (qualquer perfil com subscription_id)
+      if ((allFlag && allFlag !== '0' && allFlag !== 'false') || (anyFlag && anyFlag !== '0' && anyFlag !== 'false')) {
         const supa = createClient(supaUrl, serviceKey)
-        const { data: users } = await supa
-          .from('profiles')
-          .select('id,email,subscription_id,updated_at')
-          .or('is_premium.eq.true,plan.eq.premium')
-          .not('subscription_id', 'is', null)
-          .order('updated_at', { ascending: false })
-          .limit(limit)
+        let users: any[] = []
+        if (anyFlag && anyFlag !== '0' && anyFlag !== 'false') {
+          const q = await supa
+            .from('profiles')
+            .select('id,email,subscription_id,updated_at')
+            .not('subscription_id', 'is', null)
+            .order('updated_at', { ascending: false })
+            .limit(limit)
+          users = Array.isArray(q?.data) ? q.data : []
+        } else {
+          const q = await supa
+            .from('profiles')
+            .select('id,email,subscription_id,updated_at')
+            .or('is_premium.eq.true,plan.eq.premium')
+            .not('subscription_id', 'is', null)
+            .order('updated_at', { ascending: false })
+            .limit(limit)
+          users = Array.isArray(q?.data) ? q.data : []
+        }
         let okCount = 0
         let failCount = 0
         let samples: Array<{ email?: string; userId?: string; ok: boolean; status?: number; error?: string }> = []
