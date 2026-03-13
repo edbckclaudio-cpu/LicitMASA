@@ -10,15 +10,15 @@ async function handleRun(req: Request) {
     return NextResponse.json({ ok: false, error: 'UNAUTHORIZED' }, { status: 401 })
   }
   try {
-    async function sendOneSignalDirect(subId: string | null, externalId: string | null) {
+    async function sendOneSignalDirect(subId: string | null, externalId: string | null, title?: string | null, message?: string | null) {
       const appId = process.env.ONESIGNAL_APP_ID || process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || '43f9ce9c-8d86-4076-a8b6-30dac8429149'
       const apiKeyRaw = (process.env.ONESIGNAL_REST_API_KEY || process.env.ONESIGNAL_API_KEY || '').trim()
       const apiKey = apiKeyRaw.replace(/^(?:Key|Basic)\s+/i, '').trim()
       if (!appId || !apiKey || (!subId && !externalId)) return { ok: false, status: 400, data: { error: 'MISSING_DATA' } }
       const base: any = {
         app_id: appId,
-        headings: { pt: 'Teste de Alerta', en: 'Alert Test' },
-        contents: { pt: 'Notificação de teste via OneSignal', en: 'Test notification via OneSignal' },
+        headings: { pt: String(title || 'Teste de Alerta'), en: String(title || 'Alert Test') },
+        contents: { pt: String(message || 'Notificação de teste via OneSignal'), en: String(message || 'Test notification via OneSignal') },
         priority: 10,
         android_visibility: 1,
         android_sound: 'default',
@@ -69,6 +69,8 @@ async function handleRun(req: Request) {
     const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 200) : 50
     const skipFn = ((url.searchParams.get('skipFn') || '').toLowerCase() === '1')
     const notifyAdmin = ((url.searchParams.get('notifyAdmin') || '').toLowerCase() === '1')
+    const notifyAdminOnError = ((url.searchParams.get('notifyAdminOnError') || '').toLowerCase() === '1')
+    const notifyAdminAlways = ((url.searchParams.get('notifyAdminAlways') || '').toLowerCase() === '1')
     const adminTargetsRaw = String(url.searchParams.get('adminTargets') || process.env.ADMIN_NOTIFY_EMAILS || '').trim()
     const adminTargets = adminTargetsRaw.split(',').map((s) => s.trim()).filter(Boolean)
     let cleared: number | null = null
@@ -129,7 +131,7 @@ async function handleRun(req: Request) {
           }
           ext = String(email || userId || '') || null
         } catch {}
-        const sendRes = await sendOneSignalDirect(subId, ext)
+        const sendRes = await sendOneSignalDirect(subId, ext, null, null)
         fallback = { ok: sendRes.ok, status: sendRes.status, body: sendRes.data }
       }
       // Fallback em lote quando all=1 (premium) ou any=1 (qualquer perfil com subscription_id)
@@ -171,7 +173,7 @@ async function handleRun(req: Request) {
           try {
             const sub = String((u as any)?.subscription_id || '') || null
             const ext = em || uid || null
-            const r2 = await sendOneSignalDirect(sub, ext)
+            const r2 = await sendOneSignalDirect(sub, ext, null, null)
             okCount += r2.ok ? 1 : 0
             failCount += r2.ok ? 0 : 1
             if (samples.length < 10) {
@@ -190,13 +192,23 @@ async function handleRun(req: Request) {
         clearedTotal = clearedSum
       }
     } catch {}
-    // Notificar administradores se solicitado e houver entregas
+    // Notificar administradores em condições configuradas
     try {
       const notifiedCount = Number((json && (json as any).notified) || 0)
-      if (notifyAdmin && notifiedCount > 0 && adminTargets.length) {
+      const shouldNotify =
+        (notifyAdmin && notifiedCount > 0) ||
+        (notifyAdminOnError && !resOk) ||
+        (notifyAdminAlways)
+      if (shouldNotify && adminTargets.length) {
+        const title = resOk ? 'LicitMASA — Execução de alertas' : 'LicitMASA — Falha na execução'
+        const msg = resOk
+          ? (notifiedCount > 0
+              ? `Execução concluída: ${notifiedCount} notificações enviadas`
+              : 'Execução concluída: nenhuma novidade encontrada')
+          : `Falha na execução (status ${resStatus})`
         for (const t of adminTargets) {
           try {
-            await sendOneSignalDirect(null, t)
+            await sendOneSignalDirect(null, t, title, msg)
           } catch {}
         }
       }
