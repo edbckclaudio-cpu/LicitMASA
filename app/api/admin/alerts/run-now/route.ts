@@ -169,6 +169,19 @@ async function handleRun(req: Request) {
                     .filter((u: any) => Boolean(String(u?.subscription_id || '').trim()))
                   users = mapped.slice(0, limit)
                   mode = 'any_onesignal'
+                } else {
+                  const origin = url.origin || (process.env.NEXT_PUBLIC_SITE_URL || '')
+                  const adminToken = (process.env.ADMIN_TOKEN || 'DEV').trim()
+                  const proxyUrl = `${origin}/api/notifications/test?list=1`
+                  const pr = await fetch(proxyUrl, { headers: { 'x-admin-token': adminToken } })
+                  const pj: any = await pr.json().catch(() => null)
+                  const plist: any[] = Array.isArray(pj?.players) ? pj.players : (Array.isArray(pj?.items) ? pj.items : [])
+                  const mapped = plist
+                    .filter((p: any) => !p?.invalid_identifier && (typeof p?.enabled !== 'boolean' || p.enabled))
+                    .map((p: any) => ({ id: p?.id, email: p?.external_user_id || '', subscription_id: p?.id, updated_at: null }))
+                    .filter((u: any) => Boolean(String(u?.subscription_id || '').trim()))
+                  users = mapped.slice(0, limit)
+                  mode = 'any_onesignal_proxy'
                 }
               } catch {}
             }
@@ -217,6 +230,19 @@ async function handleRun(req: Request) {
                     .filter((u: any) => Boolean(String(u?.subscription_id || '').trim()))
                   users = mapped.slice(0, limit)
                   mode = 'premium_onesignal'
+                } else {
+                  const origin = url.origin || (process.env.NEXT_PUBLIC_SITE_URL || '')
+                  const adminToken = (process.env.ADMIN_TOKEN || 'DEV').trim()
+                  const proxyUrl = `${origin}/api/notifications/test?list=1`
+                  const pr = await fetch(proxyUrl, { headers: { 'x-admin-token': adminToken } })
+                  const pj: any = await pr.json().catch(() => null)
+                  const plist: any[] = Array.isArray(pj?.players) ? pj.players : (Array.isArray(pj?.items) ? pj.items : [])
+                  const mapped = plist
+                    .filter((p: any) => !p?.invalid_identifier && (typeof p?.enabled !== 'boolean' || p.enabled))
+                    .map((p: any) => ({ id: p?.id, email: p?.external_user_id || '', subscription_id: p?.id, updated_at: null }))
+                    .filter((u: any) => Boolean(String(u?.subscription_id || '').trim()))
+                  users = mapped.slice(0, limit)
+                  mode = 'premium_onesignal_proxy'
                 }
               } catch {}
             }
