@@ -68,6 +68,9 @@ async function handleRun(req: Request) {
     const limitParam = Number(url.searchParams.get('limit') || '50')
     const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 200) : 50
     const skipFn = ((url.searchParams.get('skipFn') || '').toLowerCase() === '1')
+    const notifyAdmin = ((url.searchParams.get('notifyAdmin') || '').toLowerCase() === '1')
+    const adminTargetsRaw = String(url.searchParams.get('adminTargets') || process.env.ADMIN_NOTIFY_EMAILS || '').trim()
+    const adminTargets = adminTargetsRaw.split(',').map((s) => s.trim()).filter(Boolean)
     let cleared: number | null = null
     let clearedTotal: number | null = null
     if (clear === '1' && (email || userId)) {
@@ -185,6 +188,17 @@ async function handleRun(req: Request) {
         }
         fallbackBulk = { ok_count: okCount, fail_count: failCount, limit, sample: samples }
         clearedTotal = clearedSum
+      }
+    } catch {}
+    // Notificar administradores se solicitado e houver entregas
+    try {
+      const notifiedCount = Number((json && (json as any).notified) || 0)
+      if (notifyAdmin && notifiedCount > 0 && adminTargets.length) {
+        for (const t of adminTargets) {
+          try {
+            await sendOneSignalDirect(null, t)
+          } catch {}
+        }
       }
     } catch {}
     return NextResponse.json({
