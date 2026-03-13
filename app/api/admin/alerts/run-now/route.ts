@@ -73,6 +73,8 @@ async function handleRun(req: Request) {
     const notifyAdminAlways = ((url.searchParams.get('notifyAdminAlways') || '').toLowerCase() === '1')
     const adminTargetsRaw = String(url.searchParams.get('adminTargets') || process.env.ADMIN_NOTIFY_EMAILS || '').trim()
     const adminTargets = adminTargetsRaw.split(',').map((s) => s.trim()).filter(Boolean)
+    const debug = ((url.searchParams.get('debug') || '').toLowerCase() === '1')
+    const onesignalSource = ((url.searchParams.get('onesignal') || '').toLowerCase() === '1')
     let cleared: number | null = null
     let clearedTotal: number | null = null
     if (clear === '1' && (email || userId)) {
@@ -138,28 +140,136 @@ async function handleRun(req: Request) {
       if ((allFlag && allFlag !== '0' && allFlag !== 'false') || (anyFlag && anyFlag !== '0' && anyFlag !== 'false')) {
         const supa = createClient(supaUrl, serviceKey)
         let users: any[] = []
+        let mode = ''
         if (anyFlag && anyFlag !== '0' && anyFlag !== 'false') {
+          mode = 'any'
           const q = await supa
             .from('profiles')
             .select('id,email,subscription_id,updated_at')
-            .not('subscription_id', 'is', null)
             .order('updated_at', { ascending: false })
-            .limit(limit)
-          users = Array.isArray(q?.data) ? q.data : []
+            .limit(Math.min(limit * 3, 600))
+          const rows = Array.isArray(q?.data) ? q.data : []
+          users = rows.filter((u: any) => {
+            try { return Boolean(String(u?.subscription_id ?? '').trim()) } catch { return false }
+          }).slice(0, limit)
+          if (!users.length) {
+            if (onesignalSource) {
+              try {
+                const appId = process.env.ONESIGNAL_APP_ID || process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || '43f9ce9c-8d86-4076-a8b6-30dac8429149'
+                const apiKeyRaw = (process.env.ONESIGNAL_REST_API_KEY || process.env.ONESIGNAL_API_KEY || '').trim()
+                const apiKey = apiKeyRaw.replace(/^(?:Key|Basic)\s+/i, '').trim()
+                if (appId && apiKey) {
+                  const urlPlayers = `https://api.onesignal.com/players?app_id=${encodeURIComponent(appId)}&limit=${limit}&offset=0`
+                  const pr = await fetch(urlPlayers, { headers: { 'Authorization': `Basic ${apiKey}` } })
+                  const pj: any = await pr.json().catch(() => null)
+                  const plist: any[] = Array.isArray(pj?.players) ? pj.players : []
+                  const mapped = plist
+                    .filter((p: any) => !p?.invalid_identifier && (typeof p?.enabled !== 'boolean' || p.enabled))
+                    .map((p: any) => ({ id: p?.id, email: p?.external_user_id || '', subscription_id: p?.id, updated_at: null }))
+                    .filter((u: any) => Boolean(String(u?.subscription_id || '').trim()))
+                  users = mapped.slice(0, limit)
+                  mode = 'any_onesignal'
+                }
+              } catch {}
+            }
+            if (!users.length) {
+              const q2 = await supa
+                .from('profiles')
+                .select('id,email,subscription_id,updated_at')
+                .order('updated_at', { ascending: false })
+                .limit(Math.min(limit * 2, 400))
+              const fallbackUsers = Array.isArray(q2?.data) ? q2.data : []
+              users = fallbackUsers.filter((u: any) => {
+                try { return Boolean(String(u?.subscription_id ?? '').trim()) } catch { return false }
+              }).slice(0, limit)
+              mode = 'any_fallback'
+            }
+          }
         } else {
+          mode = 'premium'
           const q = await supa
             .from('profiles')
-            .select('id,email,subscription_id,updated_at')
-            .or('is_premium.eq.true,plan.eq.premium')
-            .not('subscription_id', 'is', null)
+            .select('id,email,subscription_id,updated_at,is_premium,plan')
             .order('updated_at', { ascending: false })
-            .limit(limit)
-          users = Array.isArray(q?.data) ? q.data : []
+            .limit(Math.min(limit * 3, 600))
+          const rows = Array.isArray(q?.data) ? q.data : []
+          users = rows.filter((u: any) => {
+            try {
+              const hasSub = Boolean(String(u?.subscription_id ?? '').trim())
+              const prem = Boolean(u?.is_premium) || String(u?.plan || '').toLowerCase() === 'premium'
+              return hasSub && prem
+            } catch { return false }
+          }).slice(0, limit)
+          if (!users.length) {
+            if (onesignalSource) {
+              try {
+                const appId = process.env.ONESIGNAL_APP_ID || process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || '43f9ce9c-8d86-4076-a8b6-30dac8429149'
+                const apiKeyRaw = (process.env.ONESIGNAL_REST_API_KEY || process.env.ONESIGNAL_API_KEY || '').trim()
+                const apiKey = apiKeyRaw.replace(/^(?:Key|Basic)\s+/i, '').trim()
+                if (appId && apiKey) {
+                  const urlPlayers = `https://api.onesignal.com/players?app_id=${encodeURIComponent(appId)}&limit=${limit}&offset=0`
+                  const pr = await fetch(urlPlayers, { headers: { 'Authorization': `Basic ${apiKey}` } })
+                  const pj: any = await pr.json().catch(() => null)
+                  const plist: any[] = Array.isArray(pj?.players) ? pj.players : []
+                  const mapped = plist
+                    .filter((p: any) => !p?.invalid_identifier && (typeof p?.enabled !== 'boolean' || p.enabled))
+                    .map((p: any) => ({ id: p?.id, email: p?.external_user_id || '', subscription_id: p?.id, updated_at: null }))
+                    .filter((u: any) => Boolean(String(u?.subscription_id || '').trim()))
+                  users = mapped.slice(0, limit)
+                  mode = 'premium_onesignal'
+                }
+              } catch {}
+            }
+            if (!users.length) {
+              const q2 = await supa
+                .from('profiles')
+                .select('id,email,subscription_id,updated_at,is_premium,plan')
+                .order('updated_at', { ascending: false })
+                .limit(Math.min(limit * 2, 400))
+              const fb = Array.isArray(q2?.data) ? q2.data : []
+              users = fb.filter((u: any) => {
+                try {
+                  const hasSub = Boolean(String(u?.subscription_id ?? '').trim())
+                  const prem = Boolean(u?.is_premium) || String(u?.plan || '').toLowerCase() === 'premium'
+                  return hasSub && prem
+                } catch { return false }
+              }).slice(0, limit)
+              mode = 'premium_fallback'
+            }
+          }
         }
+        try {
+          const sampleLog = (Array.isArray(users) ? users : []).slice(0, 10).map((u: any) => ({
+            id: u?.id,
+            email: u?.email,
+            has_sub: Boolean(u?.subscription_id && String(u.subscription_id).trim() !== ''),
+          }))
+          console.log('[run-now] bulk selection', { mode, limit, where: "subscription_id IS NOT NULL AND subscription_id != ''", count: Array.isArray(users) ? users.length : 0, sample: sampleLog })
+        } catch {}
         let okCount = 0
         let failCount = 0
         let samples: Array<{ email?: string; userId?: string; ok: boolean; status?: number; error?: string }> = []
         let clearedSum = 0
+        let debugCounts: any = undefined
+        if (debug) {
+          try {
+            const c1 = await supa
+              .from('profiles')
+              .select('id', { count: 'exact', head: true })
+              .not('subscription_id', 'is', null)
+              .neq('subscription_id', '')
+            const c2 = await supa
+              .from('profiles')
+              .select('id', { count: 'exact', head: true })
+              .or('is_premium.eq.true,plan.eq.premium')
+              .not('subscription_id', 'is', null)
+              .neq('subscription_id', '')
+            debugCounts = {
+              any_with_token: typeof (c1 as any)?.count === 'number' ? (c1 as any).count : null,
+              premium_with_token: typeof (c2 as any)?.count === 'number' ? (c2 as any).count : null,
+            }
+          } catch {}
+        }
         for (const u of Array.isArray(users) ? users : []) {
           const uid = String((u as any)?.id || '')
           const em = String((u as any)?.email || '')
@@ -171,7 +281,8 @@ async function handleRun(req: Request) {
             } catch {}
           }
           try {
-            const sub = String((u as any)?.subscription_id || '') || null
+            const subRaw = String((u as any)?.subscription_id ?? '')
+            const sub = subRaw && subRaw.trim() !== '' ? subRaw : null
             const ext = em || uid || null
             const r2 = await sendOneSignalDirect(sub, ext, null, null)
             okCount += r2.ok ? 1 : 0
@@ -188,7 +299,8 @@ async function handleRun(req: Request) {
             if (samples.length < 10) samples.push({ email: em || undefined, userId: uid || undefined, ok: false, error: e?.message || 'FALLBACK_ERROR' })
           }
         }
-        fallbackBulk = { ok_count: okCount, fail_count: failCount, limit, sample: samples }
+        const debugInfo = debug ? { mode, selected: Array.isArray(users) ? users.length : 0, counts: debugCounts } : undefined
+        fallbackBulk = Object.assign({ ok_count: okCount, fail_count: failCount, limit, sample: samples }, debugInfo ? { debug: debugInfo } : {})
         clearedTotal = clearedSum
       }
     } catch {}
