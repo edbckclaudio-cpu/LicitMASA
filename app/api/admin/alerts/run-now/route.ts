@@ -10,6 +10,38 @@ async function handleRun(req: Request) {
     return NextResponse.json({ ok: false, error: 'UNAUTHORIZED' }, { status: 401 })
   }
   try {
+    async function sendOneSignalDirect(subId: string | null, externalId: string | null) {
+      const appId = process.env.ONESIGNAL_APP_ID || process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || '43f9ce9c-8d86-4076-a8b6-30dac8429149'
+      const apiKeyRaw = (process.env.ONESIGNAL_REST_API_KEY || process.env.ONESIGNAL_API_KEY || '').trim()
+      const apiKey = apiKeyRaw.replace(/^(?:Key|Basic)\s+/i, '').trim()
+      if (!appId || !apiKey || (!subId && !externalId)) return { ok: false, status: 400, data: { error: 'MISSING_DATA' } }
+      const base: any = {
+        app_id: appId,
+        headings: { pt: 'Teste de Alerta', en: 'Alert Test' },
+        contents: { pt: 'Notificação de teste via OneSignal', en: 'Test notification via OneSignal' },
+        priority: 10,
+        android_visibility: 1,
+        android_sound: 'default',
+        vibrate: true,
+        android_vibration_pattern: '200,100,200,100,200',
+        chrome_web_icon: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.licitmasa.com.br'}/icons/icone_L_192.png`,
+        chrome_web_image: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.licitmasa.com.br'}/icons/icone_L_512.png`,
+        url: process.env.NEXT_PUBLIC_SITE_URL || 'https://www.licitmasa.com.br/',
+      }
+      const channelId = (process.env.ONESIGNAL_ANDROID_CHANNEL_ID || '').trim()
+      if (channelId) (base as any).android_channel_id = channelId
+      const payload = subId ? { ...base, include_subscription_ids: [String(subId)] } : { ...base, include_external_user_ids: [String(externalId)] }
+      const r = await fetch('https://api.onesignal.com/notifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json; charset=utf-8', 'Authorization': `Basic ${apiKey}` },
+        body: JSON.stringify(payload),
+      })
+      let raw: string | null = null
+      try { raw = await r.text() } catch {}
+      let j: any = null
+      try { j = raw ? JSON.parse(raw) : null } catch {}
+      return { ok: r.ok, status: r.status, data: j ?? (raw ? { raw } : null) }
+    }
     const supaUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || ''
     const serviceKey =
       process.env.SUPABASE_SERVICE_ROLE_KEY ||
@@ -77,18 +109,24 @@ async function handleRun(req: Request) {
     let fallbackBulk: any = null
     try {
       if (email || userId) {
-        const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://www.licitmasa.com.br').replace(/\/+$/, '')
-        const urlTest = new URL(`${baseUrl}/api/notifications/test`)
-        if (email) urlTest.searchParams.set('email', email)
-        if (userId) urlTest.searchParams.set('userId', userId)
-        const r2 = await fetch(urlTest.toString(), {
-          method: 'GET',
-          headers: { 'x-admin-token': expected }
-        })
-        const t2 = await r2.text()
-        let j2: any = null
-        try { j2 = JSON.parse(t2) } catch {}
-        fallback = { ok: r2.ok, status: r2.status, body: j2 || t2 || null }
+        let subId: string | null = null
+        let ext: string | null = null
+        try {
+          const supa = createClient(supaUrl, serviceKey)
+          let uid = userId
+          if (!uid && email) {
+            const q = await supa.from('profiles').select('id,subscription_id').eq('email', String(email).trim().toLowerCase()).limit(1).maybeSingle()
+            uid = String(q?.data?.id || '')
+            subId = String((q?.data as any)?.subscription_id || '') || null
+          }
+          if (uid && !subId) {
+            const p = await supa.from('profiles').select('subscription_id').eq('id', uid).limit(1).maybeSingle()
+            subId = String((p?.data as any)?.subscription_id || '') || null
+          }
+          ext = String(email || userId || '') || null
+        } catch {}
+        const sendRes = await sendOneSignalDirect(subId, ext)
+        fallback = { ok: sendRes.ok, status: sendRes.status, body: sendRes.data }
       }
       // Fallback em lote quando all=1
       if (allFlag && allFlag !== '0' && allFlag !== 'false') {
@@ -115,22 +153,15 @@ async function handleRun(req: Request) {
             } catch {}
           }
           try {
-            const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://www.licitmasa.com.br').replace(/\/+$/, '')
-            const urlTest = new URL(`${baseUrl}/api/notifications/test`)
-            if (em) urlTest.searchParams.set('email', em)
-            else if (uid) urlTest.searchParams.set('userId', uid)
-            const r2 = await fetch(urlTest.toString(), {
-              method: 'GET',
-              headers: { 'x-admin-token': expected }
-            })
-            let t2 = ''
-            try { t2 = await r2.text() } catch {}
+            const sub = String((u as any)?.subscription_id || '') || null
+            const ext = em || uid || null
+            const r2 = await sendOneSignalDirect(sub, ext)
             okCount += r2.ok ? 1 : 0
             failCount += r2.ok ? 0 : 1
             if (samples.length < 10) {
               let errMsg = ''
               if (!r2.ok) {
-                try { const j = JSON.parse(t2); errMsg = JSON.stringify(j) } catch { errMsg = t2 }
+                try { errMsg = JSON.stringify(r2.data || {}) } catch { errMsg = '' }
               }
               samples.push({ email: em || undefined, userId: uid || undefined, ok: r2.ok, status: r2.status, error: errMsg || undefined })
             }
