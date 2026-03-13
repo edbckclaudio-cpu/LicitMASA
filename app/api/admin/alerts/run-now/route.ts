@@ -28,9 +28,11 @@ async function handleRun(req: Request) {
     }
     const userId = url.searchParams.get('userId') || ''
     const email = url.searchParams.get('email') || ''
+    const preview = url.searchParams.get('preview') || ''
     const qs = new URLSearchParams()
     if (userId) qs.set('userId', userId)
     if (email) qs.set('email', email)
+    if (preview === '1') qs.set('preview', '1')
     const fnUrl = `https://${projectRef}.functions.supabase.co/check-alerts${qs.toString() ? `?${qs.toString()}` : ''}`
     const res = await fetch(fnUrl, {
       method: 'GET',
