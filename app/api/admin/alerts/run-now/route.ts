@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server'
 
-export async function POST(req: Request) {
+async function handleRun(req: Request) {
+  const url = new URL(req.url)
   const adminHeader = req.headers.get('x-admin-token') || ''
+  const adminQuery = url.searchParams.get('admin') || ''
   const expected = process.env.ADMIN_TOKEN || 'DEV'
-  if (adminHeader !== expected) {
+  if (adminHeader !== expected && adminQuery !== expected) {
     return NextResponse.json({ ok: false, error: 'UNAUTHORIZED' }, { status: 401 })
   }
   try {
@@ -20,9 +22,8 @@ export async function POST(req: Request) {
     if (!projectRef) {
       return NextResponse.json({ ok: false, error: 'INVALID_SUPABASE_URL' }, { status: 500 })
     }
-    const { searchParams } = new URL(req.url)
-    const userId = searchParams.get('userId') || ''
-    const email = searchParams.get('email') || ''
+    const userId = url.searchParams.get('userId') || ''
+    const email = url.searchParams.get('email') || ''
     const qs = new URLSearchParams()
     if (userId) qs.set('userId', userId)
     if (email) qs.set('email', email)
@@ -49,3 +50,9 @@ export async function POST(req: Request) {
   }
 }
 
+export async function POST(req: Request) {
+  return handleRun(req)
+}
+export async function GET(req: Request) {
+  return handleRun(req)
+}
