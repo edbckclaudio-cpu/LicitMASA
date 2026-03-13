@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
 
 async function handleRun(req: Request) {
   const url = new URL(req.url)
@@ -29,6 +30,21 @@ async function handleRun(req: Request) {
     const userId = url.searchParams.get('userId') || ''
     const email = url.searchParams.get('email') || ''
     const preview = url.searchParams.get('preview') || ''
+    const clear = url.searchParams.get('clear') || ''
+    let cleared: number | null = null
+    if (clear === '1' && (email || userId)) {
+      const supa = createClient(supaUrl, serviceKey)
+      let uid = userId
+      if (!uid && email) {
+        const q = await supa.from('profiles').select('id').eq('email', String(email).trim().toLowerCase()).limit(1).maybeSingle()
+        uid = String(q?.data?.id || '')
+      }
+      if (uid) {
+        const pre = await supa.from('sent_alerts').select('pncp_id', { count: 'exact', head: false }).eq('user_id', uid)
+        await supa.from('sent_alerts').delete().eq('user_id', uid)
+        cleared = typeof pre.count === 'number' ? pre.count : null
+      }
+    }
     const qs = new URLSearchParams()
     if (userId) qs.set('userId', userId)
     if (email) qs.set('email', email)
@@ -45,12 +61,9 @@ async function handleRun(req: Request) {
     const text = await res.text()
     let json: any = null
     try { json = JSON.parse(text) } catch {}
-    // Fallback de entrega: se não houve notificações, dispara um teste de push para o alvo
     let fallback: any = null
     try {
-      const notified = Number(json?.notified ?? 0)
-      const okFlag = json?.ok ? true : false
-      if (okFlag && notified === 0 && (email || userId)) {
+      if (email || userId) {
         const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://www.licitmasa.com.br').replace(/\/+$/, '')
         const urlTest = new URL(`${baseUrl}/api/notifications/test`)
         if (email) urlTest.searchParams.set('email', email)
@@ -70,6 +83,7 @@ async function handleRun(req: Request) {
       status: res.status,
       body: json || text || null,
       fallback_push: fallback,
+      cleared,
       function_url: fnUrl.replace(projectRef, projectRef.slice(0, 3) + '...' + projectRef.slice(-3)),
     }, { status: res.ok ? 200 : 500 })
   } catch (e: any) {
