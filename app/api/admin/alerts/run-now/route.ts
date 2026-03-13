@@ -45,10 +45,31 @@ async function handleRun(req: Request) {
     const text = await res.text()
     let json: any = null
     try { json = JSON.parse(text) } catch {}
+    // Fallback de entrega: se não houve notificações, dispara um teste de push para o alvo
+    let fallback: any = null
+    try {
+      const notified = Number(json?.notified ?? 0)
+      const okFlag = json?.ok ? true : false
+      if (okFlag && notified === 0 && (email || userId)) {
+        const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://www.licitmasa.com.br').replace(/\/+$/, '')
+        const urlTest = new URL(`${baseUrl}/api/notifications/test`)
+        if (email) urlTest.searchParams.set('email', email)
+        if (userId) urlTest.searchParams.set('userId', userId)
+        const r2 = await fetch(urlTest.toString(), {
+          method: 'GET',
+          headers: { 'x-admin-token': expected }
+        })
+        const t2 = await r2.text()
+        let j2: any = null
+        try { j2 = JSON.parse(t2) } catch {}
+        fallback = { ok: r2.ok, status: r2.status, body: j2 || t2 || null }
+      }
+    } catch {}
     return NextResponse.json({
       ok: res.ok,
       status: res.status,
       body: json || text || null,
+      fallback_push: fallback,
       function_url: fnUrl.replace(projectRef, projectRef.slice(0, 3) + '...' + projectRef.slice(-3)),
     }, { status: res.ok ? 200 : 500 })
   } catch (e: any) {
