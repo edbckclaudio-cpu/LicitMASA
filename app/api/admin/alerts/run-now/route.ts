@@ -9,8 +9,12 @@ async function handleRun(req: Request) {
     return NextResponse.json({ ok: false, error: 'UNAUTHORIZED' }, { status: 401 })
   }
   try {
-    const supaUrl = process.env.SUPABASE_URL || ''
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SERVICE_ROLE_KEY || ''
+    const supaUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || ''
+    const serviceKey =
+      process.env.SUPABASE_SERVICE_ROLE_KEY ||
+      process.env.SUPABASE_API_KEY ||
+      process.env.SERVICE_ROLE_KEY ||
+      ''
     if (!supaUrl || !serviceKey) {
       return NextResponse.json({ ok: false, error: 'MISSING_SUPABASE_ENV' }, { status: 500 })
     }
