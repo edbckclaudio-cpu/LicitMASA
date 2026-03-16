@@ -24,18 +24,42 @@ export async function GET(req: Request) {
     try {
       const preview = String(key).slice(0, 4)
       const inUrl = new URL(req.url)
-      const target = inUrl.search ? `${fn}${inUrl.search}` : fn
+      if (!inUrl.searchParams.get('preview')) inUrl.searchParams.set('preview', '1')
+      const target = `${fn}?${inUrl.searchParams.toString()}`
       console.log('[cron/run-check-alerts] calling:', target)
       console.log('[cron/run-check-alerts] key prefix:', preview)
     } catch {}
     const inUrl = new URL(req.url)
-    const target = inUrl.search ? `${fn}${inUrl.search}` : fn
+    if (!inUrl.searchParams.get('preview')) inUrl.searchParams.set('preview', '1')
+    const target = `${fn}?${inUrl.searchParams.toString()}`
     const res = await fetch(target, {
       method: 'GET',
       headers: { Authorization: `Bearer ${key}` },
       cache: 'no-store',
     })
     let data = await res.json().catch(() => ({} as any))
+    async function sendAdminPush(subject: string, message: string, externalIds: string[]) {
+      const appId = (process.env.ONESIGNAL_APP_ID || process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || '').replace(/^['"]|['"]$/g, '')
+      const rawKey = (process.env.ONESIGNAL_REST_API_KEY || process.env.ONESIGNAL_API_KEY || '').replace(/^['"]|['"]$/g, '')
+      if (!appId || !rawKey || !externalIds.length) return { ok: false }
+      const body = {
+        app_id: appId,
+        headings: { en: subject },
+        contents: { en: message },
+        include_external_user_ids: externalIds,
+        url: new URL(req.url).origin
+      }
+      const r = await fetch('https://api.onesignal.com/notifications', {
+        method: 'POST',
+        headers: { 'Authorization': `Basic ${rawKey}`, 'Content-Type': 'application/json', accept: 'application/json' },
+        body: JSON.stringify(body)
+      })
+      let txt = ''
+      try { txt = await r.text() } catch {}
+      let js: any = null
+      try { js = JSON.parse(txt) } catch {}
+      return { ok: r.ok, status: r.status, body: txt, json: js }
+    }
     try {
       const inUrl2 = new URL(req.url)
       const inspect = inUrl2.searchParams.get('inspect') === '1'
@@ -56,6 +80,20 @@ export async function GET(req: Request) {
             data = await res2.json().catch(() => ({} as any))
           } catch {}
         }
+      }
+    } catch {}
+    try {
+      const u = new URL(req.url)
+      const notifyOnErrorParam = u.searchParams.get('notifyAdminOnError')
+      const notifyOnError = notifyOnErrorParam ? notifyOnErrorParam === '1' : true
+      const targetsParam = u.searchParams.get('adminTargets') || ''
+      const defaults = String(process.env.ADMIN_TARGETS || process.env.ADMIN_EMAIL || 'licmasa84@gmail.com')
+      const targets = (targetsParam || defaults).split(',').map(s => s.trim()).filter(Boolean)
+      const failed = !res.ok || (!!(data as any)?.error)
+      if (notifyOnError && failed && targets.length) {
+        const subject = 'Falha no robô das 07:00'
+        const message = String((data as any)?.error || (data as any)?.data?.error || `STATUS_${res.status}`)
+        await sendAdminPush(subject, message, targets).catch(() => null)
       }
     } catch {}
     let onesignal: any = null
