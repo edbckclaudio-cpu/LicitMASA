@@ -162,6 +162,33 @@ async function sendPush(externalUserId: string, subject: string, message: string
   return { ok: res.ok, status: res.status, body: txt, json: js, masked_key_used: maskKey(keyUsed) }
 }
 
+async function sendBatch(subject: string, message: string, subs: string[]) {
+  const appId = sanitizeKey(Deno.env.get("ONESIGNAL_APP_ID") || "")
+  const restKey = sanitizeKey(Deno.env.get("ONESIGNAL_REST_API_KEY") || "")
+  const apiKeyAlt = sanitizeKey(Deno.env.get("ONESIGNAL_API_KEY") || "")
+  const apiKey = restKey || apiKeyAlt
+  if (!appId || !apiKey || !subs.length) return { ok: false, status: 400, json: null }
+  function headersFor(key: string) {
+    return { "Authorization": `Basic ${key}`, "Content-Type": "application/json", "accept": "application/json" }
+  }
+  const body = {
+    app_id: appId,
+    headings: { en: subject },
+    contents: { en: message },
+    url: "https://pncp.gov.br/",
+    include_subscription_ids: subs
+  }
+  let res = await fetch("https://api.onesignal.com/notifications", { method: "POST", headers: headersFor(apiKey), body: JSON.stringify(body) })
+  if ((res.status === 401 || res.status === 403) && restKey && apiKeyAlt && restKey !== apiKeyAlt) {
+    res = await fetch("https://api.onesignal.com/notifications", { method: "POST", headers: headersFor(apiKeyAlt), body: JSON.stringify(body) })
+  }
+  let txt = ""
+  try { txt = await res.text() } catch {}
+  let js: any = null
+  try { js = JSON.parse(txt) } catch {}
+  return { ok: res.ok, status: res.status, body: txt, json: js }
+}
+
 function daysUntil(dateStr: string) {
   const d = new Date(dateStr)
   const today = new Date()
@@ -453,6 +480,87 @@ serve(async (req: Request) => {
   try {
     console.log(`[check-alerts] total de alertas agregados (allAlerts):`, Array.isArray(allAlerts) ? allAlerts.length : 0)
   } catch {}
+  const diag: any = { busca_consolidada: null, disparo_lote: null }
+  function textFromItem(it: any): string {
+    const fields = ["objeto","descricao","resumo","texto","orgao","orgaoPublico","nomeUnidadeAdministrativa","uasgNome","entidade"]
+    const arr: string[] = []
+    for (const f of fields) {
+      const v = (it && (it[f] || (it?.[f] && String(it[f])))) ? String(it[f]) : ""
+      if (v) arr.push(v)
+    }
+    return arr.join(" ").toLowerCase()
+  }
+  const ufs = Array.from(new Set((allAlerts || []).map(a => (a.uf || "").toString().toUpperCase())))
+  const itemsByUf: Record<string, any[]> = {}
+  for (const uf of ufs.length ? ufs : [""]) {
+    const list = await fetchPNCP({ termo: undefined as any, uf: uf || undefined, dataInicial, dataFinal })
+    itemsByUf[uf || ""] = Array.isArray(list) ? list : []
+  }
+  diag.busca_consolidada = { ufs: ufs.length || 1, itens: Object.values(itemsByUf).reduce((acc, a) => acc + a.length, 0) }
+  const groups = new Map<string, { keyword: string, uf: string, alerts: Array<{ id?: string, user_id: string }> }>()
+  for (const a of allAlerts || []) {
+    const key = `${String(a.keyword || "").toLowerCase()}::${String(a.uf || "").toUpperCase()}`
+    const g = groups.get(key) || { keyword: String(a.keyword || ""), uf: String(a.uf || ""), alerts: [] }
+    g.alerts.push({ id: a.id, user_id: a.user_id })
+    groups.set(key, g)
+  }
+  const groupResults: any[] = []
+  for (const [gk, g] of groups.entries()) {
+    const pool = itemsByUf[(g.uf || "").toUpperCase()] || itemsByUf[""] || []
+    const kw = g.keyword.toLowerCase()
+    const matched = pool.filter((it) => textFromItem(it).includes(kw))
+    const ids = matched.map((it: any) => String(it.numeroControlePNCP || it.linkEdital || it.id || `${it.orgao}-${it.objeto}-${it.dataPublicacao}`))
+    if (!ids.length) {
+      for (const a of g.alerts) {
+        await supabase.from("alert_runs").insert({ alert_id: a.id, user_id: a.user_id, keyword: g.keyword, uf: g.uf || null, found_count: 0, notified_count: 0, channel: "none", error: null })
+      }
+      groupResults.push({ key: gk, found: 0, sent: 0, status: "skip" })
+      continue
+    }
+    const userIds = g.alerts.map(a => a.user_id)
+    const { data: profs } = await supabase.from("profiles").select("id,email,subscription_id").in("id", userIds)
+    const profById: Record<string, any> = {}
+    for (const p of (profs || [])) profById[String(p.id)] = p
+    const toSend: Array<{ userId: string, sub: string, newIds: string[] }> = []
+    for (const a of g.alerts) {
+      const { data: already } = await supabase.from("sent_alerts").select("pncp_id").eq("user_id", a.user_id).in("pncp_id", ids)
+      const sentSet = new Set((already || []).map((r: any) => r.pncp_id))
+      const newIds = ids.filter(id => !sentSet.has(id))
+      if (!newIds.length) continue
+      const p = profById[a.user_id]
+      const sub = String(p?.subscription_id || "")
+      if (sub) toSend.push({ userId: a.user_id, sub, newIds })
+    }
+    if (!toSend.length) {
+      for (const a of g.alerts) {
+        await supabase.from("alert_runs").insert({ alert_id: a.id, user_id: a.user_id, keyword: g.keyword, uf: g.uf || null, found_count: 0, notified_count: 0, channel: "none", error: null })
+      }
+      groupResults.push({ key: gk, found: matched.length, sent: 0, status: "no_recipients" })
+      continue
+    }
+    const subs = Array.from(new Set(toSend.map(t => t.sub)))
+    const subject = `Novas publicações: ${g.keyword}${g.uf ? ` • ${g.uf}` : ""}`
+    const message = `Publicações recentes em ${backDays} dia(s) para "${g.keyword}"`
+    const pr = await sendBatch(subject, message, subs)
+    let channel: "push" | "none" = pr.ok ? "push" : "none"
+    if (pr.ok) {
+      notified += toSend.length
+      for (const t of toSend) {
+        const rows = t.newIds.map((pncp_id) => ({ user_id: t.userId, pncp_id }))
+        if (rows.length) await supabase.from("sent_alerts").insert(rows)
+      }
+      for (const a of g.alerts) {
+        await supabase.from("alert_runs").insert({ alert_id: a.id, user_id: a.user_id, keyword: g.keyword, uf: g.uf || null, found_count: matched.length, notified_count: matched.length, channel, error: null })
+      }
+    } else {
+      for (const a of g.alerts) {
+        await supabase.from("alert_runs").insert({ alert_id: a.id, user_id: a.user_id, keyword: g.keyword, uf: g.uf || null, found_count: matched.length, notified_count: 0, channel: "none", error: String(pr.status) })
+      }
+    }
+    groupResults.push({ key: gk, found: matched.length, recipients: subs.length, status: pr.ok ? "ok" : "fail", http: pr.status })
+  }
+  processed = allAlerts.length
+  diag.disparo_lote = { groups: groupResults.length, results: groupResults.slice(0, 10) }
   try {
     const filterUserId = String(reqUrl.searchParams.get("userId") || "").trim()
     const filterEmail = String(reqUrl.searchParams.get("email") || "").trim().toLowerCase()
@@ -633,5 +741,5 @@ serve(async (req: Request) => {
       await supabase.from("user_certificates").update({ notified: true }).eq("id", cert.id)
     }
   }
-  return new Response(JSON.stringify({ ok: "TESTE_FINAL_AGORA", processed, notified, onesignal: lastOneSignal ? { status: lastOneSignal.status, json: lastOneSignal.json || null, body: lastOneSignal.body || null } : null }), { headers: { "Content-Type": "application/json" } })
+  return new Response(JSON.stringify({ ok: "TESTE_FINAL_AGORA", processed, notified, diagnostics: diag, onesignal: lastOneSignal ? { status: lastOneSignal.status, json: lastOneSignal.json || null, body: lastOneSignal.body || null } : null }), { headers: { "Content-Type": "application/json" } })
 })

@@ -10,6 +10,40 @@ async function handleRun(req: Request) {
     return NextResponse.json({ ok: false, error: 'UNAUTHORIZED' }, { status: 401 })
   }
   try {
+    async function sendOneSignalBatch(subIds: string[], externalIds: string[], title?: string | null, message?: string | null) {
+      const appId = process.env.ONESIGNAL_APP_ID || process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || '43f9ce9c-8d86-4076-a8b6-30dac8429149'
+      const apiKeyRaw = (process.env.ONESIGNAL_REST_API_KEY || process.env.ONESIGNAL_API_KEY || '').trim()
+      const apiKey = apiKeyRaw.replace(/^(?:Key|Basic)\s+/i, '').trim()
+      const hasSubs = Array.isArray(subIds) && subIds.filter((x) => String(x || '').trim()).length > 0
+      const hasExts = Array.isArray(externalIds) && externalIds.filter((x) => String(x || '').trim()).length > 0
+      if (!appId || !apiKey || (!hasSubs && !hasExts)) return { ok: false, status: 400, data: { error: 'MISSING_DATA' } }
+      const base: any = {
+        app_id: appId,
+        headings: { pt: String(title || 'Alertas'), en: String(title || 'Alerts') },
+        contents: { pt: String(message || 'Novas publicações'), en: String(message || 'New publications') },
+        priority: 10,
+        android_visibility: 1,
+        android_sound: 'default',
+        vibrate: true,
+        android_vibration_pattern: '200,100,200,100,200',
+        chrome_web_icon: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.licitmasa.com.br'}/icons/icone_L_192.png`,
+        chrome_web_image: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.licitmasa.com.br'}/icons/icone_L_512.png`,
+        url: process.env.NEXT_PUBLIC_SITE_URL || 'https://www.licitmasa.com.br/',
+      }
+      const channelId = (process.env.ONESIGNAL_ANDROID_CHANNEL_ID || '').trim()
+      if (channelId) (base as any).android_channel_id = channelId
+      const payload = hasSubs ? { ...base, include_subscription_ids: subIds } : { ...base, include_external_user_ids: externalIds }
+      const r = await fetch('https://api.onesignal.com/notifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json; charset=utf-8', 'Authorization': `Basic ${apiKey}` },
+        body: JSON.stringify(payload),
+      })
+      let raw: string | null = null
+      try { raw = await r.text() } catch {}
+      let j: any = null
+      try { j = raw ? JSON.parse(raw) : null } catch {}
+      return { ok: r.ok, status: r.status, data: j ?? (raw ? { raw } : null) }
+    }
     async function sendOneSignalDirect(subId: string | null, externalId: string | null, title?: string | null, message?: string | null) {
       const appId = process.env.ONESIGNAL_APP_ID || process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || '43f9ce9c-8d86-4076-a8b6-30dac8429149'
       const apiKeyRaw = (process.env.ONESIGNAL_REST_API_KEY || process.env.ONESIGNAL_API_KEY || '').trim()
@@ -75,6 +109,7 @@ async function handleRun(req: Request) {
     const adminTargets = adminTargetsRaw.split(',').map((s) => s.trim()).filter(Boolean)
     const debug = ((url.searchParams.get('debug') || '').toLowerCase() === '1')
     const onesignalSource = ((url.searchParams.get('onesignal') || '').toLowerCase() === '1')
+    const batchMode = ((url.searchParams.get('batch') || '').toLowerCase() === '1')
     let cleared: number | null = null
     let clearedTotal: number | null = null
     if (clear === '1' && (email || userId)) {
@@ -296,33 +331,48 @@ async function handleRun(req: Request) {
             }
           } catch {}
         }
-        for (const u of Array.isArray(users) ? users : []) {
-          const uid = String((u as any)?.id || '')
-          const em = String((u as any)?.email || '')
-          if (clear === '1' && uid) {
-            try {
-              const pre = await supa.from('sent_alerts').select('pncp_id', { count: 'exact', head: false }).eq('user_id', uid)
-              await supa.from('sent_alerts').delete().eq('user_id', uid)
-              clearedSum += typeof (pre as any)?.count === 'number' ? (pre as any).count : 0
-            } catch {}
-          }
-          try {
-            const subRaw = String((u as any)?.subscription_id ?? '')
-            const sub = subRaw && subRaw.trim() !== '' ? subRaw : null
-            const ext = em || uid || null
-            const r2 = await sendOneSignalDirect(sub, ext, null, null)
-            okCount += r2.ok ? 1 : 0
-            failCount += r2.ok ? 0 : 1
-            if (samples.length < 10) {
-              let errMsg = ''
-              if (!r2.ok) {
-                try { errMsg = JSON.stringify(r2.data || {}) } catch { errMsg = '' }
-              }
-              samples.push({ email: em || undefined, userId: uid || undefined, ok: r2.ok, status: r2.status, error: errMsg || undefined })
+        if (batchMode) {
+          const subs = (Array.isArray(users) ? users : []).map((u: any) => String(u?.subscription_id || '')).filter((s) => s && s.trim() !== '')
+          const exts = (Array.isArray(users) ? users : []).map((u: any) => String(u?.email || u?.id || '')).filter((s) => s && s.trim() !== '')
+          const r = await sendOneSignalBatch(subs, exts, null, null)
+          okCount = r.ok ? subs.length : 0
+          failCount = r.ok ? 0 : subs.length
+          samples = (Array.isArray(users) ? users : []).slice(0, 10).map((u: any) => ({
+            email: String(u?.email || '') || undefined,
+            userId: String(u?.id || '') || undefined,
+            ok: r.ok,
+            status: r.status,
+            error: r.ok ? undefined : (typeof r.data === 'string' ? r.data : JSON.stringify(r.data || {}))
+          }))
+        } else {
+          for (const u of Array.isArray(users) ? users : []) {
+            const uid = String((u as any)?.id || '')
+            const em = String((u as any)?.email || '')
+            if (clear === '1' && uid) {
+              try {
+                const pre = await supa.from('sent_alerts').select('pncp_id', { count: 'exact', head: false }).eq('user_id', uid)
+                await supa.from('sent_alerts').delete().eq('user_id', uid)
+                clearedSum += typeof (pre as any)?.count === 'number' ? (pre as any).count : 0
+              } catch {}
             }
-          } catch (e: any) {
-            failCount += 1
-            if (samples.length < 10) samples.push({ email: em || undefined, userId: uid || undefined, ok: false, error: e?.message || 'FALLBACK_ERROR' })
+            try {
+              const subRaw = String((u as any)?.subscription_id ?? '')
+              const sub = subRaw && subRaw.trim() !== '' ? subRaw : null
+              const ext = em || uid || null
+              const r2 = await sendOneSignalDirect(sub, ext, null, null)
+              okCount += r2.ok ? 1 : 0
+              failCount += r2.ok ? 0 : 1
+              if (samples.length < 10) {
+                let errMsg = ''
+                if (!r2.ok) {
+                  try { errMsg = JSON.stringify(r2.data || {}) } catch { errMsg = '' }
+                }
+                samples.push({ email: em || undefined, userId: uid || undefined, ok: r2.ok, status: r2.status, error: errMsg || undefined })
+              }
+            } catch (e: any) {
+              failCount += 1
+              if (samples.length < 10) samples.push({ email: em || undefined, userId: uid || undefined, ok: false, error: e?.message || 'FALLBACK_ERROR' })
+            }
           }
         }
         const debugInfo = debug ? { mode, selected: Array.isArray(users) ? users.length : 0, counts: debugCounts } : undefined

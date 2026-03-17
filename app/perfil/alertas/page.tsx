@@ -1348,7 +1348,7 @@ export default function AlertasPage() {
                           <span
                             aria-hidden
                             onClick={onHiddenPinClick}
-                            className="ml-1 inline-block h-3 w-3 rounded-full bg-white"
+                            className="ml-1 inline-block h-3 w-3 rounded-full bg-slate-200 ring-1 ring-slate-300"
                             title=""
                           />
                         </div>
