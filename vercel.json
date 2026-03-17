@@ -7,7 +7,7 @@
   ],
   "crons": [
     {
-      "path": "/api/cron/run-check-alerts",
+      "path": "/api/admin/alerts/run-now?admin=DEV&any=1&skipFn=1&onesignal=1&batch=1&limit=200&notifyAdmin=1&notifyAdminOnError=1",
       "schedule": "0 10 * * *"
     },
     {
