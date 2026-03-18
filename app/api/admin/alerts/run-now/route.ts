@@ -26,9 +26,9 @@ async function handleRun(req: Request) {
         android_sound: 'default',
         vibrate: true,
         android_vibration_pattern: '200,100,200,100,200',
-        chrome_web_icon: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.licitmasa.com.br'}/icons/icone_L_192.png`,
-        chrome_web_image: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.licitmasa.com.br'}/icons/icone_L_512.png`,
-        url: process.env.NEXT_PUBLIC_SITE_URL || 'https://www.licitmasa.com.br/',
+        chrome_web_icon: `https://www.licitmasa.com.br/icons/icone_L_192.png`,
+        chrome_web_image: `https://www.licitmasa.com.br/icons/icone_L_512.png`,
+        url: 'https://www.licitmasa.com.br/',
       }
       const channelId = (process.env.ONESIGNAL_ANDROID_CHANNEL_ID || '').trim()
       if (channelId) (base as any).android_channel_id = channelId
@@ -58,9 +58,9 @@ async function handleRun(req: Request) {
         android_sound: 'default',
         vibrate: true,
         android_vibration_pattern: '200,100,200,100,200',
-        chrome_web_icon: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.licitmasa.com.br'}/icons/icone_L_192.png`,
-        chrome_web_image: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.licitmasa.com.br'}/icons/icone_L_512.png`,
-        url: process.env.NEXT_PUBLIC_SITE_URL || 'https://www.licitmasa.com.br/',
+        chrome_web_icon: `https://www.licitmasa.com.br/icons/icone_L_192.png`,
+        chrome_web_image: `https://www.licitmasa.com.br/icons/icone_L_512.png`,
+        url: 'https://www.licitmasa.com.br/',
       }
       const channelId = (process.env.ONESIGNAL_ANDROID_CHANNEL_ID || '').trim()
       if (channelId) (base as any).android_channel_id = channelId
@@ -232,6 +232,31 @@ async function handleRun(req: Request) {
               }).slice(0, limit)
               mode = 'any_fallback'
             }
+          } else if (onesignalSource && users.length < limit) {
+            try {
+              const appId = process.env.ONESIGNAL_APP_ID || process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || '43f9ce9c-8d86-4076-a8b6-30dac8429149'
+              const apiKeyRaw = (process.env.ONESIGNAL_REST_API_KEY || process.env.ONESIGNAL_API_KEY || '').trim()
+              const apiKey = apiKeyRaw.replace(/^(?:Key|Basic)\s+/i, '').trim()
+              if (appId && apiKey) {
+                const remain = Math.max(0, limit - users.length)
+                if (remain > 0) {
+                  const urlPlayers = `https://api.onesignal.com/players?app_id=${encodeURIComponent(appId)}&limit=${remain}&offset=0`
+                  const pr = await fetch(urlPlayers, { headers: { 'Authorization': `Basic ${apiKey}` } })
+                  const pj: any = await pr.json().catch(() => null)
+                  const plist: any[] = Array.isArray(pj?.players) ? pj.players : []
+                  const extra = plist
+                    .filter((p: any) => !p?.invalid_identifier && (typeof p?.enabled !== 'boolean' || p.enabled))
+                    .map((p: any) => ({ id: p?.id, email: p?.external_user_id || '', subscription_id: p?.id, updated_at: null }))
+                    .filter((u: any) => Boolean(String(u?.subscription_id || '').trim()))
+                    .filter((u: any) => users.every((ex: any) => ex.subscription_id !== u.subscription_id))
+                    .slice(0, remain)
+                  if (extra.length) {
+                    users = users.concat(extra)
+                    mode = `${mode}_mixed`
+                  }
+                }
+              }
+            } catch {}
           }
         } else {
           mode = 'premium'
@@ -297,6 +322,32 @@ async function handleRun(req: Request) {
               }).slice(0, limit)
               mode = 'premium_fallback'
             }
+          }
+          else if (onesignalSource && users.length < limit) {
+            try {
+              const appId = process.env.ONESIGNAL_APP_ID || process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || '43f9ce9c-8d86-4076-a8b6-30dac8429149'
+              const apiKeyRaw = (process.env.ONESIGNAL_REST_API_KEY || process.env.ONESIGNAL_API_KEY || '').trim()
+              const apiKey = apiKeyRaw.replace(/^(?:Key|Basic)\s+/i, '').trim()
+              if (appId && apiKey) {
+                const remain = Math.max(0, limit - users.length)
+                if (remain > 0) {
+                  const urlPlayers = `https://api.onesignal.com/players?app_id=${encodeURIComponent(appId)}&limit=${remain}&offset=0`
+                  const pr = await fetch(urlPlayers, { headers: { 'Authorization': `Basic ${apiKey}` } })
+                  const pj: any = await pr.json().catch(() => null)
+                  const plist: any[] = Array.isArray(pj?.players) ? pj.players : []
+                  const extra = plist
+                    .filter((p: any) => !p?.invalid_identifier && (typeof p?.enabled !== 'boolean' || p.enabled))
+                    .map((p: any) => ({ id: p?.id, email: p?.external_user_id || '', subscription_id: p?.id, updated_at: null }))
+                    .filter((u: any) => Boolean(String(u?.subscription_id || '').trim()))
+                    .filter((u: any) => users.every((ex: any) => ex.subscription_id !== u.subscription_id))
+                    .slice(0, remain)
+                  if (extra.length) {
+                    users = users.concat(extra)
+                    mode = `${mode}_mixed`
+                  }
+                }
+              }
+            } catch {}
           }
         }
         try {

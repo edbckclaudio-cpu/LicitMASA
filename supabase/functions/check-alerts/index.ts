@@ -175,7 +175,7 @@ async function sendBatch(subject: string, message: string, subs: string[]) {
     app_id: appId,
     headings: { en: subject },
     contents: { en: message },
-    url: "https://pncp.gov.br/",
+    url: "https://www.licitmasa.com.br/",
     include_subscription_ids: subs
   }
   let res = await fetch("https://api.onesignal.com/notifications", { method: "POST", headers: headersFor(apiKey), body: JSON.stringify(body) })
