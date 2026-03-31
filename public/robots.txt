@@ -1,7 +1,14 @@
+# LicitMASA - Robôs de Busca
 User-agent: *
 Allow: /
-User-agent: GPTBot
-Allow: /
-User-agent: Google-Extended
-Allow: /
-Sitemap: /sitemap.xml
+Allow: /guia.html
+
+# Bloquear páginas que exigem login ou são privadas
+Disallow: /login
+Disallow: /perfil
+Disallow: /perfil/alertas
+Disallow: /favoritos
+Disallow: /api/
+
+# Indicar o caminho oficial do Sitemap
+Sitemap: https://www.licitmasa.com.br/sitemap.xml
