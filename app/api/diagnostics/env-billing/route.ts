@@ -1,5 +1,13 @@
  import { NextResponse } from 'next/server'
  
+ /**
+  * Diagnostico rapido das variaveis de ambiente do fluxo de billing.
+  *
+  * A rota nao expõe segredos; ela informa apenas presenca/ausencia das chaves
+  * e devolve os identificadores publicos necessarios para validar configuracao.
+  *
+  * @returns Snapshot seguro da configuracao de Google Play e site.
+  */
  export async function GET() {
    try {
     const productId = String(process.env.NEXT_PUBLIC_PLAY_PRODUCT_ID || '').trim()

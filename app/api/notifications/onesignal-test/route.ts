@@ -1,5 +1,19 @@
 import { NextResponse } from 'next/server'
 
+/**
+ * Endpoint de teste direto do envio OneSignal.
+ *
+ * Ele aceita tres formas de destino:
+ * - `externalId`
+ * - `userId`
+ * - `playerId` / `subscription_id`
+ *
+ * O objetivo aqui nao e a automacao do produto, e sim suporte manual para
+ * validar credenciais, payload e roteamento do push.
+ *
+ * @param req Requisicao de teste com destino e mensagem opcionais.
+ * @returns Resposta crua do OneSignal para facilitar troubleshooting.
+ */
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({} as any))

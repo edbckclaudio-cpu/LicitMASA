@@ -2,10 +2,32 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 
+/**
+ * Bootstrap do ambiente cliente para PWA/TWA.
+ *
+ * Responsabilidades principais:
+ * - expor o cliente Supabase para debug controlado no navegador;
+ * - remover service workers antigos que conflitam com o OneSignal;
+ * - inicializar o SDK web do OneSignal;
+ * - garantir existencia de `profiles`;
+ * - sincronizar `subscription_id` com o backend;
+ * - migrar filtros legados para `search_alerts` quando aplicavel.
+ *
+ * Este componente e critico para a entrega de push. Mudancas aqui devem
+ * preservar a ordem geral: auth -> profile -> OneSignal -> sync-subscription.
+ */
 export default function ServiceWorkerRegister() {
   const [canInstall, setCanInstall] = useState(false)
   const [promptEvent, setPromptEvent] = useState<any>(null)
 
+  /**
+   * Tenta resolver o `subscription_id` do OneSignal com retry e opt-in.
+   *
+   * O SDK pode demorar alguns ciclos para expor o identificador do device,
+   * especialmente em TWA, primeiro acesso ou depois de reinstalacao.
+   *
+   * @returns `subscription_id` quando disponivel; caso contrario, `null`.
+   */
   const getSubIdWithRetry = async (): Promise<string | null> => {
     try {
       const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
@@ -29,10 +51,12 @@ export default function ServiceWorkerRegister() {
     } catch { return null }
   }
 
+  // Disponibiliza o client no escopo global para diagnosticos manuais no browser.
   useEffect(() => {
     if (typeof window === 'undefined') return
     try { (window as any).__supabase = supabase } catch {}
   }, [])
+  // Remove service workers antigos para evitar conflito com o worker oficial do OneSignal.
   useEffect(() => {
     if (typeof window === 'undefined') return
     (async () => {
@@ -66,6 +90,7 @@ export default function ServiceWorkerRegister() {
       } catch {}
     })()
   }, [])
+  // Inicializa OneSignal e encadeia a sincronizacao de profile + subscription_id.
   useEffect(() => {
     if (typeof window === 'undefined') return
     const OneSignal = (window as any).OneSignal || []

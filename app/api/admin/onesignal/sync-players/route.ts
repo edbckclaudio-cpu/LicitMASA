@@ -1,6 +1,16 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
+/**
+ * Lista devices/players do OneSignal para reconciliacao com o Supabase.
+ *
+ * Essa rota atende cenarios de suporte em que o device existe no OneSignal,
+ * mas ainda nao foi refletido em `profiles.subscription_id`.
+ *
+ * @param pageSize Quantidade de players por pagina.
+ * @param page Pagina atual baseada em offset.
+ * @returns Lista bruta de players devolvida pela API legada do OneSignal.
+ */
 async function listPlayers(pageSize: number, page: number) {
   const appId = process.env.ONESIGNAL_APP_ID || process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || '43f9ce9c-8d86-4076-a8b6-30dac8429149'
   const apiKeyRaw = (process.env.ONESIGNAL_REST_API_KEY || process.env.ONESIGNAL_API_KEY || '').trim()
@@ -13,6 +23,25 @@ async function listPlayers(pageSize: number, page: number) {
   return { ok: res.ok, players, error: res.ok ? null : (json?.errors || 'ONESIGNAL_PLAYERS_ERROR') }
 }
 
+/**
+ * Sincroniza players do OneSignal com `profiles`.
+ *
+ * Estrategia:
+ * - pagina players do app no OneSignal;
+ * - usa `external_user_id` como e-mail para localizar profiles;
+ * - atualiza `subscription_id` quando o profile ja existe;
+ * - faz upsert se houver `auth.user` correspondente;
+ * - ignora entradas invalidas ou sem identidade confiavel.
+ *
+ * Parametros de operacao:
+ * - `admin` ou header `x-admin-token`
+ * - `pageSize`
+ * - `maxPages`
+ * - `dry` / `dryRun`
+ *
+ * @param req Requisicao autenticada de manutencao.
+ * @returns Resumo da reconciliacao com amostra das acoes executadas.
+ */
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url)

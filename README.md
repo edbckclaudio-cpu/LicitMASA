@@ -231,6 +231,28 @@ O projeto mistura App Router com paginas estaticas voltadas a descoberta organic
 - `public/robots.txt`: bloqueio de rotas privadas e referencia ao sitemap
 - `app/opengraph-image.png`: imagem OG automatica do site
 
+## Operacao e Suporte
+
+Os fluxos abaixo sustentam a operacao diaria do push, diagnostico e reconciliacao de dados:
+
+- `components/ServiceWorkerRegister.tsx`: inicializa OneSignal no cliente, garante `profiles` e sincroniza `subscription_id`
+- `app/api/profile/sync-subscription/route.ts`: persiste `subscription_id` do device autenticado
+- `app/api/admin/sync-onesignal/route.ts`: corrige manualmente o vinculo entre usuario e OneSignal
+- `app/api/admin/onesignal/sync-players/route.ts`: reconcilia players do OneSignal com `profiles`
+- `app/api/notifications/onesignal-test/route.ts`: dispara push de teste com payload direto
+- `app/api/notifications/test/route.ts`: rota de suporte com varios fallbacks para resolver destino
+- `app/api/diagnostics/supabase-role/route.ts`: confirma que o servidor consegue operar com service role
+- `app/api/diagnostics/env-billing/route.ts`: valida presenca do ambiente necessario para billing
+
+Sequencia operacional que deve ser preservada:
+
+1. autenticar usuario;
+2. garantir `profiles`;
+3. obter `subscription_id` no cliente;
+4. gravar esse ID no Supabase;
+5. usar o robo server-side para buscar oportunidades;
+6. entregar notificacoes evitando duplicidade com `sent_alerts`.
+
 ## Regras de Ouro para Builders
 
 1. Nao quebre autenticacao Supabase/Google sem plano de impacto.

@@ -1,6 +1,19 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
+/**
+ * Forca a sincronizacao administrativa de um `subscription_id` no profile.
+ *
+ * Uso principal:
+ * - suporte manual quando o bootstrap cliente nao conseguiu gravar o token;
+ * - correcoes operacionais para usuario identificado por `userId` ou `email`;
+ * - validacao de integridade do vinculo entre conta e OneSignal.
+ *
+ * Requer `x-admin-token`.
+ *
+ * @param req Requisicao com `userId` ou `email` e o `subscriptionId`.
+ * @returns Resultado da atualizacao e snapshot do profile apos a operacao.
+ */
 export async function POST(req: Request) {
   try {
     const adminToken = (req.headers.get('x-admin-token') || '').trim()

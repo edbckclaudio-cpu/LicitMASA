@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
+/**
+ * Cliente administrativo usado por rotas de teste e suporte operacional.
+ *
+ * @returns Cliente Supabase com service role ou null se o ambiente estiver incompleto.
+ */
 function admin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
@@ -9,6 +14,12 @@ function admin() {
   return createClient(url, key)
 }
 
+/**
+ * Envia uma notificacao de teste para um `subscription_id` especifico.
+ *
+ * @param subscriptionId Token/ID do device no OneSignal.
+ * @returns Resultado bruto do envio.
+ */
 async function sendOneSignal(subscriptionId: string) {
   const appId = '43f9ce9c-8d86-4076-a8b6-30dac8429149'
   const apiKeyRaw = (process.env.ONESIGNAL_REST_API_KEY || process.env.ONESIGNAL_API_KEY || '').trim()
@@ -47,6 +58,12 @@ async function sendOneSignal(subscriptionId: string) {
   return { ok: res.ok, status: res.status, data: parsed ?? (raw ? { raw } : null) }
 }
 
+/**
+ * Envia uma notificacao de teste para um `external_user_id`.
+ *
+ * @param externalId Identificador externo registrado no OneSignal.
+ * @returns Resultado bruto do envio.
+ */
 async function sendOneSignalByExternalId(externalId: string) {
   const appId = '43f9ce9c-8d86-4076-a8b6-30dac8429149'
   const apiKeyRaw = (process.env.ONESIGNAL_REST_API_KEY || process.env.ONESIGNAL_API_KEY || '').trim()
@@ -85,6 +102,13 @@ async function sendOneSignalByExternalId(externalId: string) {
   return { ok: res.ok, status: res.status, data: parsed ?? (raw ? { raw } : null) }
 }
 
+/**
+ * Resolve `subscription_id` a partir de e-mail ou `userId` no Supabase.
+ *
+ * @param email E-mail do usuario.
+ * @param userId ID interno do usuario.
+ * @returns Subscription encontrada ou null.
+ */
 async function resolveTokenByEmailOrUserId(email?: string, userId?: string): Promise<string | null> {
   const supa = admin()
   if (!supa) return null
@@ -109,6 +133,14 @@ async function resolveTokenByEmailOrUserId(email?: string, userId?: string): Pro
   return subId || null
 }
 
+/**
+ * Busca o profile atualizado mais recentemente com `subscription_id`.
+ *
+ * Serve como fallback operacional para testes em ambientes onde o operador
+ * nao conhece previamente o usuario alvo.
+ *
+ * @returns Subscription mais recente ou null.
+ */
 async function resolveLatestSubscribedToken(): Promise<string | null> {
   const supa = admin()
   if (!supa) return null
@@ -125,6 +157,13 @@ async function resolveLatestSubscribedToken(): Promise<string | null> {
   return null
 }
 
+/**
+ * Busca um player ativo diretamente na API do OneSignal.
+ *
+ * E o ultimo fallback quando o Supabase ainda nao reflete o subscription_id.
+ *
+ * @returns Player ID ativo ou null.
+ */
 async function fetchLatestSubscribedPlayerIdFromOneSignal(): Promise<string | null> {
   const appId = '43f9ce9c-8d86-4076-a8b6-30dac8429149'
   const apiKeyRaw = (process.env.ONESIGNAL_REST_API_KEY || process.env.ONESIGNAL_API_KEY || '').trim()
@@ -153,6 +192,11 @@ async function fetchLatestSubscribedPlayerIdFromOneSignal(): Promise<string | nu
   return null
 }
 
+/**
+ * Lista players ativos do OneSignal para inspecao manual.
+ *
+ * @returns Resumo da listagem com campos uteis para suporte.
+ */
 async function listPlayersFromOneSignal(): Promise<{ ok: boolean; total?: number; count?: number; players?: any[] }>{
   const appId = '43f9ce9c-8d86-4076-a8b6-30dac8429149'
   const apiKeyRaw = (process.env.ONESIGNAL_REST_API_KEY || process.env.ONESIGNAL_API_KEY || '').trim()
@@ -185,6 +229,22 @@ async function listPlayersFromOneSignal(): Promise<{ ok: boolean; total?: number
   }
 }
 
+/**
+ * Endpoint POST de suporte para disparo de push de teste.
+ *
+ * Ordem de resolucao do destino:
+ * - token direto;
+ * - subscriptionId/playerId;
+ * - externalId;
+ * - email/userId resolvidos no Supabase;
+ * - ultimo subscription_id conhecido;
+ * - ultimo player ativo do OneSignal.
+ *
+ * Requer `x-admin-token`.
+ *
+ * @param req Requisicao de suporte operacional.
+ * @returns Resultado do envio ou erro de resolucao.
+ */
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}))
@@ -223,6 +283,14 @@ export async function POST(req: Request) {
   }
 }
 
+/**
+ * Endpoint GET de suporte para listar players ou disparar push de teste.
+ *
+ * Requer `x-admin-token`.
+ *
+ * @param req Requisicao com parametros de listagem ou alvo de teste.
+ * @returns Lista de players ou resultado do envio.
+ */
 export async function GET(req: Request) {
   try {
     const u = new URL(req.url)
