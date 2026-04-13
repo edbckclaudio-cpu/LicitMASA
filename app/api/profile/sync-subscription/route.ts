@@ -1,6 +1,14 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
+/**
+ * Cria um cliente Supabase autenticado como o proprio usuario.
+ *
+ * Esse cliente e usado apenas para validar o bearer token recebido da sessao.
+ *
+ * @param accessToken JWT da sessao atual.
+ * @returns Cliente autenticado ou null se faltar configuracao.
+ */
 function userClient(accessToken: string | null) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
@@ -11,6 +19,11 @@ function userClient(accessToken: string | null) {
   } as any)
   return supa
 }
+/**
+ * Cria um cliente administrativo para gravar o subscription_id no profile.
+ *
+ * @returns Cliente com service role ou null se o ambiente estiver incompleto.
+ */
 function adminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || ''
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_API_KEY || ''
@@ -18,6 +31,16 @@ function adminClient() {
   return createClient(url, key)
 }
 
+/**
+ * Persiste o subscription_id do OneSignal no profile do usuario autenticado.
+ *
+ * Esse endpoint existe para evitar perda de vinculo entre conta, filtros e
+ * dispositivo de push. Sem essa sincronizacao, o robo encontra oportunidades
+ * mas nao sabe para qual subscription entregar a notificacao.
+ *
+ * @param req Requisicao autenticada com bearer token do usuario.
+ * @returns Profile atualizado com o subscription_id persistido.
+ */
 export async function POST(req: Request) {
   try {
     const auth = req.headers.get('authorization') || req.headers.get('Authorization') || ''

@@ -1,5 +1,11 @@
 import { NextResponse } from 'next/server'
 
+/**
+ * Formata uma data no padrao YYYYMMDD aceito pela busca publica do PNCP.
+ *
+ * @param date Data a ser serializada.
+ * @returns String no formato YYYYMMDD.
+ */
 function formatDateYYYYMMDD(date: Date) {
   const y = date.getFullYear()
   const m = String(date.getMonth() + 1).padStart(2, '0')
@@ -7,6 +13,16 @@ function formatDateYYYYMMDD(date: Date) {
   return `${y}${m}${d}`
 }
 
+/**
+ * Consulta a API oficial do PNCP para uma modalidade especifica.
+ *
+ * O proxy do LicitMASA varre varias modalidades em paralelo porque o endpoint
+ * do PNCP nem sempre entrega todos os resultados relevantes em uma unica busca.
+ *
+ * @param params Parametros recebidos da requisicao HTTP.
+ * @param code Codigo da modalidade a ser forçada na consulta.
+ * @returns Payload normalizado com itens, paginacao e status HTTP.
+ */
 async function fetchRemote(params: URLSearchParams, code?: number) {
   const base = 'https://pncp.gov.br/api/consulta/v1/contratacoes/publicacao'
   const url = new URL(base)
@@ -46,6 +62,18 @@ async function fetchRemote(params: URLSearchParams, code?: number) {
   }
 }
 
+/**
+ * Proxy interno de contratacoes publicadas no PNCP.
+ *
+ * Responsabilidades:
+ * - definir janela padrao de datas quando o cliente nao informa filtro;
+ * - consultar varias modalidades em paralelo;
+ * - aplicar filtro textual consolidado em objeto e orgao;
+ * - devolver um formato unico para o app e para os jobs internos.
+ *
+ * @param req Requisicao HTTP recebida pelo App Router.
+ * @returns JSON padronizado com itens e metadados de paginacao.
+ */
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url)

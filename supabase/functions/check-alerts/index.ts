@@ -1,6 +1,12 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
+/**
+ * Formata datas no padrao YYYYMMDD usado pela API de consulta do PNCP.
+ *
+ * @param d Data de referencia.
+ * @returns Data serializada no formato YYYYMMDD.
+ */
 function fmt(d: Date) {
   const y = d.getFullYear()
   const m = String(d.getMonth() + 1).padStart(2, "0")
@@ -8,6 +14,15 @@ function fmt(d: Date) {
   return `${y}${m}${dd}`
 }
 
+/**
+ * Busca publicacoes recentes no endpoint aberto do PNCP.
+ *
+ * Esta e a fonte primaria do robo. A Edge Function consulta o PNCP
+ * diretamente para reduzir latencia e nao depender do App Router.
+ *
+ * @param params Filtros consolidados por palavra-chave, UF e janela de datas.
+ * @returns Lista simples de itens retornados pelo PNCP.
+ */
 async function fetchPNCP(params: { termo?: string; uf?: string; dataInicial: string; dataFinal: string }) {
   const base = "https://pncp.gov.br/api/consulta/v1/contratacoes/publicacao"
   const url = new URL(base)
@@ -33,6 +48,17 @@ async function fetchPNCP(params: { termo?: string; uf?: string; dataInicial: str
   return []
 }
 
+/**
+ * Le o primeiro campo preenchido dentre varias opcoes de nomes.
+ *
+ * O PNCP muda nomenclaturas entre endpoints e este helper reduz duplicacao
+ * na hora de montar mensagens, links e descricoes.
+ *
+ * @param o Objeto de origem.
+ * @param keys Lista de chaves tentadas em ordem.
+ * @param fallback Valor padrao caso nenhuma chave exista.
+ * @returns Primeiro valor encontrado ou o fallback informado.
+ */
 function pick(o: any, keys: string[], fallback?: any) {
   for (const k of keys) {
     if (o && o[k] !== undefined && o[k] !== null) return o[k]
@@ -40,6 +66,12 @@ function pick(o: any, keys: string[], fallback?: any) {
   return fallback
 }
 
+/**
+ * Formata um valor monetario para exibicao em BRL.
+ *
+ * @param v Valor bruto retornado pelo PNCP.
+ * @returns Texto monetario amigavel para notificacoes e e-mails.
+ */
 function currencyBRL(v: any) {
   const n = Number(v || 0)
   try {
@@ -49,6 +81,17 @@ function currencyBRL(v: any) {
   }
 }
 
+/**
+ * Envia alerta por e-mail via Resend.
+ *
+ * Este canal e apenas fallback quando o push do OneSignal nao consegue
+ * entregar a notificacao.
+ *
+ * @param to Destinatario.
+ * @param subject Assunto do e-mail.
+ * @param html Corpo HTML do alerta.
+ * @returns Resultado simples com status de sucesso.
+ */
 async function sendEmail(to: string, subject: string, html: string) {
   const key = Deno.env.get("RESEND_API_KEY")
   if (!key) return { ok: false }
@@ -68,6 +111,12 @@ async function sendEmail(to: string, subject: string, html: string) {
   return { ok: res.ok }
 }
 
+/**
+ * Remove aspas e sujeira comum de chaves vindas de variaveis de ambiente.
+ *
+ * @param raw Valor cru da chave.
+ * @returns Chave saneada para uso em headers HTTP.
+ */
 function sanitizeKey(raw: string): string {
   let s = String(raw || "").trim()
   if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
@@ -75,6 +124,12 @@ function sanitizeKey(raw: string): string {
   }
   return s
 }
+/**
+ * Mascara segredos para logging seguro.
+ *
+ * @param raw Chave original.
+ * @returns Valor parcialmente oculto.
+ */
 function maskKey(raw: string): string {
   const s = String(raw || "")
   if (!s) return ""
@@ -82,6 +137,20 @@ function maskKey(raw: string): string {
   const end = s.slice(-4)
   return `${start}...${end}`
 }
+/**
+ * Envia push para um usuario especifico no OneSignal.
+ *
+ * Fluxo:
+ * - tenta resolver subscription_id salvo no profile do Supabase;
+ * - se o subscription_id estiver valido, envia diretamente para ele;
+ * - caso contrario, faz fallback para external_user_id.
+ *
+ * @param externalUserId ID externo do usuario ou e-mail usado no OneSignal.
+ * @param subject Titulo da notificacao.
+ * @param message Corpo da notificacao.
+ * @param url URL de destino opcional.
+ * @returns Diagnostico completo do envio.
+ */
 async function sendPush(externalUserId: string, subject: string, message: string, url?: string) {
   const appId = sanitizeKey(Deno.env.get("ONESIGNAL_APP_ID") || "")
   const restKey = sanitizeKey(Deno.env.get("ONESIGNAL_REST_API_KEY") || "")
@@ -162,6 +231,17 @@ async function sendPush(externalUserId: string, subject: string, message: string
   return { ok: res.ok, status: res.status, body: txt, json: js, masked_key_used: maskKey(keyUsed) }
 }
 
+/**
+ * Envia uma notificacao em lote para varias subscriptions do OneSignal.
+ *
+ * Este e o caminho preferencial do robo, porque reduz custo, chamadas HTTP e
+ * tempo total do ciclo diario quando varios usuarios compartilham o mesmo filtro.
+ *
+ * @param subject Titulo da notificacao.
+ * @param message Corpo da notificacao.
+ * @param subs Lista unica de subscription_ids.
+ * @returns Status HTTP e payload bruto do OneSignal.
+ */
 async function sendBatch(subject: string, message: string, subs: string[]) {
   const appId = sanitizeKey(Deno.env.get("ONESIGNAL_APP_ID") || "")
   const restKey = sanitizeKey(Deno.env.get("ONESIGNAL_REST_API_KEY") || "")
@@ -189,6 +269,12 @@ async function sendBatch(subject: string, message: string, subs: string[]) {
   return { ok: res.ok, status: res.status, body: txt, json: js }
 }
 
+/**
+ * Calcula quantos dias faltam para uma data.
+ *
+ * @param dateStr Data ISO ou compativel com Date.
+ * @returns Quantidade de dias restantes, arredondada para cima.
+ */
 function daysUntil(dateStr: string) {
   const d = new Date(dateStr)
   const today = new Date()
@@ -197,6 +283,23 @@ function daysUntil(dateStr: string) {
   return Math.ceil(ms / (24 * 60 * 60 * 1000))
 }
 
+/**
+ * Edge Function principal do robo de alertas do LicitMASA.
+ *
+ * Entradas principais:
+ * - modo normal: busca publicacoes do PNCP e dispara alertas;
+ * - preview=1: amplia a janela de observacao para diagnostico;
+ * - inspect=1 / runs=1 / test=1: rotas auxiliares de suporte operacional.
+ *
+ * Regras que futuros Builders devem preservar:
+ * - somente usuarios premium entram no fluxo principal de busca;
+ * - sent_alerts impede notificacao duplicada por usuario + publicacao;
+ * - alert_runs registra auditoria de cada execucao;
+ * - push em lote e preferido antes do fallback individual/e-mail.
+ *
+ * @param req Requisicao HTTP recebida pela Edge Function.
+ * @returns JSON com resultado operacional e diagnosticos.
+ */
 serve(async (req: Request) => {
   const url = Deno.env.get("SUPABASE_URL") || ""
   const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SERVICE_ROLE_KEY") || ""

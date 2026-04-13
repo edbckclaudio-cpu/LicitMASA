@@ -1,3 +1,9 @@
+/**
+ * Converte um objeto Date para o formato YYYYMMDD exigido pela API do PNCP.
+ *
+ * @param date Data de referencia.
+ * @returns Data serializada no formato YYYYMMDD.
+ */
 export function formatDateYYYYMMDD(date: Date) {
   const y = date.getFullYear()
   const m = String(date.getMonth() + 1).padStart(2, '0')
@@ -5,6 +11,12 @@ export function formatDateYYYYMMDD(date: Date) {
   return `${y}${m}${d}`
 }
 
+/**
+ * Parametros aceitos pelo proxy interno de contratacoes do PNCP.
+ *
+ * A maior parte dos filtros e reutilizada tanto na UI quanto nos cron jobs,
+ * entao esta tipagem funciona como contrato comum entre cliente e servidor.
+ */
 type Params = {
   termo?: string
   uf?: string
@@ -18,6 +30,15 @@ type Params = {
   tamanhoPagina?: number
 }
 
+/**
+ * Busca uma lista simples de contratacoes via proxy interno do Next.js.
+ *
+ * Esta funcao existe para manter a UI desacoplada dos detalhes do endpoint
+ * oficial do PNCP e centralizar o tratamento de variacoes de payload.
+ *
+ * @param params Filtros de pesquisa aplicados pelo usuario.
+ * @returns Lista plana de itens retornados pelo proxy.
+ */
 export async function fetchContratacoes(params: Params) {
   const api = new URL('/api/pncp/contratacoes', typeof window === 'undefined' ? 'http://localhost:3000' : window.location.origin)
   const q = api.searchParams
@@ -41,6 +62,9 @@ export async function fetchContratacoes(params: Params) {
   return items
 }
 
+/**
+ * Estrutura paginada padronizada usada pelo app para telas e jobs internos.
+ */
 export type Page<T> = {
   items: T[]
   totalPages: number
@@ -49,6 +73,15 @@ export type Page<T> = {
   size: number
 }
 
+/**
+ * Busca contratacoes preservando metadados de paginacao.
+ *
+ * O proxy interno consolida diferentes respostas do PNCP e sempre devolve
+ * um contrato previsivel para a interface e para as rotinas automatizadas.
+ *
+ * @param params Filtros e configuracoes de paginacao.
+ * @returns Resultado paginado normalizado.
+ */
 export async function fetchContratacoesPage<T = any>(params: Params): Promise<Page<T>> {
   const api = new URL('/api/pncp/contratacoes', typeof window === 'undefined' ? 'http://localhost:3000' : window.location.origin)
   const q = api.searchParams
@@ -76,6 +109,15 @@ export async function fetchContratacoesPage<T = any>(params: Params): Promise<Pa
   }
 }
 
+/**
+ * Monta a URL canonica de um edital no portal do PNCP a partir de um item.
+ *
+ * Quando a API nao devolve diretamente o link do edital, reconstruimos a rota
+ * usando CNPJ, ano e sequencial da compra para manter navegacao consistente.
+ *
+ * @param item Item bruto retornado pela API ou pelo proxy.
+ * @returns URL publica do edital no PNCP.
+ */
 export function buildEditalUrlFromItem(item: any): string {
   function getFieldLocal(o: any, keys: string[], fallback?: any) {
     for (const k of keys) {
@@ -107,6 +149,15 @@ export function buildEditalUrlFromItem(item: any): string {
     : fallback
 }
 
+/**
+ * Extrai metadados operacionais da pagina publica do edital.
+ *
+ * O "raio-x" e usado para enriquecer a leitura do usuario quando a API do
+ * PNCP nao entrega todos os campos de disputa, abertura ou encerramento.
+ *
+ * @param item Item retornado pelo PNCP.
+ * @returns Campos extraidos por scraping leve da pagina HTML do edital.
+ */
 export async function fetchRaioxInfo(item: any): Promise<{
   modoDisputa?: string,
   dataEncerramento?: string,

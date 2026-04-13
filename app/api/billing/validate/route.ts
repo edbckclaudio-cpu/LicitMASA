@@ -3,6 +3,12 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { google } from 'googleapis'
 
+/**
+ * Cliente administrativo usado para promover o usuario a premium apos a
+ * validacao bem-sucedida da assinatura na Google Play.
+ *
+ * @returns Cliente Supabase com service role ou null se faltar configuracao.
+ */
 function adminClient() {
   const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || ''
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_API_KEY || ''
@@ -10,6 +16,12 @@ function adminClient() {
   return createClient(url, key)
 }
 
+/**
+ * Monta um cliente OAuth2 legado para fallback de autenticacao no Android
+ * Publisher quando credenciais de service account nao estiverem disponiveis.
+ *
+ * @returns Cliente OAuth2 ou null.
+ */
 async function getOAuth2Client() {
   const clientId = (process.env.GOOGLE_CLIENT_ID || '').trim()
   const clientSecret = (process.env.GOOGLE_CLIENT_SECRET || '').trim()
@@ -20,6 +32,17 @@ async function getOAuth2Client() {
   return auth
 }
 
+/**
+ * Resolve a melhor credencial disponivel para consultar a Google Play.
+ *
+ * Ordem de preferencia:
+ * - GOOGLE_SERVICE_ACCOUNT_JSON
+ * - GOOGLE_APPLICATION_CREDENTIALS
+ * - GOOGLE_SERVICE_ACCOUNT_EMAIL + GOOGLE_SERVICE_ACCOUNT_KEY
+ * - fallback OAuth2
+ *
+ * @returns Cliente autenticado compativel com androidpublisher v3.
+ */
 async function getPlayAuth() {
   const saJson = (process.env.GOOGLE_SERVICE_ACCOUNT_JSON || '').trim()
   const saPath = (process.env.GOOGLE_APPLICATION_CREDENTIALS || '').trim()
@@ -64,6 +87,17 @@ async function getPlayAuth() {
   return null
 }
 
+/**
+ * Valida uma compra de assinatura recebida do app Android/TWA.
+ *
+ * Regras de negocio preservadas aqui:
+ * - consulta purchases.subscriptionsv2 para obter estado real da assinatura;
+ * - faz acknowledge quando necessario;
+ * - marca o profile como premium apenas se a assinatura estiver valida.
+ *
+ * @param req Requisicao contendo productId, purchaseToken e userId.
+ * @returns Resultado da validacao e payload devolvido pela Google Play.
+ */
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}))

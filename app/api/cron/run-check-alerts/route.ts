@@ -1,5 +1,11 @@
 import { NextResponse } from 'next/server'
 
+/**
+ * Resolve a URL publica da Edge Function check-alerts a partir do projeto
+ * Supabase configurado no ambiente do Next.js.
+ *
+ * @returns URL completa da Function ou null quando a configuracao falta.
+ */
 function getFunctionsUrl(): string | null {
   const base = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
   if (!base) return null
@@ -14,6 +20,17 @@ function getFunctionsUrl(): string | null {
   }
 }
 
+/**
+ * Ponte HTTP entre o App Router e a Edge Function do robo de alertas.
+ *
+ * Este endpoint existe para:
+ * - acionar o robo a partir de cron externo ou rotas de diagnostico;
+ * - encapsular o bearer token de service role;
+ * - notificar administradores quando uma execucao falha.
+ *
+ * @param req Requisicao recebida pelo Next.js.
+ * @returns Resposta consolidada da Edge Function com diagnosticos extras.
+ */
 export async function GET(req: Request) {
   try {
     const fn = getFunctionsUrl()
@@ -38,6 +55,14 @@ export async function GET(req: Request) {
       cache: 'no-store',
     })
     let data = await res.json().catch(() => ({} as any))
+    /**
+     * Notifica administradores quando ha falha no ciclo automatizado.
+     *
+     * @param subject Titulo do aviso operacional.
+     * @param message Mensagem com o erro resumido.
+     * @param externalIds Destinatarios configurados no OneSignal.
+     * @returns Resultado bruto do envio.
+     */
     async function sendAdminPush(subject: string, message: string, externalIds: string[]) {
       const appId = (process.env.ONESIGNAL_APP_ID || process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || '').replace(/^['"]|['"]$/g, '')
       const rawKey = (process.env.ONESIGNAL_REST_API_KEY || process.env.ONESIGNAL_API_KEY || '').replace(/^['"]|['"]$/g, '')
