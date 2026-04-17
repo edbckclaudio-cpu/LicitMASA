@@ -25,40 +25,94 @@
   <style>
     :root {
       --brand:#2563eb;
-      --text:#333;
-      --muted:#666;
+      --brand-dark:#1d4ed8;
+      --accent:#f59e0b; /* Amarelo alerta/oportunidade */
+      --text:#1f2937;
+      --muted:#6b7280;
       --bg:#ffffff;
       --card:#f8fafc;
+      --cta-bg:#eff6ff;
     }
     * { box-sizing: border-box; }
-    body { font-family: sans-serif; line-height: 1.6; color: var(--text); background: var(--bg); margin: 0; }
-    .container { max-width: 900px; margin: 0 auto; padding: 24px; }
-    header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: var(--text); background: var(--bg); margin: 0; }
+    .container { max-width: 800px; margin: 0 auto; padding: 24px; padding-bottom: 100px; }
+    header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px; border-bottom: 1px solid #f1f5f9; padding-bottom: 16px; }
     .brand { display: flex; align-items: center; gap: 12px; }
-    .brand img { width: 44px; height: 44px; border-radius: 8px; }
-    .brand h1 { font-size: 20px; margin: 0; color: var(--brand); }
-    .actions { display: flex; gap: 8px; }
-    .button { background: var(--brand); color: #fff; border: 0; border-radius: 6px; padding: 10px 14px; font-size: 14px; cursor: pointer; }
-    .button:hover { background: #1f55c7; }
-    .hero { padding: 18px; border: 1px solid #e5e7eb; border-radius: 10px; background: var(--card); margin-bottom: 16px; }
-    .hero h2 { font-size: 26px; margin: 0 0 6px 0; color: var(--brand); }
-    .hero p { margin: 0; color: var(--muted); }
-    h3 { border-bottom: 2px solid #eee; padding-bottom: 6px; margin-top: 26px; color: var(--brand); }
-    .section { margin-top: 16px; }
-    .item { margin-bottom: 14px; }
-    .item .title { font-weight: 600; }
-    .link { display: inline-block; margin-top: 6px; color: var(--brand); text-decoration: none; }
-    .link:hover { text-decoration: underline; }
-    .highlight { background: var(--card); border-left: 4px solid var(--brand); padding: 12px; margin: 16px 0; }
-    .small { font-size: 0.92em; }
-    .footer { margin-top: 40px; font-size: 0.9em; color: var(--muted); text-align: center; }
-    .disclaimer { font-size: 0.9em; color: var(--muted); }
+    .brand img { width: 48px; height: 48px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .brand h1 { font-size: 22px; margin: 0; color: var(--brand); letter-spacing: -0.5px; }
+    .actions .btn-print { background: #f1f5f9; color: var(--text); border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 16px; font-size: 14px; cursor: pointer; transition: 0.2s; }
+    .actions .btn-print:hover { background: #e2e8f0; }
+    
+    .hero { padding: 32px; border-radius: 16px; background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); margin-bottom: 32px; border: 1px solid #bfdbfe; }
+    .hero .tag { display: inline-block; background: var(--brand); color: white; font-size: 12px; font-weight: bold; padding: 4px 12px; border-radius: 20px; text-transform: uppercase; margin-bottom: 12px; }
+    .hero h2 { font-size: 28px; line-height: 1.2; margin: 0 0 12px 0; color: #1e3a8a; }
+    .hero p { margin: 0; color: #1e40af; font-size: 18px; opacity: 0.9; }
+
+    h3 { font-size: 20px; margin-top: 40px; color: var(--brand); display: flex; align-items: center; gap: 8px; }
+    h3::before { content: ''; width: 4px; height: 24px; background: var(--accent); border-radius: 4px; display: inline-block; }
+    
+    .item { background: var(--card); border: 1px solid #e2e8f0; padding: 20px; border-radius: 12px; margin-bottom: 16px; transition: 0.2s; }
+    .item:hover { border-color: var(--brand); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+    .item .title { font-weight: 700; font-size: 16px; color: #111827; display: block; margin-bottom: 4px; }
+    .link { display: inline-block; margin-top: 10px; color: var(--brand); text-decoration: none; font-family: monospace; font-size: 13px; word-break: break-all; background: #fff; padding: 8px; border-radius: 6px; border: 1px dashed #cbd5e1; }
+    
+    .highlight-box { background: #fff7ed; border: 1px solid #ffedd5; border-left: 5px solid var(--accent); padding: 20px; border-radius: 12px; margin: 24px 0; }
+    .highlight-box p { margin: 10px 0; font-size: 15px; }
+
+    /* O QUADRO MATADOR DE CONVERSÃO */
+    .conversion-card { 
+      background: #1e293b; 
+      color: #fff; 
+      padding: 40px; 
+      border-radius: 24px; 
+      text-align: center; 
+      margin: 60px 0;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+    }
+    .conversion-card h3 { color: #fff; justify-content: center; border: 0; margin-top: 0; font-size: 24px; }
+    .conversion-card h3::before { display: none; }
+    .conversion-card p { font-size: 18px; color: #cbd5e1; margin-bottom: 30px; }
+    .conversion-card .pain-point { color: #fda4af; font-weight: bold; margin-bottom: 20px; display: block; }
+    
+    .play-store-btn { display: inline-block; transition: transform 0.2s; }
+    .play-store-btn:hover { transform: scale(1.05); }
+    .play-store-btn img { height: 64px; }
+
+    .floating-cta {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 90%;
+      max-width: 400px;
+      background: var(--brand);
+      color: white;
+      padding: 16px;
+      border-radius: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      text-decoration: none;
+      font-weight: bold;
+      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3);
+      z-index: 1000;
+      animation: slideUp 0.5s ease-out;
+    }
+    @keyframes slideUp { from { bottom: -100px; } to { bottom: 24px; } }
+
+    .footer { margin-top: 60px; padding-top: 32px; border-top: 1px solid #eee; text-align: center; font-size: 14px; color: var(--muted); }
+    
+    @media (min-width: 768px) {
+      .floating-cta { display: none; } /* Esconde no desktop para não poluir */
+    }
+
     @media print {
-      .actions, .print-hidden { display: none !important; }
-      body { background: #fff; }
+      .actions, .floating-cta, .play-store-btn { display: none !important; }
+      .conversion-card { background: #eee; color: #000; border: 1px solid #ccc; }
       .container { padding: 0; }
-      .hero { border: 0; }
-      a.link { text-decoration: none; color: #000; }
     }
   </style>
 </head>
@@ -70,86 +124,81 @@
         <h1>LicitMASA</h1>
       </div>
       <div class="actions">
-        <button class="button" onclick="window.print()">Baixar em PDF</button>
+        <button class="btn-print" onclick="window.print()">Salvar PDF</button>
       </div>
     </header>
 
     <section class="hero">
-      <div class="small">Guia Rápido do Licitante</div>
-      <h2>Guia de Acesso ao Mercado Público para Micro e Pequenas Empresas</h2>
-      <p>Como vender para o governo do zero ao primeiro contrato com o LicitMASA.</p>
+      <span class="tag">Exclusivo MPE</span>
+      <h2>Pare de deixar dinheiro na mesa do Governo.</h2>
+      <p>O guia definitivo para você vencer sua primeira licitação usando a inteligência do LicitMASA.</p>
     </section>
 
-    <h3>CAPÍTULO 1: O Básico — Sua empresa está “Ficha Limpa”?</h3>
+    <h3>CAPÍTULO 1: Sua empresa está pronta para lucrar?</h3>
     <p>Antes de dar qualquer lance, o governo exige que você prove que sua empresa está regular. Quase tudo sai na hora e de graça.</p>
 
     <div class="section">
       <div class="item">
-        <div class="title">1. Certidão Conjunta Federal (Tributos e Dívida Ativa)</div>
-        <div>O que é: Prova que não deve impostos federais ou INSS.</div>
-        <div><strong>Link:</strong> Emitir Certidão Federal</div>
-        <a class="link" href="https://solucoes.receita.fazenda.gov.br/Servicos/certidaointernet/PJ/Emitir" target="_blank" rel="noopener noreferrer">https://solucoes.receita.fazenda.gov.br/Servicos/certidaointernet/PJ/Emitir</a>
+        <span class="title">1. Certidão Conjunta Federal</span>
+        <div>Essencial para provar que você não deve impostos federais ou INSS.</div>
+        <a class="link" href="https://solucoes.receita.fazenda.gov.br/Servicos/certidaointernet/PJ/Emitir" target="_blank" rel="noopener">https://solucoes.receita.fazenda.gov.br/Servicos/certidaointernet/PJ/Emitir</a>
       </div>
       <div class="item">
-        <div class="title">2. FGTS (Certificado de Regularidade — CRF)</div>
-        <div>O que é: Prova que os depósitos dos funcionários estão em dia.</div>
-        <div><strong>Link:</strong> Emitir CRF Caixa</div>
-        <a class="link" href="https://consulta-crf.caixa.gov.br/consultacrf/pages/consultaEmpregador.jsf" target="_blank" rel="noopener noreferrer">https://consulta-crf.caixa.gov.br/consultacrf/pages/consultaEmpregador.jsf</a>
+        <span class="title">2. FGTS (CRF Caixa)</span>
+        <div>Prova que os depósitos dos seus funcionários estão em dia.</div>
+        <a class="link" href="https://consulta-crf.caixa.gov.br/consultacrf/pages/consultaEmpregador.jsf" target="_blank" rel="noopener">https://consulta-crf.caixa.gov.br/consultacrf/pages/consultaEmpregador.jsf</a>
       </div>
       <div class="item">
-        <div class="title">3. CND Trabalhista (BNDT)</div>
-        <div>O que é: Prova que não tem dívidas na Justiça do Trabalho.</div>
-        <div><strong>Link:</strong> Emitir Certidão Trabalhista</div>
-        <a class="link" href="https://www.tst.jus.br/certidao" target="_blank" rel="noopener noreferrer">https://www.tst.jus.br/certidao</a>
+        <span class="title">3. CND Trabalhista (BNDT)</span>
+        <div>Garante que sua empresa não possui pendências na Justiça do Trabalho.</div>
+        <a class="link" href="https://www.tst.jus.br/certidao" target="_blank" rel="noopener">https://www.tst.jus.br/certidao</a>
       </div>
     </div>
 
-    <h3>CAPÍTULO 2: O Passaporte — Cadastro no SICAF (Grátis)</h3>
-    <p>O SICAF é o sistema unificado do Governo Federal. O cadastro é 100% digital e gratuito. Nunca pague taxas de “manutenção” para sites terceiros.</p>
-    <p><strong>Acesso:</strong> Entre no Portal Compras.gov.br com sua conta Gov.br (Prata ou Ouro) vinculada ao seu CNPJ.</p>
-    <p><strong>Passo 1 (Credenciamento):</strong> Preencha os dados da empresa e dos sócios.</p>
-    <p><strong>Dica LicitMASA:</strong> O sistema pedirá o upload do seu Contrato Social e documentos básicos. Uma vez aprovado, você já pode dar lances em todo o Brasil.</p>
-    <div><strong>Link:</strong> SICAF</div>
-    <a class="link" href="https://www.gov.br/compras/pt-br/sistemas/sicaf" target="_blank" rel="noopener noreferrer">https://www.gov.br/compras/pt-br/sistemas/sicaf</a>
-
-    <h3>CAPÍTULO 3: Vantagens da Lei 123/2006 (O Segredo das MPEs)</h3>
-    <p>A lei obriga o governo a comprar de pequenas empresas. Use isso a seu favor:</p>
-    <ul>
-      <li><strong>Exclusividade:</strong> Licitações de até R$ 80.000,00 são exclusivas para ME/EPP. Grandes empresas não entram.</li>
-      <li><strong>Preferência de Empate:</strong> Se o seu preço for até 10% maior que o de uma grande empresa, você tem o direito de dar um lance final menor e ganhar o contrato.</li>
-    </ul>
-
-    <h3>CAPÍTULO 4: Cuidado com as Armadilhas (O que o Edital não diz)</h3>
-    <div class="highlight">
-      <p>⚠️ <strong>Dispensa de Licitação (Ato de Ratificação):</strong> se você ler que uma dispensa foi “ratificada” e já tem o nome de uma empresa e o valor, isso é apenas uma publicação oficial de algo que já aconteceu. Não perca tempo tentando entrar.</p>
-      <p>🤡 <strong>Editais “Direcionados”:</strong> se o edital pede uma marca específica ou uma característica técnica que só um fabricante no mundo tem, desconfie. Isso pode ser “carta marcada”. No LicitMASA, foque em editais com descrições genéricas e claras.</p>
-      <p>💣 <strong>Preço “Exequível”:</strong> nunca dê um lance abaixo do seu custo. Se você ganhar e não entregar, o governo pode te multar em até 10% do valor total e suspender seu CNPJ por anos.</p>
+    <h3>CAPÍTULO 2: O Passaporte SICAF (100% Grátis)</h3>
+    <p>O SICAF é o sistema onde o governo "te enxerga". O cadastro é <strong>digital e gratuito</strong>. Se alguém te cobrou por isso, você foi enganado.</p>
+    <div class="item">
+      <p><strong>Dica de Ouro:</strong> Tenha em mãos seu Contrato Social e documentos dos sócios. Uma vez aprovado, o Brasil inteiro vira seu cliente.</p>
+      <a class="link" href="https://www.gov.br/compras/pt-br/sistemas/sicaf" target="_blank" rel="noopener">https://www.gov.br/compras/pt-br/sistemas/sicaf</a>
     </div>
 
-    <h3>Regras do Google para Conteúdo (Compliance)</h3>
+    <h3>CAPÍTULO 3: Por que as Pequenas Empresas ganham?</h3>
+    <p>A Lei 123/2006 é a sua maior aliada. Ela cria um "muro" que protege você dos gigantes:</p>
     <ul>
-      <li><strong>Transparência:</strong> não prometemos ganho garantido. A vitória depende da competitividade do usuário.</li>
-      <li><strong>Disclaimer de Órgão Público:</strong> o LicitMASA não representa o Governo Federal; apenas facilita o acesso aos dados públicos do PNCP.</li>
+      <li><strong>Exclusividade:</strong> Licitações de até R$ 80.000,00 são SÓ para você.</li>
+      <li><strong>Desempate:</strong> Se o seu preço for até 10% maior que o de uma multinacional, você tem a chance de baixar o preço e levar o contrato.</li>
     </ul>
 
-    <h3>CAPÍTULO 5: Instalar o LicitMASA</h3>
-    <p>Instale o aplicativo oficial para receber alertas em tempo real e acessar editais com filtros inteligentes.</p>
-    <ul>
-      <li><strong>Alertas inteligentes:</strong> receba notificações por palavra‑chave e UF, com envio em lote para máxima velocidade.</li>
-      <li><strong>Leve e seguro:</strong> app baseado em tecnologia web confiável (TWA) que abre diretamente em <strong>www.licitmasa.com.br</strong>.</li>
-      <li><strong>Links oficiais integrados:</strong> acesso rápido às certidões e ao SICAF.</li>
-    </ul>
-    <p>
-      <a class="button" href="https://play.google.com/store/apps/details?id=br.com.licitmasa" target="_blank" rel="noopener noreferrer">Instalar no Google Play</a>
-    </p>
+    <h3>CAPÍTULO 4: Cuidado com as Armadilhas</h3>
+    <div class="highlight-box">
+      <p>⚠️ <strong>"Carta Marcada":</strong> Editais com exigências absurdas (ex: marca específica) são suspeitos. Foque no que é claro e justo.</p>
+      <p>🤡 <strong>Licitações Ratificadas:</strong> Se já tem nome de empresa e valor no título, o contrato já foi assinado. Não perca seu tempo.</p>
+      <p>💣 <strong>Preço Suicida:</strong> Ganhar sem lucro é pior que perder. O governo pune quem não entrega.</p>
+    </div>
 
-    <p class="disclaimer">
-      Observação: Alguns portais oficiais podem exigir verificação de segurança (CAPTCHA) ou apresentar indisponibilidade temporária. Caso encontre barreiras, tente novamente mais tarde ou acesse por outro navegador/dispositivo.
-    </p>
+    <div class="conversion-card">
+      <span class="pain-point">Enquanto você lê este guia, 10 editais lucrativos acabaram de sair.</span>
+      <h3>Você vai continuar procurando agulha no palheiro?</h3>
+      <p>O LicitMASA monitora o PNCP 24h por dia e te avisa no celular quando uma obra ou serviço no seu nicho aparece. Não perca mais tempo em sites lentos.</p>
+      
+      <a class="play-store-btn" href="https://play.google.com/store/apps/details?id=br.com.licitmasa" target="_blank" rel="noopener">
+        <img src="https://play.google.com/intl/en_us/badges/static/images/badges/pt-br_badge_web_generic.png" alt="Disponível no Google Play">
+      </a>
+      
+      <p style="font-size: 14px; margin-top: 20px; opacity: 0.7;">
+        * O LicitMASA é uma ferramenta de inteligência e não representa órgãos governamentais.
+      </p>
+    </div>
 
     <div class="footer">
-      <p>&copy; 2026 LicitMASA — Todos os direitos reservados.</p>
+      <p><strong>LicitMASA</strong> — A tecnologia a favor do pequeno empreendedor.</p>
+      <p>&copy; 2026 — Todos os direitos reservados.</p>
     </div>
   </div>
+
+  <a href="https://play.google.com/store/apps/details?id=br.com.licitmasa" class="floating-cta" target="_blank" rel="noopener">
+    🚀 INSTALAR APP E VER EDITAIS AGORA
+  </a>
+
 </body>
 </html>
