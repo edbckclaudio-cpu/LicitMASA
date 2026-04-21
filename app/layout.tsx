@@ -1,8 +1,7 @@
 import './globals.css'
 import type { ReactNode } from 'react'
 import type { Metadata } from 'next'
-import Script from 'next/script'
-import ServiceWorkerRegister from '@/components/ServiceWorkerRegister'
+import AppShell from '@/components/AppShell'
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.licitmasa.com.br'
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -45,12 +44,9 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="pt-BR">
-      <body className="min-h-screen bg-[#A7E8BD] antialiased">
-        <Script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" strategy="beforeInteractive" />
-        <Script id="onesignal-app-id" strategy="beforeInteractive">{`window.ONESIGNAL_APP_ID='${process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || ''}'`}</Script>
-        <ServiceWorkerRegister />
-        {children}
+    <html lang="pt-BR" suppressHydrationWarning={true}>
+      <body className="min-h-screen bg-[#A7E8BD] antialiased" suppressHydrationWarning={true}>
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   )

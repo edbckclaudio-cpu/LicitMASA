@@ -1,6 +1,13 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
+
+const ONE_SIGNAL_APP_ID = '43f9ce9c-8d86-4076-a8b6-30dac8429149'
+
+type AuthUserLike = {
+  id: string
+  email?: string | null
+} | null
 
 /**
  * Bootstrap do ambiente cliente para PWA/TWA.
@@ -19,36 +26,191 @@ import { supabase } from '@/lib/supabaseClient'
 export default function ServiceWorkerRegister() {
   const [canInstall, setCanInstall] = useState(false)
   const [promptEvent, setPromptEvent] = useState<any>(null)
+  const oneSignalInited = useRef(false)
+  const oneSignalScriptPromise = useRef<Promise<any> | null>(null)
+  const syncInFlightRef = useRef(false)
+  const syncQueuedRef = useRef(false)
+
+  const hasSyncedThisSession = () => {
+    try {
+      if (typeof window === 'undefined') return false
+      return window.sessionStorage.getItem('on_signal_synced') === 'true'
+        || window.sessionStorage.getItem('synced_session') === 'true'
+    } catch {
+      return false
+    }
+  }
+
+  const markSyncedThisSession = () => {
+    try {
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem('on_signal_synced', 'true')
+        window.sessionStorage.removeItem('synced_session')
+      }
+    } catch {}
+  }
+
+  const clearSyncedThisSession = () => {
+    try {
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.removeItem('on_signal_synced')
+        window.sessionStorage.removeItem('synced_session')
+      }
+    } catch {}
+  }
 
   /**
-   * Tenta resolver o `subscription_id` do OneSignal com retry e opt-in.
+   * Tenta resolver o `subscription_id` do OneSignal com retry leve.
    *
-   * O SDK pode demorar alguns ciclos para expor o identificador do device,
-   * especialmente em TWA, primeiro acesso ou depois de reinstalacao.
-   *
-   * @returns `subscription_id` quando disponivel; caso contrario, `null`.
+   * Nao chama `optIn()` nem slidedown no startup para nao competir com a
+   * busca inicial e nao disparar "Already subscribed" / "dismissed".
    */
-  const getSubIdWithRetry = async (): Promise<string | null> => {
+  const getSubIdWithRetry = async (oneSignal: any): Promise<string | null> => {
     try {
-      const OneSignal = (typeof window !== 'undefined' ? (window as any).OneSignal : undefined)
-      let pid: string | null = null
-      const tryRead = async () => {
-        try {
-          const p1 = (OneSignal as any)?.User?.pushSubscriptionId
-          const p2 = OneSignal?.User?.PushSubscription?.id
-          const p3 = await OneSignal?.getSubscriptionId?.()
-          pid = String(p1 || p2 || p3 || '') || null
-        } catch {}
-        return pid
-      }
-      for (let i = 0; i < 10; i++) {
-        const got = await tryRead()
+      for (let i = 0; i < 4; i++) {
+        const p1 = oneSignal?.User?.pushSubscriptionId
+        const p2 = oneSignal?.User?.PushSubscription?.id
+        const p3 = await oneSignal?.getSubscriptionId?.()
+        const got = String(p1 || p2 || p3 || '') || null
         if (got) return got
-        try { await OneSignal?.User?.pushSubscription?.optIn?.() } catch {}
-        await new Promise((r) => setTimeout(r, 800))
+        await new Promise((r) => setTimeout(r, 1000))
       }
-      return pid
-    } catch { return null }
+      return null
+    } catch {
+      return null
+    }
+  }
+
+  /**
+   * Carrega o SDK web do OneSignal apenas no cliente e somente uma vez.
+   *
+   * Isso evita que o script participe da fase de hidratacao do React e reduz
+   * a chance de o SDK tocar em DOM/SW antes de o app concluir o primeiro paint.
+   */
+  const loadOneSignalSdk = async (): Promise<any> => {
+    if (typeof window === 'undefined') return null
+    const current = (window as any).OneSignal
+    if (current && typeof current.init === 'function') return current
+    if (oneSignalScriptPromise.current) return oneSignalScriptPromise.current
+
+    oneSignalScriptPromise.current = new Promise((resolve, reject) => {
+      try {
+        const existing = document.querySelector('script[data-onesignal-sdk="true"]') as HTMLScriptElement | null
+        if (existing) {
+          existing.addEventListener('load', () => resolve((window as any).OneSignal || []), { once: true })
+          existing.addEventListener('error', () => reject(new Error('ONESIGNAL_SCRIPT_LOAD_FAILED')), { once: true })
+          return
+        }
+
+        const script = document.createElement('script')
+        script.src = 'https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js'
+        script.async = true
+        script.defer = true
+        script.setAttribute('data-onesignal-sdk', 'true')
+        script.onload = () => resolve((window as any).OneSignal || [])
+        script.onerror = () => reject(new Error('ONESIGNAL_SCRIPT_LOAD_FAILED'))
+        document.body.appendChild(script)
+      } catch (err) {
+        reject(err)
+      }
+    })
+
+    return oneSignalScriptPromise.current
+  }
+
+  const ensureProfile = async (user: AuthUserLike) => {
+    try {
+      if (!supabase || !user?.id) return
+      try {
+        await supabase.from('profiles').upsert({
+          id: user.id,
+          // @ts-ignore
+          email: user.email || null,
+        }, { onConflict: 'id' })
+      } catch {}
+      try {
+        const { data } = await supabase.from('profiles').select('id').eq('id', user.id).maybeSingle()
+        if (!data?.id && user.email) {
+          await fetch('/api/profile/merge', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-admin-token': 'DEV' },
+            body: JSON.stringify({ userId: user.id, email: user.email })
+          }).catch(() => {})
+        }
+      } catch {}
+    } catch {}
+  }
+
+  const migrateAlertsToTable = async (userId: string) => {
+    try {
+      if (!supabase || !userId) return
+      // evitar 404: tabela user_alerts não disponível neste projeto
+      const prefs = { data: null } as any
+      const keywords: string[] = Array.isArray(prefs.data?.keywords)
+        ? prefs.data.keywords.filter((x: any) => typeof x === 'string' && x.trim()).map((s: string) => s.trim())
+        : []
+      if (!keywords.length) return
+      const existing = await supabase.from('search_alerts').select('keyword').eq('user_id', userId).eq('active', true)
+      const have = new Set<string>((existing.data || []).map((r: any) => String(r.keyword || '').trim().toLowerCase()).filter(Boolean))
+      const missing = keywords.filter((k) => !have.has(String(k).toLowerCase()))
+      if (!missing.length) return
+      const rows = missing.map((k) => ({ user_id: userId, keyword: k, active: true }))
+      try { await supabase.from('search_alerts').insert(rows) } catch {}
+    } catch {}
+  }
+
+  const syncUserState = async (oneSignal: any, userArg?: AuthUserLike) => {
+    if (!supabase || !oneSignal) return
+    if (syncInFlightRef.current) {
+      syncQueuedRef.current = true
+      return
+    }
+
+    syncInFlightRef.current = true
+    try {
+      const resolvedUser = userArg || (await supabase.auth.getUser())?.data?.user || null
+      const user = resolvedUser ? { id: resolvedUser.id, email: resolvedUser.email || null } : null
+      if (!user?.id) return
+
+      if (hasSyncedThisSession()) {
+        await migrateAlertsToTable(user.id)
+        return
+      }
+
+      await ensureProfile(user)
+
+      const ext = (user.email || user.id) as string
+      try { oneSignal.login?.(ext) } catch {}
+
+      const pid = await getSubIdWithRetry(oneSignal)
+      if (pid) {
+        try {
+          const sess = await supabase.auth.getSession()
+          const jwt = String(sess?.data?.session?.access_token || '')
+          if (jwt) {
+            const r = await fetch('/api/profile/sync-subscription', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${jwt}` },
+              body: JSON.stringify({ subscriptionId: String(pid) })
+            })
+            if (r.ok) markSyncedThisSession()
+          }
+        } catch {}
+      } else {
+        markSyncedThisSession()
+      }
+
+      await migrateAlertsToTable(user.id)
+    } finally {
+      syncInFlightRef.current = false
+      if (syncQueuedRef.current) {
+        syncQueuedRef.current = false
+        window.setTimeout(() => {
+          const current = (window as any).OneSignal
+          void syncUserState(current)
+        }, 0)
+      }
+    }
   }
 
   // Disponibiliza o client no escopo global para diagnosticos manuais no browser.
@@ -56,10 +218,11 @@ export default function ServiceWorkerRegister() {
     if (typeof window === 'undefined') return
     try { (window as any).__supabase = supabase } catch {}
   }, [])
+
   // Remove service workers antigos para evitar conflito com o worker oficial do OneSignal.
   useEffect(() => {
     if (typeof window === 'undefined') return
-    (async () => {
+    ;(async () => {
       try {
         const purgeKey = 'sw_purged_v1'
         const already = typeof localStorage !== 'undefined' ? localStorage.getItem(purgeKey) : '0'
@@ -80,7 +243,9 @@ export default function ServiceWorkerRegister() {
             try {
               if (window.caches) {
                 const names = await caches.keys().catch(() => [])
-                for (const n of names || []) { try { await caches.delete(n) } catch {} }
+                for (const n of names || []) {
+                  try { await caches.delete(n) } catch {}
+                }
               }
             } catch {}
             try { localStorage.setItem(purgeKey, '1') } catch {}
@@ -90,367 +255,89 @@ export default function ServiceWorkerRegister() {
       } catch {}
     })()
   }, [])
-  // Inicializa OneSignal e encadeia a sincronizacao de profile + subscription_id.
+
+  // Inicializa o OneSignal depois do primeiro paint e sincroniza o estado do usuario sem duplicidade.
   useEffect(() => {
     if (typeof window === 'undefined') return
-    const OneSignal = (window as any).OneSignal || []
-    ;(window as any).OneSignal = OneSignal
-    if ((window as any).OneSignalInitialized) return
-    OneSignal.push(async function() {
-      try {
-        try { console.log('1. Iniciando OneSignal...') } catch {}
-        const APP_ID = '43f9ce9c-8d86-4076-a8b6-30dac8429149'
-        try { console.log('2. App ID usado:', APP_ID) } catch {}
-        await OneSignal.init({
-          appId: APP_ID,
-          allowLocalhostAsSecureOrigin: true,
-          serviceWorkerPath: '/OneSignalSDKWorker.js',
-          serviceWorkerUpdaterPath: '/OneSignalSDKUpdaterWorker.js'
-        })
+    if (oneSignalInited.current) return
+
+    let subscriptionChangeHandler: (() => void) | null = null
+
+    const timer = window.setTimeout(() => {
+      if (oneSignalInited.current) return
+      oneSignalInited.current = true
+
+      ;(async () => {
         try {
-          const ud = await supabase?.auth.getUser()
-          const uid = ud?.data?.user?.id
-          const uemail = ud?.data?.user?.email || null
-          try {
-            const hasClient = !!supabase
-            console.log('Auto-Sync status:', { hasClient, uid, uemail })
-          } catch {}
-          const getSubIdWithRetry = async (): Promise<string | null> => {
-            try {
-              let pid: string | null = null
-              const tryRead = async () => {
-                try {
-                  const p1 = (OneSignal as any)?.User?.pushSubscriptionId
-                  const p2 = OneSignal?.User?.PushSubscription?.id
-                  const p3 = await OneSignal?.getSubscriptionId?.()
-                  pid = String(p1 || p2 || p3 || '') || null
-                } catch {}
-                return pid
-              }
-              for (let i = 0; i < 10; i++) {
-                const got = await tryRead()
-                if (got) return got
-                try { await OneSignal?.User?.pushSubscription?.optIn?.() } catch {}
-                await new Promise((r) => setTimeout(r, 800))
-              }
-              return pid
-            } catch { return null }
-          }
-          const ensureProfile = async () => {
-            try {
-              if (supabase && uid) {
-                try { await supabase.from('profiles').upsert({ id: uid, // @ts-ignore
-                  email: uemail || null }, { onConflict: 'id' }) } catch {}
-                try {
-                  const { data } = await supabase.from('profiles').select('id').eq('id', uid).maybeSingle()
-                  if (!data?.id && uemail) {
-                    await fetch('/api/profile/merge', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json', 'x-admin-token': 'DEV' },
-                      body: JSON.stringify({ userId: uid, email: uemail })
-                    }).catch(() => {})
-                  }
-                } catch {}
-              }
-            } catch {}
-          }
-          const migrateAlertsToTable = async () => {
-            try {
-              if (!supabase || !uid) return
-                // evitar 404: tabela user_alerts não disponível neste projeto
-                const prefs = { data: null } as any
-              const keywords: string[] = Array.isArray(prefs.data?.keywords) ? prefs.data!.keywords.filter((x: any) => typeof x === 'string' && x.trim()).map((s: string) => s.trim()) : []
-              if (!keywords.length) return
-              const existing = await supabase.from('search_alerts').select('keyword').eq('user_id', uid).eq('active', true)
-              const have = new Set<string>((existing.data || []).map((r: any) => String(r.keyword || '').trim().toLowerCase()).filter(Boolean))
-              const missing = keywords.filter((k) => !have.has(String(k).toLowerCase()))
-              if (!missing.length) return
-              const rows = missing.map((k) => ({ user_id: uid, keyword: k, active: true }))
-              try { await supabase.from('search_alerts').insert(rows) } catch {}
-            } catch {}
-          }
-          const sync = async () => {
-            try {
-              await ensureProfile()
-              let pid: string | null = null
-              try {
-                const p1 = (OneSignal as any)?.User?.pushSubscriptionId
-                const p2 = OneSignal?.User?.PushSubscription?.id
-                const p3 = await OneSignal?.getSubscriptionId?.()
-                pid = String(p1 || p2 || p3 || '') || null
-              } catch {}
-              if (!pid) {
-                pid = await getSubIdWithRetry()
-              }
-              if (uid && pid) {
-                try {
-                  const sess = await supabase!.auth.getSession()
-                  const jwt = String(sess?.data?.session?.access_token || '')
-                  if (jwt) {
-                    const r = await fetch('/api/profile/sync-subscription', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${jwt}` },
-                      body: JSON.stringify({ subscriptionId: String(pid) })
-                    })
-                    if (!r.ok) {
-                      try { console.error('sync-subscription failed status:', r.status) } catch {}
-                    }
-                  }
-                } catch {}
-                try { 
-                  // intentionally no-op: fcm_token column may not exist; rely on profiles subscription_id/onesignal_id
-                } catch {}
-                try { console.log('OneSignal ID sincronizado:', pid) } catch {}
-              }
-              await migrateAlertsToTable()
-            } catch {}
-          }
-          try { await sync() } catch {}
-          try {
-            OneSignal?.User?.addEventListener?.('subscriptionChange', () => {
-              try { sync() } catch {}
-              try {
-                if (uid) {
-                  try { OneSignal.login?.(uid) } catch {}
-                }
-              } catch {}
+          const oneSignal = await loadOneSignalSdk().catch((err) => {
+            try { console.error('Erro ao carregar SDK do OneSignal:', err) } catch {}
+            return null
+          })
+          if (!oneSignal) return
+
+          ;(window as any).OneSignal = oneSignal
+
+          if (!(window as any).OneSignalInitialized) {
+            await oneSignal.init({
+              appId: ONE_SIGNAL_APP_ID,
+              autoResubscribe: false,
+              allowLocalhostAsSecureOrigin: true,
+              promptOptions: { slidedown: { autoPrompt: false } },
+              serviceWorkerParam: { scope: '/' },
+              serviceWorkerPath: '/OneSignalSDKWorker.js',
+              serviceWorkerUpdaterPath: '/OneSignalSDKUpdaterWorker.js'
             })
-          } catch {}
-        } catch {}
-        try {
-          const hasNotif = !!(OneSignal && (OneSignal as any).Notifications)
-          if (!hasNotif) {
-            ;(OneSignal as any).Notifications = {}
-            try {
-              if (!((OneSignal as any).Notifications as any).on) {
-                ;((OneSignal as any).Notifications as any).on = function() {}
-              }
-            } catch {}
+            try { (window as any).OneSignalInitialized = true } catch {}
           }
-        } catch {}
-        try {
-          if ('serviceWorker' in navigator) {
-            const regs = await navigator.serviceWorker.getRegistrations().catch(() => [])
-            const found = Array.isArray(regs) && regs.some((r: any) => {
-              const s1 = (r.active && (r.active as any).scriptURL) || ''
-              const s2 = (r.installing && (r.installing as any).scriptURL) || ''
-              const s3 = (r.waiting && (r.waiting as any).scriptURL) || ''
-              return [s1, s2, s3].some((u) => typeof u === 'string' && /OneSignalSDKWorker\.js/i.test(u))
-            })
-            if (!found) {
-              try { console.log('Tentando registrar SW em /OneSignalSDKWorker.js') } catch {}
-              await navigator.serviceWorker.register('/OneSignalSDKWorker.js').catch(() => {})
-            }
+
+          await syncUserState(oneSignal)
+
+          subscriptionChangeHandler = () => {
+            void syncUserState(oneSignal)
           }
-        } catch {}
-        try { (window as any).OneSignalInitialized = true } catch {}
-        try { OneSignal?.Debug?.setLogLevel?.('trace') } catch {}
-        try {
-          const pid = (OneSignal as any)?.User?.pushSubscriptionId || await OneSignal?.getSubscriptionId?.()
-          if (pid) { try { console.log('OneSignal SubscriptionId:', String(pid)) } catch {} }
-        } catch {}
-        try { OneSignal?.Slidedown?.promptPush?.() } catch {}
-        try { OneSignal?.Notifications?.requestPermission?.() } catch {}
-      } catch (e: any) {
-        try { console.log('INIT OneSignal falhou:', e?.message || e) } catch {}
-        try { ;(window as any).__ONE_SIGNAL_INIT_ERROR = e?.message || 'INIT_FAILED' } catch {}
-      }
-    })
-    supabase?.auth.getUser().then((ud) => {
-      const user = ud?.data?.user
-      try { console.log('3. Utilizador Supabase:', user?.id || null) } catch {}
-      if (user?.id) {
-        // Garantir criação do profile imediatamente, independente do OneSignal
-        (async () => {
-          try {
-            try {
-              const u1 = await supabase!.from('profiles').upsert({ id: user.id, // @ts-ignore
-                email: user.email || null }, { onConflict: 'id' })
-              if ((u1 as any)?.error) { try { console.error('[EnsureProfile:init] upsert error:', (u1 as any).error) } catch {} }
-            } catch (e:any) { try { console.error('[EnsureProfile:init] upsert throw:', e?.message || e) } catch {} }
-            try {
-              const { data } = await supabase!.from('profiles').select('id').eq('id', user.id).maybeSingle()
-              if (!data?.id && user.email) {
-                try {
-                  const r = await fetch('/api/profile/merge', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'x-admin-token': 'DEV' },
-                    body: JSON.stringify({ userId: user.id, email: user.email })
-                  })
-                  try { console.log('[EnsureProfile:init] merge status:', r.status) } catch {}
-                } catch (e:any) { try { console.error('[EnsureProfile:init] merge throw:', e?.message || e) } catch {} }
-              }
-            } catch (e:any) { try { console.error('[EnsureProfile:init] select throw:', e?.message || e) } catch {} }
-          } catch {}
-        })();
-        OneSignal.push(function() {
-          const ext = user.email || user.id
-          try { OneSignal.login?.(ext); try { console.log('4. OneSignal.login executado:', ext) } catch {} } catch (e: any) { try { console.log('4. OneSignal.login falhou:', e?.message || e) } catch {} }
-          
-          try {
-            const sync = async () => {
-              try {
-                try {
-                  if (supabase) {
-                    try { await supabase.from('profiles').upsert({ id: user.id, // @ts-ignore
-                      email: user.email || null }, { onConflict: 'id' }) } catch {}
-                    try {
-                      const { data } = await supabase.from('profiles').select('id').eq('id', user.id).maybeSingle()
-                      if (!data?.id && user.email) {
-                        await fetch('/api/profile/merge', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json', 'x-admin-token': 'DEV' },
-                          body: JSON.stringify({ userId: user.id, email: user.email })
-                        }).catch(() => {})
-                      }
-                    } catch {}
-                  }
-                } catch {}
-                let pid: string | null = null
-                try {
-                  const p1 = (OneSignal as any)?.User?.pushSubscriptionId
-                  const p2 = OneSignal?.User?.PushSubscription?.id
-                  const p3 = await OneSignal?.getSubscriptionId?.()
-                  pid = String(p1 || p2 || p3 || '') || null
-                } catch {}
-                if (!pid) {
-                  pid = await getSubIdWithRetry()
-                }
-                if (pid) {
-                  try {
-                    const sess = await supabase!.auth.getSession()
-                    const jwt = String(sess?.data?.session?.access_token || '')
-                    if (jwt) {
-                      await fetch('/api/profile/sync-subscription', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${jwt}` },
-                        body: JSON.stringify({ subscriptionId: String(pid) })
-                      }).catch(() => {})
-                    }
-                  } catch {}
-                }
-                try {
-                  if (supabase) {
-                  // evitar 404: tabela user_alerts não disponível neste projeto
-                  const prefs = { data: null } as any
-                    const keywords: string[] = Array.isArray(prefs.data?.keywords) ? prefs.data!.keywords.filter((x: any) => typeof x === 'string' && x.trim()).map((s: string) => s.trim()) : []
-                    if (keywords.length) {
-                      const existing = await supabase.from('search_alerts').select('keyword').eq('user_id', user.id).eq('active', true)
-                      const have = new Set<string>((existing.data || []).map((r: any) => String(r.keyword || '').trim().toLowerCase()).filter(Boolean))
-                      const missing = keywords.filter((k) => !have.has(String(k).toLowerCase()))
-                      if (missing.length) {
-                        const rows = missing.map((k) => ({ user_id: user.id, keyword: k, active: true }))
-                        try { await supabase.from('search_alerts').insert(rows) } catch {}
-                      }
-                    }
-                  }
-                } catch {}
-              } catch {}
-            }
-            try { sync() } catch {}
-          } catch {}
-        })
-      }
-    })
-    supabase?.auth.onAuthStateChange((_ev, session) => {
-      const uid = session?.user?.id
-      OneSignal.push(function() {
-        if (uid) {
-          // Garantir criação do profile no evento de autenticação, antes do OneSignal
-          (async () => {
-            try {
-              const email = session?.user?.email || null
-              try {
-                const u1 = await supabase!.from('profiles').upsert({ id: uid, // @ts-ignore
-                  email: email || null }, { onConflict: 'id' })
-                if ((u1 as any)?.error) { try { console.error('[EnsureProfile:auth] upsert error:', (u1 as any).error) } catch {} }
-              } catch (e:any) { try { console.error('[EnsureProfile:auth] upsert throw:', e?.message || e) } catch {} }
-              try {
-                const { data } = await supabase!.from('profiles').select('id').eq('id', uid).maybeSingle()
-                if (!data?.id && email) {
-                  try {
-                    const r = await fetch('/api/profile/merge', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json', 'x-admin-token': 'DEV' },
-                      body: JSON.stringify({ userId: uid, email })
-                    })
-                    try { console.log('[EnsureProfile:auth] merge status:', r.status) } catch {}
-                  } catch (e:any) { try { console.error('[EnsureProfile:auth] merge throw:', e?.message || e) } catch {} }
-                }
-              } catch (e:any) { try { console.error('[EnsureProfile:auth] select throw:', e?.message || e) } catch {} }
-            } catch {}
-          })();
-          const ext = (session?.user?.email || uid) as string
-          try { OneSignal.login?.(ext); try { console.log('6. onAuthChange login OK:', ext) } catch {} } catch (e: any) { try { console.log('6. onAuthChange login falhou:', e?.message || e) } catch {} }
-          
-          try {
-            const sync = async () => {
-              try {
-                try {
-                  const email = session?.user?.email || null
-                  if (supabase) {
-                    try { await supabase.from('profiles').upsert({ id: uid, // @ts-ignore
-                      email: email || null }, { onConflict: 'id' }) } catch {}
-                    try {
-                      const { data } = await supabase.from('profiles').select('id').eq('id', uid).maybeSingle()
-                      if (!data?.id && email) {
-                        await fetch('/api/profile/merge', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json', 'x-admin-token': 'DEV' },
-                          body: JSON.stringify({ userId: uid, email })
-                        }).catch(() => {})
-                      }
-                    } catch {}
-                  }
-                } catch {}
-                let pid: string | null = null
-                try {
-                  const p1 = (OneSignal as any)?.User?.pushSubscriptionId
-                  const p2 = OneSignal?.User?.PushSubscription?.id
-                  const p3 = await OneSignal?.getSubscriptionId?.()
-                  pid = String(p1 || p2 || p3 || '') || null
-                } catch {}
-                if (!pid) {
-                  pid = await getSubIdWithRetry()
-                }
-                if (pid) {
-                  try {
-                    const sess = await supabase!.auth.getSession()
-                    const jwt = String(sess?.data?.session?.access_token || '')
-                    if (jwt) {
-                      await fetch('/api/profile/sync-subscription', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${jwt}` },
-                        body: JSON.stringify({ subscriptionId: String(pid) })
-                      }).catch(() => {})
-                    }
-                  } catch {}
-                }
-                try {
-                  if (supabase) {
-                  // evitar 404: tabela user_alerts não disponível neste projeto
-                  const prefs = { data: null } as any
-                    const keywords: string[] = Array.isArray(prefs.data?.keywords) ? prefs.data!.keywords.filter((x: any) => typeof x === 'string' && x.trim()).map((s: string) => s.trim()) : []
-                    if (keywords.length) {
-                      const existing = await supabase.from('search_alerts').select('keyword').eq('user_id', uid).eq('active', true)
-                      const have = new Set<string>((existing.data || []).map((r: any) => String(r.keyword || '').trim().toLowerCase()).filter(Boolean))
-                      const missing = keywords.filter((k) => !have.has(String(k).toLowerCase()))
-                      if (missing.length) {
-                        const rows = missing.map((k) => ({ user_id: uid, keyword: k, active: true }))
-                        try { await supabase.from('search_alerts').insert(rows) } catch {}
-                      }
-                    }
-                  }
-                } catch {}
-              } catch {}
-            }
-            try { sync() } catch {}
-          } catch {}
-        } else {
-          try { OneSignal.logout?.() } catch {}
+          try { oneSignal?.User?.addEventListener?.('subscriptionChange', subscriptionChangeHandler) } catch {}
+        } catch (err: any) {
+          try { ;(window as any).__ONE_SIGNAL_INIT_ERROR = err?.message || 'INIT_FAILED' } catch {}
+          try { console.error('Erro silencioso OneSignal:', err) } catch {}
         }
-      })
+      })()
+    }, 10000)
+
+    const authSubscription = supabase?.auth.onAuthStateChange((event, session) => {
+      const user = session?.user ? { id: session.user.id, email: session.user.email || null } : null
+      if (!user?.id) {
+        try { ((window as any).OneSignal || {}).logout?.() } catch {}
+        clearSyncedThisSession()
+        return
+      }
+
+      const authEvent = String(event || '').toLowerCase()
+      if (authEvent === 'signed_in') {
+        clearSyncedThisSession()
+      }
+
+      if (hasSyncedThisSession()) return
+
+      void ensureProfile(user)
+
+      window.setTimeout(() => {
+        const currentOneSignal = (window as any).OneSignal
+        if (currentOneSignal && typeof currentOneSignal.init === 'function') {
+          void syncUserState(currentOneSignal, user)
+        }
+      }, 300)
     })
+
+    return () => {
+      window.clearTimeout(timer)
+      try {
+        const currentOneSignal = (window as any).OneSignal
+        if (subscriptionChangeHandler && currentOneSignal?.User?.removeEventListener) {
+          currentOneSignal.User.removeEventListener('subscriptionChange', subscriptionChangeHandler)
+        }
+      } catch {}
+      authSubscription?.data?.subscription?.unsubscribe?.()
+    }
   }, [])
 
   useEffect(() => {

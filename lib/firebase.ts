@@ -17,6 +17,27 @@ function init() {
 
 export async function requestAndSaveToken(): Promise<string | null> {
   try {
+    // O app usa OneSignal como canal principal de push. Evitamos registrar
+    // um segundo service worker do Firebase quando o OneSignal já está ativo,
+    // pois isso causa conflito de workers e reinstalações repetidas.
+    if (typeof window !== 'undefined') {
+      try {
+        const hasOneSignalSdk = !!(window as any).OneSignal
+        if (hasOneSignalSdk) return null
+      } catch {}
+      try {
+        if ('serviceWorker' in navigator) {
+          const regs = await navigator.serviceWorker.getRegistrations().catch(() => [])
+          const hasOneSignalWorker = Array.isArray(regs) && regs.some((r: any) => {
+            const s1 = (r.active && (r.active as any).scriptURL) || ''
+            const s2 = (r.installing && (r.installing as any).scriptURL) || ''
+            const s3 = (r.waiting && (r.waiting as any).scriptURL) || ''
+            return [s1, s2, s3].some((u) => typeof u === 'string' && /OneSignalSDKWorker\.js/i.test(u))
+          })
+          if (hasOneSignalWorker) return null
+        }
+      } catch {}
+    }
     const perm = await Notification.requestPermission()
     if (perm !== 'granted') return null
     const supported = await isSupported()
