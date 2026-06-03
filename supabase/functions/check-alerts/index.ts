@@ -67,6 +67,20 @@ function pick(o: any, keys: string[], fallback?: any) {
 }
 
 /**
+ * Normaliza textos vindos do PNCP antes de qualquer tratamento adicional.
+ *
+ * Alguns editais chegam com campos nulos, indefinidos ou em tipos inesperados.
+ * Esta guarda impede que rotinas de formatação quebrem ao assumir string.
+ *
+ * @param text Valor bruto vindo do payload.
+ * @returns Texto seguro para uso nas demais rotinas.
+ */
+function formatText(text: unknown): string {
+  if (!text || typeof text !== "string") return ""
+  return text
+}
+
+/**
  * Formata um valor monetario para exibicao em BRL.
  *
  * @param v Valor bruto retornado pelo PNCP.
@@ -588,7 +602,7 @@ serve(async (req: Request) => {
     const fields = ["objeto","descricao","resumo","texto","orgao","orgaoPublico","nomeUnidadeAdministrativa","uasgNome","entidade"]
     const arr: string[] = []
     for (const f of fields) {
-      const v = (it && (it[f] || (it?.[f] && String(it[f])))) ? String(it[f]) : ""
+      const v = formatText(it?.[f])
       if (v) arr.push(v)
     }
     return arr.join(" ").toLowerCase()
@@ -743,12 +757,12 @@ serve(async (req: Request) => {
     } catch {}
     const subject = `Novas publicações: ${alert.keyword}${alert.uf ? ` • ${alert.uf}` : ""}`
     const listHtml = newItems.slice(0, 10).map((it: any) => {
-      const modalidade = String(pick(it, ["modalidade","modalidadeContratacao","modalidadeCompra","descricaoModalidade"], "Modalidade"))
-      const orgao = String(pick(it, ["orgao","orgaoPublico","nomeUnidadeAdministrativa","uasgNome","entidade"], "Órgão"))
-      const objeto = String(pick(it, ["objeto","descricao","resumo","texto"], "Objeto"))
+      const modalidade = formatText(pick(it, ["modalidade","modalidadeContratacao","modalidadeCompra","descricaoModalidade"], "")) || "Modalidade"
+      const orgao = formatText(pick(it, ["orgao","orgaoPublico","nomeUnidadeAdministrativa","uasgNome","entidade"], "")) || "Órgão"
+      const objeto = formatText(pick(it, ["objeto","descricao","resumo","texto"], "")) || "Objeto"
       const valor = currencyBRL(pick(it, ["valorEstimado","valorTotalEstimado","valor","valorContratacao"], 0))
-      const dataPub = String(pick(it, ["dataPublicacao","dataInclusao","data"], "")).slice(0, 10)
-      const edital = String(pick(it, ["linkEdital","url","link"], ""))
+      const dataPub = formatText(pick(it, ["dataPublicacao","dataInclusao","data"], "")).slice(0, 10)
+      const edital = formatText(pick(it, ["linkEdital","url","link"], ""))
       const link = edital || `https://pncp.gov.br/`
       return `
           <li style="margin-bottom:12px">
