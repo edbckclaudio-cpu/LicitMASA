@@ -6,7 +6,6 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { fetchContratacoesPage } from '@/lib/pncp'
 import { supabase } from '@/lib/supabaseClient'
 import { SidebarAlerts } from '@/components/premium/SidebarAlerts'
 import { BottomNavigation } from '@/components/ui/bottom-navigation'
@@ -71,6 +70,61 @@ function formatDateISO(date: Date) {
   const m = String(date.getMonth() + 1).padStart(2, '0')
   const d = String(date.getDate()).padStart(2, '0')
   return `${y}-${m}-${d}`
+}
+
+async function fetchContratacoesPageFromProxy<T = any>(params: {
+  termo?: string
+  uf?: string
+  codigoModalidadeContratacao?: number
+  codigoMunicipioIbge?: number
+  cnpj?: string
+  codigoUnidadeAdministrativa?: number
+  dataInicial?: string
+  dataFinal?: string
+  pagina?: number
+  tamanhoPagina?: number
+}): Promise<{
+  items: T[]
+  totalPages: number
+  totalElements: number
+  number: number
+  size: number
+}> {
+  const query = new URLSearchParams()
+  if (params.dataInicial) query.set('dataInicial', params.dataInicial)
+  if (params.dataFinal) query.set('dataFinal', params.dataFinal)
+  if (params.uf) query.set('uf', params.uf)
+  if (params.termo) query.set('termo', params.termo)
+  if (params.codigoModalidadeContratacao !== undefined) query.set('codigoModalidadeContratacao', String(params.codigoModalidadeContratacao))
+  if (params.codigoMunicipioIbge !== undefined) query.set('codigoMunicipioIbge', String(params.codigoMunicipioIbge))
+  if (params.cnpj) query.set('cnpj', params.cnpj)
+  if (params.codigoUnidadeAdministrativa !== undefined) query.set('codigoUnidadeAdministrativa', String(params.codigoUnidadeAdministrativa))
+  query.set('pagina', String(params.pagina ?? 1))
+  query.set('tamanhoPagina', String(params.tamanhoPagina ?? 10))
+
+  const res = await fetch(`/api/pncp/contratacoes?${query.toString()}`, {
+    headers: { accept: 'application/json' },
+    cache: 'no-store',
+  })
+
+  if (!res.ok) {
+    return {
+      items: [],
+      totalPages: 1,
+      totalElements: 0,
+      number: Number(params.pagina ?? 1),
+      size: Number(params.tamanhoPagina ?? 10),
+    }
+  }
+
+  const json = await res.json().catch(() => null as any)
+  return {
+    items: Array.isArray(json?.items) ? json.items : [],
+    totalPages: Number(json?.totalPages ?? 1),
+    totalElements: Number(json?.totalElements ?? 0),
+    number: Number(json?.number ?? params.pagina ?? 1),
+    size: Number(json?.size ?? params.tamanhoPagina ?? 10),
+  }
 }
 
 function limparPrefixos(texto: any): string {
@@ -502,7 +556,7 @@ export default function HomePage() {
     setLoading(true)
     setError(null)
     try {
-      const page = await fetchContratacoesPage({
+      const page = await fetchContratacoesPageFromProxy({
         dataInicial: inicio,
         dataFinal: hoje,
         pagina,
@@ -543,7 +597,7 @@ export default function HomePage() {
     setLoading(true)
     setError(null)
     try {
-      const page = await fetchContratacoesPage({
+      const page = await fetchContratacoesPageFromProxy({
         dataInicial: inicio,
         dataFinal: hoje,
         termo: termo || undefined,

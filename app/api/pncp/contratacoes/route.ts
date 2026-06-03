@@ -16,6 +16,21 @@ function formatDateISO(date: Date) {
 }
 
 /**
+ * Converte uma data ISO para o formato yyyyMMdd exigido pela API do PNCP.
+ *
+ * @param value Data no formato YYYY-MM-DD.
+ * @returns Data no formato yyyyMMdd.
+ */
+function formatDatePNCP(value: string) {
+  const raw = String(value || '').trim()
+  const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (iso) {
+    return `${iso[1]}${iso[2]}${iso[3]}`
+  }
+  return raw
+}
+
+/**
  * Normaliza datas recebidas da UI ou de chamadas antigas.
  *
  * Aceita tanto YYYYMMDD quanto YYYY-MM-DD e devolve sempre YYYY-MM-DD para
@@ -133,6 +148,10 @@ export async function GET(req: Request) {
     } else {
       searchParams.set('dataFinal', formatDateISO(new Date()))
     }
+
+    // O cliente pode trabalhar com YYYY-MM-DD, mas o PNCP oficial ainda exige yyyyMMdd.
+    searchParams.set('dataInicial', formatDatePNCP(searchParams.get('dataInicial') || ''))
+    searchParams.set('dataFinal', formatDatePNCP(searchParams.get('dataFinal') || ''))
 
     const pagina = Number(searchParams.get('pagina') ?? 1)
     const tamanhoPagina = Number(searchParams.get('tamanhoPagina') ?? 10)
