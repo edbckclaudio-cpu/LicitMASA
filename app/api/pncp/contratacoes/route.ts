@@ -3,16 +3,37 @@ import { NextResponse } from 'next/server'
 const PNCP_TIMEOUT_MS = 12000
 
 /**
- * Formata uma data no padrao YYYYMMDD aceito pela busca publica do PNCP.
+ * Formata uma data no padrao YYYY-MM-DD usado pelo proxy interno.
  *
  * @param date Data a ser serializada.
- * @returns String no formato YYYYMMDD.
+ * @returns String no formato YYYY-MM-DD.
  */
-function formatDateYYYYMMDD(date: Date) {
+function formatDateISO(date: Date) {
   const y = date.getFullYear()
   const m = String(date.getMonth() + 1).padStart(2, '0')
   const d = String(date.getDate()).padStart(2, '0')
-  return `${y}${m}${d}`
+  return `${y}-${m}-${d}`
+}
+
+/**
+ * Normaliza datas recebidas da UI ou de chamadas antigas.
+ *
+ * Aceita tanto YYYYMMDD quanto YYYY-MM-DD e devolve sempre YYYY-MM-DD para
+ * evitar falhas do parser em integracoes externas.
+ *
+ * @param value Data bruta recebida por query string.
+ * @returns Data normalizada ou string vazia quando ausente.
+ */
+function normalizeDateParam(value: string | null) {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+  if (/^\d{8}$/.test(raw)) {
+    return `${raw.substring(0, 4)}-${raw.substring(4, 6)}-${raw.substring(6, 8)}`
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    return raw
+  }
+  return raw
 }
 
 /**
@@ -97,13 +118,22 @@ async function fetchRemote(params: URLSearchParams, code?: number) {
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url)
-    if (!searchParams.get('dataInicial')) {
+    const normalizedDataInicial = normalizeDateParam(searchParams.get('dataInicial'))
+    const normalizedDataFinal = normalizeDateParam(searchParams.get('dataFinal'))
+
+    if (normalizedDataInicial) {
+      searchParams.set('dataInicial', normalizedDataInicial)
+    } else {
       const d = new Date()
-      searchParams.set('dataInicial', formatDateYYYYMMDD(new Date(d.getTime() - 2 * 24 * 60 * 60 * 1000)))
+      searchParams.set('dataInicial', formatDateISO(new Date(d.getTime() - 2 * 24 * 60 * 60 * 1000)))
     }
-    if (!searchParams.get('dataFinal')) {
-      searchParams.set('dataFinal', formatDateYYYYMMDD(new Date()))
+
+    if (normalizedDataFinal) {
+      searchParams.set('dataFinal', normalizedDataFinal)
+    } else {
+      searchParams.set('dataFinal', formatDateISO(new Date()))
     }
+
     const pagina = Number(searchParams.get('pagina') ?? 1)
     const tamanhoPagina = Number(searchParams.get('tamanhoPagina') ?? 10)
     const codeParam = searchParams.get('codigoModalidadeContratacao')

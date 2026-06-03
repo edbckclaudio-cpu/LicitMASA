@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { fetchContratacoesPage, formatDateYYYYMMDD } from '@/lib/pncp'
+import { fetchContratacoesPage } from '@/lib/pncp'
 import { supabase } from '@/lib/supabaseClient'
 import { SidebarAlerts } from '@/components/premium/SidebarAlerts'
 import { BottomNavigation } from '@/components/ui/bottom-navigation'
@@ -64,6 +64,13 @@ function truncate(s: any, max: number = 150): string {
 function sanitizeText(s: any): string {
   const t = asText(s) || ''
   return t.replace(/[\u0000-\u001F\u007F]/g, '').replace(/\s+/g, ' ').trim()
+}
+
+function formatDateISO(date: Date) {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
 }
 
 function limparPrefixos(texto: any): string {
@@ -157,11 +164,11 @@ export default function HomePage() {
   const initialResultsSettledRef = useRef(false)
   const deferredPlanSyncInFlightRef = useRef(false)
 
-  const hoje = useMemo(() => formatDateYYYYMMDD(new Date()), [])
+  const hoje = useMemo(() => formatDateISO(new Date()), [])
   const inicio = useMemo(() => {
     const days = somenteHoje ? 0 : 2
     const d = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
-    return formatDateYYYYMMDD(d)
+    return formatDateISO(d)
   }, [somenteHoje])
   useEffect(() => {
     setMounted(true)
@@ -443,6 +450,10 @@ export default function HomePage() {
   }
   function formatYYYYMMDDToBR(s: string): string {
     const t = String(s || '').trim()
+    const iso = t.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+    if (iso) {
+      return `${iso[3]}/${iso[2]}/${iso[1]}`
+    }
     if (!/^\d{8}$/.test(t)) return t
     const dd = t.slice(6, 8)
     const mm = t.slice(4, 6)
@@ -1006,7 +1017,7 @@ export default function HomePage() {
 
           {!loading && !error && resultados.length === 0 && (
             <div className="rounded-lg border bg-white p-12 text-center text-sm text-gray-600">
-              Nenhum resultado encontrado
+              Nenhuma licitação encontrada para esta data
             </div>
           )}
 
