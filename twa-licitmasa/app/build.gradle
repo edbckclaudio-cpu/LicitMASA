@@ -57,8 +57,8 @@ android {
         applicationId "br.com.licitmasa"
         minSdkVersion 23
         targetSdkVersion 35
-        versionCode 88
-        versionName "88"
+        versionCode 89
+        versionName "89"
 
         // The name for the application
         resValue "string", "appName", twaManifest.name
